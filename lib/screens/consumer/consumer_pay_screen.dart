@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/theme.dart';
+import '../../core/bolt11.dart';
+import '../../core/lnurl.dart';
 import '../../services/wallet_service.dart';
 import 'package:provider/provider.dart';
 import '../../services/exchange_rate_service.dart';
@@ -21,6 +23,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
   final MobileScannerController _scannerController = MobileScannerController();
   bool _isNfcAvailable = false;
   bool _hasScanned = false;
+  bool _isResolving = false;
 
   @override
   void initState() {
@@ -46,21 +49,114 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
     super.dispose();
   }
 
-  void _handlePay() {
-    if (_invoiceCtrl.text.isEmpty) return;
-    
-    final isSatsMode = context.read<ExchangeRateService>().isSatsDisplay;
-    // Simulate parsing the invoice or Liquid address
-    // We'll mock a 10.000 sats payment or equivalent DEPIX to "Satoshi Nakamoto" as the HTML did
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PayConfirmScreen(
-          satsAmount: 10000,
-          destination: isSatsMode ? 'Lightning Node (Satoshi Nakamoto)' : 'Liquid Address (Satoshi Nakamoto)',
-        ),
-      ),
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: IrisTheme.danger),
     );
+  }
+
+  String _sanitize(String raw) {
+    var s = raw.trim();
+    final lower = s.toLowerCase();
+    if (lower.startsWith('lightning:')) s = s.substring(10);
+    return s.trim();
+  }
+
+  bool _looksLikeLiquid(String input) {
+    final s = input.toLowerCase();
+    if (s.startsWith('liquid:') || s.startsWith('liquidtestnet:')) return true;
+    // Prefixos de endereços Liquid (mainnet e testnet, confidenciais ou não)
+    return s.startsWith('lq1') ||
+        s.startsWith('tlq1') ||
+        s.startsWith('vjl') ||
+        s.startsWith('tex1') ||
+        s.startsWith('ex1');
+  }
+
+  String _extractLiquidAddress(String input) {
+    var s = input;
+    final lower = s.toLowerCase();
+    if (lower.startsWith('liquid:')) s = s.substring(7);
+    if (lower.startsWith('liquidtestnet:')) s = s.substring(14);
+    final qIdx = s.indexOf('?');
+    if (qIdx != -1) s = s.substring(0, qIdx);
+    return s;
+  }
+
+  /// Interpreta o conteúdo (QR, colagem ou NFC) e roteia para o fluxo real:
+  /// fatura BOLT11 -> LDK | LNURL/Lightning Address -> LUD-06 | Liquid -> LWK.
+  Future<void> _handlePay() async {
+    if (_isResolving) return;
+    final input = _sanitize(_invoiceCtrl.text);
+    if (input.isEmpty) return;
+
+    setState(() => _isResolving = true);
+    try {
+      if (Bolt11.looksLikeInvoice(input)) {
+        final parsed = Bolt11.decode(input);
+        if (!parsed.isTestnet) {
+          _showError('Fatura da mainnet detectada — este protótipo opera apenas na testnet.');
+          return;
+        }
+        if (parsed.isExpired) {
+          _showError('Esta fatura já expirou. Peça uma nova cobrança.');
+          return;
+        }
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PayConfirmScreen(
+              satsAmount: parsed.amountSats ?? 0,
+              destination: parsed.description.isNotEmpty
+                  ? parsed.description
+                  : 'Fatura Lightning',
+              rawInvoice: input,
+              editableAmount: parsed.amountSats == null,
+            ),
+          ),
+        );
+      } else if (Lnurl.looksLikeLnurl(input)) {
+        final params = await Lnurl.fetchPayParams(input);
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PayConfirmScreen(
+              satsAmount: params.minSendableSats,
+              destination: params.description,
+              lnurlParams: params,
+              editableAmount: !params.isFixedAmount,
+            ),
+          ),
+        );
+      } else if (_looksLikeLiquid(input)) {
+        final address = _extractLiquidAddress(input);
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PayConfirmScreen(
+              satsAmount: 0,
+              destination: 'Endereço Liquid',
+              liquidAddress: address,
+              editableAmount: true,
+            ),
+          ),
+        );
+      } else {
+        _showError('Código não reconhecido. Use fatura Lightning, LNURL ou endereço Liquid.');
+      }
+    } on Bolt11ParseException catch (e) {
+      _showError('Fatura inválida: ${e.message}');
+    } on LnurlException catch (e) {
+      _showError('LNURL: ${e.message}');
+    } catch (e) {
+      _showError('Erro ao processar: $e');
+    } finally {
+      if (mounted) setState(() => _isResolving = false);
+    }
   }
 
   @override
@@ -114,7 +210,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
                               _invoiceCtrl.text = barcodes.first.rawValue!;
                             });
                             _handlePay();
-                            
+
                             // Reset scan state after a delay
                             Future.delayed(const Duration(seconds: 3), () {
                               if (mounted) _hasScanned = false;
@@ -138,14 +234,16 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Paste Input
             TextField(
               controller: _invoiceCtrl,
               decoration: InputDecoration(
-                hintText: isSatsMode ? 'Colar fatura Lightning' : 'Colar endereço Liquid',
+                hintText: isSatsMode
+                    ? 'Fatura Lightning, LNURL ou endereço'
+                    : 'Colar endereço Liquid',
                 hintStyle: const TextStyle(color: IrisTheme.textTertiary),
                 filled: true,
                 fillColor: IrisTheme.s1,
@@ -170,9 +268,9 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // NFC Toggle
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -232,18 +330,24 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _handlePay,
+                onPressed: _isResolving ? null : _handlePay,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
-                child: const Text('Confirmar e Pagar'),
+                child: _isResolving
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                      )
+                    : const Text('Confirmar e Pagar'),
               ),
             ),
           ],

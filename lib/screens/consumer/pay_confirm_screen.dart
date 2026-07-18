@@ -1,20 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../core/currency_format.dart';
+import '../../core/bolt11.dart';
+import '../../core/lnurl.dart';
 import '../../services/wallet_service.dart';
+import '../../services/liquid_wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
 import 'consumer_pay_success_screen.dart';
 import '../pin_screen.dart';
 
+/// Confirmação de pagamento real (testnet):
+/// - BOLT11: pago via nó LDK local
+/// - LNURL: busca a fatura final no callback e paga via LDK
+/// - Liquid: envia L-BTC assinado localmente via LWK
 class PayConfirmScreen extends StatefulWidget {
   final int satsAmount;
   final String destination;
-  
+  final String? rawInvoice;
+  final LnurlPayParams? lnurlParams;
+  final String? liquidAddress;
+  final bool editableAmount;
+
   const PayConfirmScreen({
     super.key,
     required this.satsAmount,
     required this.destination,
+    this.rawInvoice,
+    this.lnurlParams,
+    this.liquidAddress,
+    this.editableAmount = false,
   });
 
   @override
@@ -22,7 +38,111 @@ class PayConfirmScreen extends StatefulWidget {
 }
 
 class _PayConfirmScreenState extends State<PayConfirmScreen> {
+  late final TextEditingController _amountCtrl;
+  late int _satsAmount;
+
+  bool get _isLiquid => widget.liquidAddress != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _satsAmount = widget.satsAmount;
+    _amountCtrl = TextEditingController(
+        text: _satsAmount > 0 ? _satsAmount.toString() : '');
+  }
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: IrisTheme.danger),
+    );
+  }
+
+  Future<void> _executePayment() async {
+    final wallet = context.read<WalletService>();
+    final liquid = context.read<LiquidWalletService>();
+
+    if (widget.editableAmount) {
+      _satsAmount = int.tryParse(_amountCtrl.text.replaceAll('.', '')) ?? 0;
+    }
+    if (_satsAmount <= 0) {
+      _showError('Informe um valor em sats.');
+      return;
+    }
+
+    final params = widget.lnurlParams;
+    if (params != null &&
+        (_satsAmount < params.minSendableSats || _satsAmount > params.maxSendableSats)) {
+      _showError(
+          'Valor deve estar entre ${params.minSendableSats} e ${params.maxSendableSats} sats.');
+      return;
+    }
+
+    if (!_isLiquid && wallet.consumerBalance < _satsAmount) {
+      _showError('Saldo Lightning insuficiente!');
+      return;
+    }
+    if (_isLiquid && liquid.balanceSats < _satsAmount) {
+      _showError('Saldo L-BTC insuficiente!');
+      return;
+    }
+
+    // Loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) =>
+          const Center(child: CircularProgressIndicator(color: IrisTheme.primary)),
+    );
+
+    try {
+      if (_isLiquid) {
+        await liquid.sendLbtc(toAddress: widget.liquidAddress!, sats: _satsAmount);
+      } else if (params != null) {
+        final invoice = await Lnurl.requestInvoice(params, _satsAmount * 1000);
+        final parsed = Bolt11.decode(invoice);
+        if (parsed.amountSats != null && parsed.amountSats != _satsAmount) {
+          throw Exception(
+              'Servidor LNURL retornou fatura com valor divergente (${parsed.amountSats} sats).');
+        }
+        await context.read<WalletService>().payLightningInvoice(invoice);
+      } else {
+        await wallet.payLightningInvoice(
+          widget.rawInvoice!,
+          amountSatsOverride: widget.editableAmount ? _satsAmount : null,
+        );
+      }
+
+      if (mounted) {
+        Navigator.pop(context); // fecha loading
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ConsumerPaySuccessScreen()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // fecha loading
+        _showError('Falha no pagamento: $e');
+      }
+    }
+  }
+
   void _confirmWithPin() {
+    if (widget.editableAmount) {
+      final v = int.tryParse(_amountCtrl.text.replaceAll('.', '')) ?? 0;
+      if (v <= 0) {
+        _showError('Informe um valor em sats antes de confirmar.');
+        return;
+      }
+      _satsAmount = v;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -30,36 +150,7 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
           mode: PinMode.unlock,
           onSuccess: () async {
             Navigator.pop(context); // pop PIN
-            
-            // Process payment
-            final wallet = context.read<WalletService>();
-            
-            // Check balance
-            if (wallet.consumerBalance < widget.satsAmount) {
-               ScaffoldMessenger.of(context).showSnackBar(
-                 const SnackBar(content: Text('Saldo insuficiente!'), backgroundColor: IrisTheme.danger),
-               );
-               return;
-            }
-
-            // Show loading overlay
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => const Center(child: CircularProgressIndicator(color: IrisTheme.primary)),
-            );
-            
-            await wallet.payInvoice(widget.destination, widget.satsAmount);
-            if (context.mounted) {
-              Navigator.pop(context); // pop loading
-              
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ConsumerPaySuccessScreen(),
-                ),
-              );
-            }
+            await _executePayment();
           },
         ),
       ),
@@ -69,6 +160,8 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
   @override
   Widget build(BuildContext context) {
     final exchangeRate = context.watch<ExchangeRateService>();
+    final networkLabel = _isLiquid ? 'Liquid (testnet)' : 'Lightning (testnet)';
+
     return Scaffold(
       backgroundColor: IrisTheme.bg,
       appBar: AppBar(
@@ -103,18 +196,38 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                   children: [
                     const Text('Valor', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
                     const SizedBox(height: 4),
-                    Text(
-                      '${CurrencyFormatter.formatSats(widget.satsAmount)} sats',
-                      style: const TextStyle(
-                        fontFamily: 'JetBrains Mono',
-                        fontSize: 38,
-                        fontWeight: FontWeight.w600,
-                        color: IrisTheme.textPrimary,
-                        height: 1.1,
+                    if (widget.editableAmount)
+                      TextField(
+                        controller: _amountCtrl,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontFamily: 'JetBrains Mono',
+                          fontSize: 32,
+                          fontWeight: FontWeight.w600,
+                          color: IrisTheme.textPrimary,
+                        ),
+                        decoration: const InputDecoration(
+                          hintText: '0',
+                          suffixText: 'sats',
+                          border: InputBorder.none,
+                        ),
+                        onChanged: (_) => setState(() {}),
+                      )
+                    else
+                      Text(
+                        '${CurrencyFormatter.formatSats(_satsAmount)} sats',
+                        style: const TextStyle(
+                          fontFamily: 'JetBrains Mono',
+                          fontSize: 38,
+                          fontWeight: FontWeight.w600,
+                          color: IrisTheme.textPrimary,
+                          height: 1.1,
+                        ),
                       ),
-                    ),
                     Text(
-                      '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(widget.satsAmount))}',
+                      '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(widget.editableAmount ? (int.tryParse(_amountCtrl.text) ?? 0) : _satsAmount))}',
                       style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 12, color: IrisTheme.primary),
                     ),
                     const SizedBox(height: 12),
@@ -122,9 +235,15 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                     const SizedBox(height: 12),
                     _buildRow('Para', widget.destination, isBold: true),
                     const SizedBox(height: 8),
-                    _buildRow('Taxa', '0 sats (grátis)', valueColor: IrisTheme.success, isBold: true),
+                    _buildRow('Rede', networkLabel),
                     const SizedBox(height: 8),
-                    _buildRow('Confirmação', 'menos de 2 segundos'),
+                    if (widget.lnurlParams != null) ...[
+                      _buildRow('Limites',
+                          '${widget.lnurlParams!.minSendableSats} – ${widget.lnurlParams!.maxSendableSats} sats'),
+                      const SizedBox(height: 8),
+                    ],
+                    _buildRow('Taxa estimada', _isLiquid ? '~0,1 sat/vB' : 'roteamento LN',
+                        valueColor: IrisTheme.success, isBold: true),
                   ],
                 ),
               ),
@@ -167,7 +286,13 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(fontSize: 12, color: IrisTheme.textSecondary)),
-        Text(value, style: TextStyle(fontSize: 12, color: valueColor, fontWeight: isBold ? FontWeight.w600 : FontWeight.normal)),
+        Flexible(
+          child: Text(
+            value,
+            style: TextStyle(fontSize: 12, color: valueColor, fontWeight: isBold ? FontWeight.w600 : FontWeight.normal),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
     );
   }

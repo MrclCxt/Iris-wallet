@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
+import '../../core/bolt11.dart';
 import '../../services/wallet_service.dart';
 import '../../services/liquid_wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
@@ -21,13 +23,29 @@ class MerchantProductQrScreen extends StatefulWidget {
 class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
   String? _invoiceData;
   bool _isLoading = true;
+  bool _isPaid = false;
+  String? _watchingPaymentHash;
+  StreamSubscription<ReceivedPayment>? _paymentSub;
 
   bool? _lastSatsMode;
 
   @override
   void initState() {
     super.initState();
-    // initial generation done via didChangeDependencies
+    // Detecção real do recebimento via eventos do nó LDK da loja
+    _paymentSub = context.read<WalletService>().paymentsReceived.listen((payment) {
+      if (!mounted || _isPaid) return;
+      if (!payment.isMerchant) return;
+      if (_watchingPaymentHash == null || payment.paymentHashHex == _watchingPaymentHash) {
+        setState(() => _isPaid = true);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _paymentSub?.cancel();
+    super.dispose();
   }
 
   @override
@@ -47,15 +65,24 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
       final exchangeRate = context.read<ExchangeRateService>();
       final isSatsMode = exchangeRate.isSatsDisplay;
       final int satsAmount = exchangeRate.brlToSats(widget.product.price);
-      
+
       try {
         String payload = '';
         if (isSatsMode) {
+          if (satsAmount <= 0) {
+            throw Exception('Cotação BTC/BRL indisponível — aguarde a atualização do câmbio.');
+          }
           final wallet = context.read<WalletService>();
           payload = await wallet.createInvoice(
-            satsAmount, 
+            satsAmount,
             'Venda: ${widget.product.name}',
+            forMerchant: true,
           );
+          try {
+            _watchingPaymentHash = Bolt11.decode(payload).paymentHashHex;
+          } catch (_) {
+            _watchingPaymentHash = null;
+          }
         } else {
           final liquidWallet = context.read<LiquidWalletService>();
           final address = await liquidWallet.getReceiveAddress();
@@ -226,12 +253,21 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                       const SizedBox(),
                     
                     const SizedBox(height: 24),
-                    const Text(
-                      'Aguardando pagamento...',
-                      style: TextStyle(color: IrisTheme.primary, fontWeight: FontWeight.w600, fontSize: 16),
-                    ),
-                    const SizedBox(height: 8),
-                    const CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(IrisTheme.primary)),
+                    if (_isPaid) ...[
+                      const Icon(Icons.check_circle, color: IrisTheme.success, size: 48),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Pagamento recebido! ⚡',
+                        style: TextStyle(color: IrisTheme.success, fontWeight: FontWeight.w700, fontSize: 18),
+                      ),
+                    ] else ...[
+                      const Text(
+                        'Aguardando pagamento...',
+                        style: TextStyle(color: IrisTheme.primary, fontWeight: FontWeight.w600, fontSize: 16),
+                      ),
+                      const SizedBox(height: 8),
+                      const CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(IrisTheme.primary)),
+                    ],
                   ],
                 ),
               ),

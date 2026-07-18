@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -6,10 +7,27 @@ class ExchangeRateService extends ChangeNotifier {
   double _btcToBrlRate = 0.0;
   bool _isLoading = false;
   bool _isSatsDisplay = false;
+  Timer? _refreshTimer;
 
   double get btcToBrlRate => _btcToBrlRate;
   bool get isLoading => _isLoading;
   bool get isSatsDisplay => _isSatsDisplay;
+
+  /// Cotação disponível e utilizável para gerar cobranças.
+  bool get hasRate => _btcToBrlRate > 0;
+
+  /// Busca imediata + atualização periódica (motor de conversão em tempo real).
+  void startAutoRefresh({Duration interval = const Duration(seconds: 60)}) {
+    fetchRate();
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(interval, (_) => fetchRate());
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
 
   void toggleCurrencyDisplay() {
     _isSatsDisplay = !_isSatsDisplay;

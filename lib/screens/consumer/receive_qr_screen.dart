@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import '../../core/theme.dart';
 import '../../core/currency_format.dart';
+import '../../core/bolt11.dart';
 import '../../services/wallet_service.dart';
 import '../../services/liquid_wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
@@ -33,6 +34,10 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   Timer? _timer;
   String? _invoiceData;
   bool _isLoading = true;
+  bool _isPaid = false;
+  int _paidAmountSats = 0;
+  String? _watchingPaymentHash;
+  StreamSubscription<ReceivedPayment>? _paymentSub;
 
   bool? _lastSatsMode;
 
@@ -46,6 +51,19 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
       // It's the fixed zero-amount invoice
       _isLoading = false;
     }
+    // Detecção real de recebimento: eventos PaymentReceived do nó LDK
+    _paymentSub = context.read<WalletService>().paymentsReceived.listen((payment) {
+      if (!mounted || _isPaid) return;
+      if (payment.isMerchant != widget.isMerchant) return;
+      // Confere o hash da fatura exibida; QR fixo aceita qualquer recebimento
+      if (_watchingPaymentHash == null || payment.paymentHashHex == _watchingPaymentHash) {
+        setState(() {
+          _isPaid = true;
+          _paidAmountSats = payment.amountSats;
+        });
+        _timer?.cancel();
+      }
+    });
   }
 
   @override
@@ -71,10 +89,22 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
         if (widget.satsAmount > 0) {
           payload = await wallet.createInvoice(
             widget.satsAmount,
-            "Receber Lightning",
+            widget.isMerchant ? 'Cobrança da loja' : 'Receber Lightning',
+            forMerchant: widget.isMerchant,
           );
         } else {
-          payload = wallet.mainWalletFixedInvoice ?? 'Carregando...';
+          payload = (widget.isMerchant
+                  ? wallet.merchantFixedInvoice
+                  : wallet.mainWalletFixedInvoice) ??
+              'Carregando...';
+        }
+        // Guarda o payment hash da fatura para detectar o recebimento
+        if (Bolt11.looksLikeInvoice(payload)) {
+          try {
+            _watchingPaymentHash = Bolt11.decode(payload).paymentHashHex;
+          } catch (_) {
+            _watchingPaymentHash = null;
+          }
         }
       } else {
         final liquidWallet = context.read<LiquidWalletService>();
@@ -86,7 +116,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
           payload = 'liquid:$address?asset=depix';
         }
       }
-      
+
       if (mounted) {
         setState(() {
           _invoiceData = payload;
@@ -119,6 +149,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _paymentSub?.cancel();
     super.dispose();
   }
 
@@ -282,7 +313,24 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                 ),
               ],
               
-              if (_isLoading)
+              if (_isPaid)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.check_circle, color: IrisTheme.success, size: 48),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Pagamento recebido! ⚡ ${CurrencyFormatter.formatSats(_paidAmountSats)} sats',
+                          style: const TextStyle(color: IrisTheme.success, fontSize: 16, fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else if (_isLoading)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: Center(child: CircularProgressIndicator(color: IrisTheme.primary)),
@@ -303,7 +351,8 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                 )
               else
                 const SizedBox(height: 24),
-              
+
+              if (!_isPaid)
               Text(
                 'Expira em $_formattedTime',
                 style: TextStyle(

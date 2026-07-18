@@ -26,14 +26,16 @@ void main() {
         ChangeNotifierProvider(create: (_) => WalletService()),
         ChangeNotifierProvider(create: (_) => LiquidWalletService()),
         ChangeNotifierProvider(create: (_) => ChromaService()),
-        ChangeNotifierProxyProvider2<WalletService, LiquidWalletService, SwapService>(
+        ChangeNotifierProvider(create: (_) => ExchangeRateService()..startAutoRefresh()),
+        ChangeNotifierProxyProvider3<WalletService, LiquidWalletService, ExchangeRateService, SwapService>(
           create: (context) => SwapService(
             walletService: Provider.of<WalletService>(context, listen: false),
             liquidWalletService: Provider.of<LiquidWalletService>(context, listen: false),
+            exchangeRateService: Provider.of<ExchangeRateService>(context, listen: false),
           ),
-          update: (context, wallet, liquid, previous) => previous ?? SwapService(walletService: wallet, liquidWalletService: liquid),
+          update: (context, wallet, liquid, rate, previous) =>
+              previous ?? SwapService(walletService: wallet, liquidWalletService: liquid, exchangeRateService: rate),
         ),
-        ChangeNotifierProvider(create: (_) => ExchangeRateService()..fetchRate()),
       ],
       child: const IrisApp(),
     ),

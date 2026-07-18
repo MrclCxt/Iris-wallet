@@ -61,6 +61,18 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
     final isSatsMode = exchangeRate.isSatsDisplay;
     int satsAmount = isSatsMode ? _inputValue : exchangeRate.brlToSats(_inputValue / 100.0);
 
+    // Sem cotação não há como converter BRL -> sats: evita cobrança zerada
+    if (satsAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cotação BTC/BRL indisponível no momento. Tente novamente em instantes.'),
+          backgroundColor: IrisTheme.danger,
+        ),
+      );
+      exchangeRate.fetchRate();
+      return;
+    }
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(

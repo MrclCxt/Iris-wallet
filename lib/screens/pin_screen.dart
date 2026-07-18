@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/wallet_service.dart';
+import '../services/liquid_wallet_service.dart';
 import '../core/theme.dart';
 
 enum PinMode { unlock, create }
@@ -19,6 +20,19 @@ class _PinScreenState extends State<PinScreen> {
   String _pin = '';
   String _firstPin = '';
   bool _isConfirming = false;
+
+  /// Inicializa a carteira Liquid (sidechain) com a mesma seed do perfil,
+  /// em segundo plano, após o desbloqueio.
+  void _initLiquidInBackground() {
+    final wallet = context.read<WalletService>();
+    final liquid = context.read<LiquidWalletService>();
+    final seed = widget.isMerchant ? wallet.merchantSeed : wallet.consumerSeed;
+    if (seed != null && !liquid.isRunning) {
+      liquid.initLiquidWallet(seed).catchError((e) {
+        debugPrint('Liquid init: $e');
+      });
+    }
+  }
 
   void _onKeyPress(String key) async {
     if (key == 'del') {
@@ -41,6 +55,7 @@ class _PinScreenState extends State<PinScreen> {
                 final wallet = context.read<WalletService>();
                 final success = widget.isMerchant ? await wallet.unlockMerchant(_pin) : await wallet.unlock(_pin);
                 if (success) {
+                  _initLiquidInBackground();
                   if (widget.onSuccess != null) {
                     widget.onSuccess!();
                   } else {
@@ -63,6 +78,7 @@ class _PinScreenState extends State<PinScreen> {
             final wallet = context.read<WalletService>();
             final success = widget.isMerchant ? await wallet.unlockMerchant(_pin) : await wallet.unlock(_pin);
             if (success) {
+              _initLiquidInBackground();
               if (widget.onSuccess != null) {
                 widget.onSuccess!();
               } else {

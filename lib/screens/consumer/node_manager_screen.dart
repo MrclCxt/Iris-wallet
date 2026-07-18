@@ -1,0 +1,432 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:ldk_node/ldk_node.dart' as ldk;
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:flutter/services.dart';
+import '../../services/wallet_service.dart';
+import '../../core/theme.dart';
+
+class NodeManagerScreen extends StatefulWidget {
+  const NodeManagerScreen({super.key});
+
+  @override
+  State<NodeManagerScreen> createState() => _NodeManagerScreenState();
+}
+
+class _NodeManagerScreenState extends State<NodeManagerScreen> {
+  int _onChainBalance = 0;
+  String _onChainAddress = '';
+  List<ldk.ChannelDetails> _channels = [];
+  bool _isLoading = true;
+  Timer? _syncTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNodeData();
+    // Auto-sync a cada 30 segundos enquanto estiver nesta tela
+    _syncTimer = Timer.periodic(const Duration(seconds: 30), (_) => _syncNode());
+  }
+
+  @override
+  void dispose() {
+    _syncTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadNodeData() async {
+    setState(() => _isLoading = true);
+    try {
+      final wallet = context.read<WalletService>();
+      final address = await wallet.getOnchainAddress();
+      final balance = await wallet.getOnchainBalance();
+      final channels = await wallet.getChannels();
+      
+      setState(() {
+        _onChainAddress = address;
+        _onChainBalance = balance;
+        _channels = channels;
+      });
+    } catch (e) {
+      debugPrint('Failed to load node data: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _syncNode() async {
+    try {
+      await context.read<WalletService>().syncNode();
+      await _loadNodeData();
+    } catch (e) {
+      debugPrint('Failed to sync node: $e');
+    }
+  }
+
+  void _showOpenChannelDialog() {
+    final pubkeyCtrl = TextEditingController();
+    final hostCtrl = TextEditingController();
+    final portCtrl = TextEditingController(text: '9735');
+    final amountCtrl = TextEditingController();
+    bool isOpening = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: BitpayTheme.s1,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateModal) {
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 24, right: 24, top: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('Abrir Novo Canal', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: BitpayTheme.textPrimary)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: pubkeyCtrl,
+                  style: const TextStyle(color: BitpayTheme.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'Node PubKey (Hex)',
+                    labelStyle: const TextStyle(color: BitpayTheme.textSecondary),
+                    filled: true,
+                    fillColor: BitpayTheme.bg,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: hostCtrl,
+                        style: const TextStyle(color: BitpayTheme.textPrimary),
+                        decoration: InputDecoration(
+                          labelText: 'Host (IP ou Tor)',
+                          labelStyle: const TextStyle(color: BitpayTheme.textSecondary),
+                          filled: true,
+                          fillColor: BitpayTheme.bg,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: portCtrl,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: BitpayTheme.textPrimary),
+                        decoration: InputDecoration(
+                          labelText: 'Porta',
+                          labelStyle: const TextStyle(color: BitpayTheme.textSecondary),
+                          filled: true,
+                          fillColor: BitpayTheme.bg,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: BitpayTheme.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'Capacidade do Canal (Sats)',
+                    labelStyle: const TextStyle(color: BitpayTheme.textSecondary),
+                    filled: true,
+                    fillColor: BitpayTheme.bg,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    helperText: 'Saldo disponível: $_onChainBalance sats',
+                    helperStyle: const TextStyle(color: BitpayTheme.primary),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: isOpening ? null : () async {
+                    try {
+                      setStateModal(() => isOpening = true);
+                      final sats = int.tryParse(amountCtrl.text) ?? 0;
+                      if (sats < 20000) throw Exception('Capacidade mínima é 20,000 sats');
+                      
+                      await context.read<WalletService>().openChannel(
+                        pubKeyHex: pubkeyCtrl.text.trim(),
+                        host: hostCtrl.text.trim(),
+                        port: int.parse(portCtrl.text.trim()),
+                        amountSats: sats,
+                      );
+                      
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Sinal de abertura de canal enviado! Aguarde a confirmação on-chain.'), backgroundColor: BitpayTheme.success),
+                      );
+                      _loadNodeData();
+                    } catch (e) {
+                      setStateModal(() => isOpening = false);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Erro: $e'), backgroundColor: BitpayTheme.danger),
+                      );
+                    }
+                  },
+                  child: isOpening ? const CircularProgressIndicator(color: Colors.white) : const Text('Solicitar Abertura de Canal'),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          );
+        }
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: BitpayTheme.bg,
+      appBar: AppBar(
+        backgroundColor: BitpayTheme.s1,
+        title: const Text('Gestão do Nó Nativo ⚡', style: TextStyle(color: BitpayTheme.textPrimary, fontSize: 18)),
+        iconTheme: const IconThemeData(color: BitpayTheme.textPrimary),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sync),
+            tooltip: 'Sincronizar Nós',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sincronizando nó com a Testnet...')));
+              _syncNode();
+            },
+          ),
+        ],
+      ),
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator()) 
+        : RefreshIndicator(
+            onRefresh: _syncNode,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _buildOnChainSection(),
+                const SizedBox(height: 24),
+                _buildChannelsSection(),
+              ],
+            ),
+          ),
+    );
+  }
+
+  Widget _buildOnChainSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: BitpayTheme.s1,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: BitpayTheme.bdr),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.account_balance_wallet, color: BitpayTheme.primary),
+              SizedBox(width: 8),
+              Text('Cofre (On-chain)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: BitpayTheme.textPrimary)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text('$_onChainBalance sats', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: BitpayTheme.textPrimary)),
+          const Text('Disponível para abrir novos canais', style: TextStyle(fontSize: 12, color: BitpayTheme.textSecondary)),
+          const SizedBox(height: 24),
+          
+          if (_onChainAddress.isNotEmpty) ...[
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                child: QrImageView(
+                  data: _onChainAddress,
+                  version: QrVersions.auto,
+                  size: 200.0,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Center(child: Text('Endereço Testnet (SegWit)', style: TextStyle(color: BitpayTheme.textSecondary, fontSize: 12))),
+            const SizedBox(height: 4),
+            InkWell(
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: _onChainAddress));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Endereço copiado!')));
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: BitpayTheme.bg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _onChainAddress,
+                        style: const TextStyle(fontFamily: 'monospace', color: BitpayTheme.primaryLight, fontSize: 13),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const Icon(Icons.copy, size: 16, color: BitpayTheme.textSecondary),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Dica: Use um Faucet (ex: bitcoinfaucet.uo1.net) para receber moedas de teste grátis neste endereço.',
+              style: TextStyle(color: BitpayTheme.textTertiary, fontSize: 11, fontStyle: FontStyle.italic),
+              textAlign: TextAlign.center,
+            ),
+          ]
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChannelsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Canais Lightning', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: BitpayTheme.textPrimary)),
+            TextButton.icon(
+              onPressed: _showOpenChannelDialog,
+              icon: const Icon(Icons.add),
+              label: const Text('Abrir Canal'),
+              style: TextButton.styleFrom(foregroundColor: BitpayTheme.primary),
+            )
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_channels.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: BitpayTheme.s1,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: BitpayTheme.bdr),
+            ),
+            child: const Center(
+              child: Text(
+                'Nenhum canal aberto.\nVocê precisa depositar fundos On-chain e abrir um canal para começar a transacionar via Lightning.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: BitpayTheme.textSecondary),
+              ),
+            ),
+          )
+        else
+          ..._channels.map((ch) {
+            final capacity = ch.channelValueSats;
+            final inbound = ch.inboundCapacityMsat ~/ BigInt.from(1000);
+            final outbound = ch.outboundCapacityMsat ~/ BigInt.from(1000);
+            final isUsable = ch.isUsable;
+            
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: BitpayTheme.s1,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: isUsable ? BitpayTheme.primary.withOpacity(0.5) : BitpayTheme.bdr),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Canal com ${ch.counterpartyNodeId.hex.substring(0, 8)}...',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: BitpayTheme.textPrimary),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isUsable ? BitpayTheme.success.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          isUsable ? 'Ativo' : 'Pendente/Inativo',
+                          style: TextStyle(color: isUsable ? BitpayTheme.success : Colors.orange, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Posso Enviar', style: TextStyle(fontSize: 10, color: BitpayTheme.textSecondary)),
+                            Text('$outbound sats', style: const TextStyle(color: BitpayTheme.primaryLight, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Text('Capacidade', style: TextStyle(fontSize: 10, color: BitpayTheme.textSecondary)),
+                            Text('$capacity sats', style: const TextStyle(color: BitpayTheme.textPrimary, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            const Text('Posso Receber', style: TextStyle(fontSize: 10, color: BitpayTheme.textSecondary)),
+                            Text('$inbound sats', style: const TextStyle(color: BitpayTheme.success, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Barra de liquidez visual
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Row(
+                      children: [
+                        if (capacity > BigInt.zero)
+                          Expanded(
+                            flex: outbound.toInt(),
+                            child: Container(
+                              height: 8,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          ),
+                        if (capacity > BigInt.zero)
+                          Expanded(
+                            flex: inbound.toInt(),
+                            child: Container(
+                              height: 8,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            );
+          }).toList(),
+      ],
+    );
+  }
+}

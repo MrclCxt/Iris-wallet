@@ -1,0 +1,263 @@
+import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:provider/provider.dart';
+import '../../core/theme.dart';
+import '../../services/wallet_service.dart';
+import '../../services/liquid_wallet_service.dart';
+import '../../services/exchange_rate_service.dart';
+import '../../widgets/max_width_container.dart';
+import '../../core/currency_format.dart';
+import 'merchant_product_edit_screen.dart';
+import 'package:share_plus/share_plus.dart';
+
+class MerchantProductQrScreen extends StatefulWidget {
+  final Product product;
+  const MerchantProductQrScreen({super.key, required this.product});
+
+  @override
+  State<MerchantProductQrScreen> createState() => _MerchantProductQrScreenState();
+}
+
+class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
+  String? _invoiceData;
+  bool _isLoading = true;
+
+  bool? _lastSatsMode;
+
+  @override
+  void initState() {
+    super.initState();
+    // initial generation done via didChangeDependencies
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentSatsMode = context.watch<ExchangeRateService>().isSatsDisplay;
+    if (_lastSatsMode != currentSatsMode) {
+      _lastSatsMode = currentSatsMode;
+      setState(() => _isLoading = true);
+      _generateInvoice();
+    }
+  }
+
+  Future<void> _generateInvoice() async {
+    // Need to use post-frame callback since we need context for ExchangeRateService
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final exchangeRate = context.read<ExchangeRateService>();
+      final isSatsMode = exchangeRate.isSatsDisplay;
+      final int satsAmount = exchangeRate.brlToSats(widget.product.price);
+      
+      try {
+        String payload = '';
+        if (isSatsMode) {
+          final wallet = context.read<WalletService>();
+          payload = await wallet.createInvoice(
+            satsAmount, 
+            'Venda: ${widget.product.name}',
+          );
+        } else {
+          final liquidWallet = context.read<LiquidWalletService>();
+          final address = await liquidWallet.getReceiveAddress();
+          payload = 'liquid:$address?amount=${widget.product.price}&asset=depix';
+        }
+
+        if (mounted) {
+          setState(() {
+            _invoiceData = payload;
+            _isLoading = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro ao gerar fatura: $e'), backgroundColor: BitpayTheme.danger),
+          );
+        }
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Usar a versão atualizada do produto vindo do provider
+    final wallet = context.watch<WalletService>();
+    final product = wallet.merchantProducts.firstWhere(
+      (p) => p.id == widget.product.id,
+      orElse: () => widget.product, // fallback caso excluido
+    );
+
+    // Se o produto foi excluido enquanto nesta tela (embora pop resolva, é bom checar)
+    if (!wallet.merchantProducts.any((p) => p.id == widget.product.id)) {
+      return const Scaffold(backgroundColor: BitpayTheme.bg, body: SizedBox());
+    }
+
+    final exchangeRate = context.watch<ExchangeRateService>();
+    final int satsAmount = exchangeRate.brlToSats(product.price);
+
+    return Scaffold(
+      backgroundColor: BitpayTheme.bg,
+      body: MaxWidthContainer(
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: BitpayTheme.primary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(child: Text(product.emoji, style: const TextStyle(fontSize: 17))),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(product.name, style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  ),
+                  if (_invoiceData != null)
+                    IconButton(
+                      icon: const Icon(Icons.share, color: BitpayTheme.primary),
+                      onPressed: () {
+                        Share.share(_invoiceData!);
+                      },
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: BitpayTheme.primary),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => Dialog(
+                          backgroundColor: Colors.transparent,
+                          insetPadding: const EdgeInsets.all(16),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 450, maxHeight: 700),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: MerchantProductEditScreen(product: product),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: BitpayTheme.textPrimary),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'R\$ ${CurrencyFormatter.formatBrl(product.price)}',
+                      style: Theme.of(context).textTheme.displayLarge?.copyWith(color: BitpayTheme.success, fontSize: 42),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${CurrencyFormatter.formatSats(satsAmount)} sats',
+                      style: const TextStyle(fontSize: 15, color: BitpayTheme.textSecondary, fontFamily: 'JetBrains Mono'),
+                    ),
+                    const SizedBox(height: 32),
+                    
+                    if (_isLoading)
+                      const CircularProgressIndicator(color: BitpayTheme.primary)
+                    else if (_invoiceData != null)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: BitpayTheme.primary.withOpacity(0.15),
+                              blurRadius: 30,
+                              spreadRadius: 5,
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            QrImageView(
+                              data: _invoiceData!,
+                              version: QrVersions.auto,
+                              size: 240,
+                              backgroundColor: Colors.white,
+                              errorCorrectionLevel: QrErrorCorrectLevel.M,
+                            ),
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: BitpayTheme.bg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: BitpayTheme.bdr),
+                              ),
+                              child: Text(
+                                _invoiceData!,
+                                style: const TextStyle(
+                                  fontFamily: 'JetBrains Mono',
+                                  fontSize: 12,
+                                  color: BitpayTheme.textSecondary,
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      const SizedBox(),
+                    
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Aguardando pagamento...',
+                      style: TextStyle(color: BitpayTheme.primary, fontWeight: FontWeight.w600, fontSize: 16),
+                    ),
+                    const SizedBox(height: 8),
+                    const CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(BitpayTheme.primary)),
+                  ],
+                ),
+              ),
+            ),
+            
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('← Voltar', style: TextStyle(color: BitpayTheme.textSecondary)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        ),
+      ),
+    );
+  }
+}

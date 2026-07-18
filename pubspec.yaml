@@ -1,0 +1,57 @@
+name: bitpay_flutter
+description: A real non-custodial Bitcoin & Lightning wallet with PIX integrations via DEPIX/Liquid.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # State Management
+  provider: ^6.1.2
+  # Navigation & Routing
+  go_router: ^12.1.1
+  # UI & Theming
+  google_fonts: ^6.1.0
+  cupertino_icons: ^1.0.6
+  # Networking
+  http: ^1.2.1
+  # Security (Native Keystore/Keychain)
+  flutter_secure_storage: ^9.2.2
+  # Bitcoin & Crypto
+  bip39: ^1.0.6
+  ldk_node: ^0.3.0
+  path_provider: ^2.1.3
+  # QR Codes
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^3.5.5
+  intl: ^0.20.2
+  lwk: ^0.1.7
+  boltz: ^0.1.10
+  share_plus: ^10.0.0
+  nfc_manager: ^3.5.1
+  shared_preferences: ^2.5.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icons/icon_1024.png"
+  adaptive_icon_background: "#373435"
+  adaptive_icon_foreground: "assets/icons/icon_1024.png"
+  min_sdk_android: 21
+
+dependency_overrides:
+  flutter_rust_bridge: 2.0.0

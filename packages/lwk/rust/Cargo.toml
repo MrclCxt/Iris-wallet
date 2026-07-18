@@ -1,0 +1,41 @@
+[package]
+name = "lwk"
+description = "Flutter-Rust Bridge for Liquid Wallet Kit (lwk)"
+authors = ["i5hi <ishi@satoshiportal.com>, mocodesmo <morteza@satoshiportal.com>"]
+version = "0.1.5"
+edition = "2021"
+
+[lib]
+name = "lwk"
+doctest = false
+crate-type = ["staticlib", "cdylib"] 
+
+[dependencies]
+lwk_wollet = {version = "0.9.0" }
+lwk_signer = { version = "0.9.0" }
+lwk_common = {version = "0.9.0" }
+thiserror = "1.0.50"
+flutter_rust_bridge = "=2.0.0"
+anyhow = "1.0.68"
+lazy_static = "1.4.0"
+hex = "0.4"
+log = "0.4.22"
+
+[build-dependencies]
+flutter_rust_bridge_codegen = { version = "=2.0.0" }
+
+[build]
+profiler = true
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[target.'cfg(target_os = "macos")']
+rustflags = [
+    "-C", "link-arg=-undefined",
+    "-C", "link-arg=dynamic_lookup",
+]

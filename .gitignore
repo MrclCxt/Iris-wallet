@@ -51,3 +51,7 @@ doc_content.txt
 doc_content_utf8.txt
 read_docx.ps1
 base/
+daemon/target/
+daemon/iris_node_data/
+daemon/seed.txt
+packages/*/rust/target/

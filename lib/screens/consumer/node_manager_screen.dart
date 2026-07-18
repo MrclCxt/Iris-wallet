@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:ldk_node/ldk_node.dart' as ldk;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/services.dart';
 import '../../services/wallet_service.dart';
+import '../../services/node_backend.dart';
 import '../../core/theme.dart';
 
 class NodeManagerScreen extends StatefulWidget {
@@ -17,7 +17,7 @@ class NodeManagerScreen extends StatefulWidget {
 class _NodeManagerScreenState extends State<NodeManagerScreen> {
   int _onChainBalance = 0;
   String _onChainAddress = '';
-  List<ldk.ChannelDetails> _channels = [];
+  List<ChannelSummary> _channels = [];
   bool _isLoading = true;
   Timer? _syncTimer;
 
@@ -184,6 +184,72 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
     );
   }
 
+  /// Configuração do backend: nó embarcado (padrão) ou daemon local
+  /// iris-noded via REST em 127.0.0.1 (arquitetura híbrida A+B).
+  void _showBackendDialog() {
+    final wallet = context.read<WalletService>();
+    final urlCtrl = TextEditingController(text: wallet.consumerDaemonUrl ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: IrisTheme.s1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: IrisTheme.bdr),
+        ),
+        title: const Text('Backend do nó', style: TextStyle(color: IrisTheme.textPrimary, fontSize: 16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Modo atual: ${wallet.isConsumerNodeRemote ? 'Daemon local (RPC)' : 'Embarcado (FFI)'}',
+              style: const TextStyle(color: IrisTheme.textSecondary, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: urlCtrl,
+              style: const TextStyle(color: IrisTheme.textPrimary, fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'URL do daemon (vazio = embarcado)',
+                hintText: 'http://127.0.0.1:8380',
+                labelStyle: const TextStyle(color: IrisTheme.textSecondary),
+                hintStyle: const TextStyle(color: IrisTheme.textTertiary),
+                filled: true,
+                fillColor: IrisTheme.bg,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'O daemon (iris-noded) roda o nó como serviço neste dispositivo, sempre em 127.0.0.1. A mudança vale no próximo desbloqueio.',
+              style: TextStyle(color: IrisTheme.textTertiary, fontSize: 11, height: 1.4),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar', style: TextStyle(color: IrisTheme.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await wallet.setDaemonUrl(urlCtrl.text, forMerchant: false);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Backend salvo. Bloqueie e desbloqueie a carteira para aplicar.')),
+                );
+              }
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -193,6 +259,11 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
         title: const Text('Gestão do Nó Nativo ⚡', style: TextStyle(color: IrisTheme.textPrimary, fontSize: 18)),
         iconTheme: const IconThemeData(color: IrisTheme.textPrimary),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.dns_outlined),
+            tooltip: 'Backend do nó (embarcado ou daemon local)',
+            onPressed: _showBackendDialog,
+          ),
           IconButton(
             icon: const Icon(Icons.sync),
             tooltip: 'Sincronizar Nós',
@@ -329,9 +400,9 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
           )
         else
           ..._channels.map((ch) {
-            final capacity = ch.channelValueSats;
-            final inbound = ch.inboundCapacityMsat ~/ BigInt.from(1000);
-            final outbound = ch.outboundCapacityMsat ~/ BigInt.from(1000);
+            final capacity = ch.capacitySats;
+            final inbound = ch.inboundSats;
+            final outbound = ch.outboundSats;
             final isUsable = ch.isUsable;
             
             return Container(
@@ -349,7 +420,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Canal com ${ch.counterpartyNodeId.hex.substring(0, 8)}...',
+                        'Canal com ${ch.counterpartyNodeId.length >= 8 ? ch.counterpartyNodeId.substring(0, 8) : ch.counterpartyNodeId}...',
                         style: const TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textPrimary),
                       ),
                       Container(
@@ -403,17 +474,17 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                     borderRadius: BorderRadius.circular(4),
                     child: Row(
                       children: [
-                        if (capacity > BigInt.zero)
+                        if (capacity > 0)
                           Expanded(
-                            flex: outbound.toInt(),
+                            flex: outbound,
                             child: Container(
                               height: 8,
                               color: Theme.of(context).primaryColor,
                             ),
                           ),
-                        if (capacity > BigInt.zero)
+                        if (capacity > 0)
                           Expanded(
-                            flex: inbound.toInt(),
+                            flex: inbound,
                             child: Container(
                               height: 8,
                               color: Colors.grey[800],

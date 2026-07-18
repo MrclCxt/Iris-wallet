@@ -5,12 +5,12 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:math';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
-import 'package:ldk_node/ldk_node.dart' as ldk;
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/bolt11.dart';
+import 'node_backend.dart';
 
 class Product {
   final String id;
@@ -108,13 +108,15 @@ class ReceivedPayment {
   });
 }
 
-/// Encapsula um nó LDK por perfil (consumidor ou lojista), cada um com a
+/// Encapsula um nó por perfil (consumidor ou lojista), cada um com a
 /// própria seed e diretório de dados — princípio não-custodial por conta.
+/// O backend pode ser embarcado (FFI) ou um daemon local (RPC em 127.0.0.1).
 class _NodeHandle {
-  ldk.Node? node;
+  NodeApi? api;
   bool isRunning = false;
-  bool isMock = false; // Windows: ldk_node sem suporte nativo
+  bool isMock = false; // fallback de UI quando o motor nativo não carrega
   bool isMerchant = false;
+  bool isRemote = false; // true quando conectado ao daemon local
   int lightningBalanceSats = 0;
   int onchainBalanceSats = 0;
   bool balancesInitialized = false;
@@ -127,9 +129,9 @@ class _NodeHandle {
   Future<void> stop() async {
     _eventLoopActive = false;
     try {
-      await node?.stop();
+      await api?.stop();
     } catch (_) {}
-    node = null;
+    api = null;
     isRunning = false;
     balancesInitialized = false;
     lightningBalanceSats = 0;
@@ -496,25 +498,60 @@ class WalletService extends ChangeNotifier {
   // Nó LDK: inicialização, eventos e saldos (testnet)
   // ---------------------------------------------------------------------
 
+  /// URL do daemon local por perfil (vazio = nó embarcado via FFI).
+  String? _consumerDaemonUrl;
+  String? _merchantDaemonUrl;
+  String? get consumerDaemonUrl => _consumerDaemonUrl;
+  String? get merchantDaemonUrl => _merchantDaemonUrl;
+  bool get isConsumerNodeRemote => _consumerNode.isRemote;
+
+  Future<void> setDaemonUrl(String? url, {required bool forMerchant}) async {
+    final normalized = (url ?? '').trim().isEmpty ? null : url!.trim();
+    if (forMerchant) {
+      _merchantDaemonUrl = normalized;
+      if (normalized == null) {
+        await _storage.delete(key: 'daemon_url_merchant');
+      } else {
+        await _storage.write(key: 'daemon_url_merchant', value: normalized);
+      }
+    } else {
+      _consumerDaemonUrl = normalized;
+      if (normalized == null) {
+        await _storage.delete(key: 'daemon_url_consumer');
+      } else {
+        await _storage.write(key: 'daemon_url_consumer', value: normalized);
+      }
+    }
+    notifyListeners();
+  }
+
   Future<void> _startNode(_NodeHandle handle, String mnemonic, String dirName,
       {required bool isMerchant}) async {
     if (handle.isRunning) return;
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final nodePath = '${directory.path}/$dirName';
-      final dir = Directory(nodePath);
-      if (!await dir.exists()) {
-        await dir.create(recursive: true);
+      _consumerDaemonUrl ??= await _storage.read(key: 'daemon_url_consumer');
+      _merchantDaemonUrl ??= await _storage.read(key: 'daemon_url_merchant');
+      final daemonUrl = isMerchant ? _merchantDaemonUrl : _consumerDaemonUrl;
+
+      NodeApi api;
+      if (daemonUrl != null && daemonUrl.isNotEmpty) {
+        // Modo daemon: nó roda como serviço local (iris-noded) em 127.0.0.1
+        api = RemoteNodeApi(daemonUrl);
+        handle.isRemote = true;
+      } else {
+        // Modo embarcado: nó LDK via FFI dentro do app (todas as plataformas)
+        final directory = await getApplicationDocumentsDirectory();
+        final nodePath = '${directory.path}/$dirName';
+        final dir = Directory(nodePath);
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
+        }
+        api = EmbeddedNodeApi(mnemonic: mnemonic, storagePath: nodePath);
+        handle.isRemote = false;
       }
 
-      final builder = ldk.Builder()
-        ..setEntropyBip39Mnemonic(mnemonic: ldk.Mnemonic(seedPhrase: mnemonic))
-        ..setNetwork(ldk.Network.testnet)
-        ..setStorageDirPath(nodePath)
-        ..setEsploraServer('https://mempool.space/testnet/api');
-
-      handle.node = await builder.build();
-      await handle.node!.start();
+      await api.start();
+      handle.api = api;
       handle.isRunning = true;
       handle.isMock = false;
       handle.isMerchant = isMerchant;
@@ -528,12 +565,11 @@ class WalletService extends ChangeNotifier {
 
       // Fatura fixa de valor aberto (QR estático da carteira)
       try {
-        final bolt11 = await handle.node!.bolt11Payment();
-        final inv = await bolt11.receiveVariableAmount(
-          expirySecs: 31536000, // 1 ano
+        handle.fixedInvoice = await api.createInvoice(
+          amountMsat: null,
           description: isMerchant ? 'Loja' : 'Carteira Principal',
+          expirySecs: 31536000, // 1 ano
         );
-        handle.fixedInvoice = inv.signedRawInvoice;
       } catch (e) {
         debugPrint('Falha ao gerar fatura fixa: $e');
       }
@@ -543,41 +579,38 @@ class WalletService extends ChangeNotifier {
       _ensureSyncTimer();
 
       notifyListeners();
-      debugPrint('Nó LDK (${isMerchant ? 'loja' : 'pessoal'}) iniciado na testnet.');
+      debugPrint(
+          'Nó (${isMerchant ? 'loja' : 'pessoal'}) iniciado na testnet — backend ${handle.isRemote ? 'daemon local' : 'embarcado'}.');
     } catch (e) {
-      debugPrint('Falha ao rodar nó localmente: $e');
-      if (Platform.isWindows) {
-        debugPrint('ldk_node sem suporte nativo ao Windows — modo demonstração de UI.');
-        handle.isRunning = true;
-        handle.isMock = true;
-        handle.fixedInvoice = null;
-        notifyListeners();
-      } else {
-        rethrow;
-      }
+      debugPrint('Falha ao iniciar nó: $e');
+      // Fallback de UI: mantém o app utilizável se o motor nativo não carregar
+      handle.isRunning = true;
+      handle.isMock = true;
+      handle.fixedInvoice = null;
+      notifyListeners();
     }
   }
 
-  /// Loop de eventos do LDK: credita recebimentos, confirma/derruba envios.
+  /// Loop de eventos do nó: credita recebimentos, confirma/derruba envios.
+  /// Funciona igual para backend embarcado (FFI) e daemon local (RPC).
   void _runEventLoop(_NodeHandle handle, {required bool isMerchant}) {
     if (handle._eventLoopActive) return;
     handle._eventLoopActive = true;
 
     () async {
-      while (handle._eventLoopActive && handle.node != null) {
+      while (handle._eventLoopActive && handle.api != null) {
         try {
-          final event = await handle.node!.nextEvent();
+          final event = await handle.api!.nextEvent();
           if (event == null) {
             await Future.delayed(const Duration(seconds: 1));
             continue;
           }
 
-          event.maybeWhen(
-            paymentReceived: (paymentId, paymentHash, amountMsat) {
-              final sats = (amountMsat ~/ BigInt.from(1000)).toInt();
-              final hashHex = _bytesToHex(paymentHash.data);
+          switch (event.type) {
+            case 'payment_received':
+              final sats = event.amountMsat ~/ 1000;
               final tx = Transaction(
-                id: hashHex,
+                id: event.paymentHashHex,
                 title: isMerchant ? 'Venda recebida' : 'Recebido via Lightning',
                 emoji: '⚡',
                 amountSats: sats,
@@ -587,36 +620,33 @@ class WalletService extends ChangeNotifier {
               (isMerchant ? _merchantTransactions : _consumerTransactions).insert(0, tx);
               _paymentsCtrl.add(ReceivedPayment(
                 isMerchant: isMerchant,
-                paymentHashHex: hashHex,
+                paymentHashHex: event.paymentHashHex,
                 amountSats: sats,
               ));
-            },
-            paymentSuccessful: (paymentId, paymentHash, feePaidMsat) {
-              final hashHex = _bytesToHex(paymentHash.data);
+              break;
+            case 'payment_successful':
               final txs = isMerchant ? _merchantTransactions : _consumerTransactions;
               for (final tx in txs) {
-                if (tx.id == hashHex && tx.status == 'pending') {
+                if (tx.id == event.paymentHashHex && tx.status == 'pending') {
                   tx.status = 'confirmed';
                 }
               }
-            },
-            paymentFailed: (paymentId, paymentHash, reason) {
-              final hashHex = _bytesToHex(paymentHash.data);
+              break;
+            case 'payment_failed':
               final txs = isMerchant ? _merchantTransactions : _consumerTransactions;
               for (final tx in txs) {
-                if (tx.id == hashHex && tx.status == 'pending') {
+                if (tx.id == event.paymentHashHex && tx.status == 'pending') {
                   tx.status = 'failed';
                 }
               }
-            },
-            orElse: () {},
-          );
+              break;
+          }
 
-          await handle.node!.eventHandled();
+          await handle.api!.eventHandled();
           await _refreshBalances(handle);
           notifyListeners();
         } catch (e) {
-          debugPrint('Event loop LDK: $e');
+          debugPrint('Event loop do nó: $e');
           await Future.delayed(const Duration(seconds: 2));
         }
       }
@@ -624,11 +654,11 @@ class WalletService extends ChangeNotifier {
   }
 
   Future<void> _refreshBalances(_NodeHandle handle) async {
-    if (handle.node == null) return;
+    if (handle.api == null) return;
     try {
-      final balances = await handle.node!.listBalances();
-      handle.lightningBalanceSats = balances.totalLightningBalanceSats.toInt();
-      final newOnchain = balances.totalOnchainBalanceSats.toInt();
+      final balances = await handle.api!.balances();
+      handle.lightningBalanceSats = balances.lightningSats;
+      final newOnchain = balances.onchainTotalSats;
 
       // Detecção de depósito puro na rede Bitcoin (on-chain): o LDK não
       // emite evento para isso, então comparamos o saldo entre syncs.
@@ -661,9 +691,9 @@ class WalletService extends ChangeNotifier {
   void _ensureSyncTimer() {
     _syncTimer ??= Timer.periodic(const Duration(seconds: 60), (_) async {
       for (final handle in [_consumerNode, _merchantNode]) {
-        if (handle.node != null) {
+        if (handle.api != null) {
           try {
-            await handle.node!.syncWallets();
+            await handle.api!.sync();
             await _refreshBalances(handle);
           } catch (e) {
             debugPrint('Sync periódico: $e');
@@ -801,34 +831,32 @@ class WalletService extends ChangeNotifier {
   /// rede Bitcoin, além da Lightning.
   Future<String> getOnchainAddress({bool forMerchant = false}) async {
     final handle = forMerchant ? _merchantNode : _consumerNode;
-    if (!handle.isRunning || handle.node == null) {
-      if (handle.isMock) return 'tb1q_modo_demonstracao_windows';
+    if (!handle.isRunning || handle.api == null) {
+      if (handle.isMock) return 'tb1q_modo_demonstracao';
       throw Exception('Nó Lightning não está rodando.');
     }
-    final onChain = await handle.node!.onChainPayment();
-    final address = await onChain.newAddress();
-    return address.s;
+    return await handle.api!.newOnchainAddress();
   }
 
   Future<int> getOnchainBalance() async {
-    if (_consumerNode.node == null) return _consumerNode.onchainBalanceSats;
+    if (_consumerNode.api == null) return _consumerNode.onchainBalanceSats;
     await _refreshBalances(_consumerNode);
     return _consumerNode.onchainBalanceSats;
   }
 
   Future<void> syncNode() async {
-    if (_consumerNode.node == null) return;
-    await _consumerNode.node!.syncWallets();
+    if (_consumerNode.api == null) return;
+    await _consumerNode.api!.sync();
     await _refreshBalances(_consumerNode);
     notifyListeners();
   }
 
-  Future<List<ldk.ChannelDetails>> getChannels() async {
-    if (!_consumerNode.isRunning || _consumerNode.node == null) {
+  Future<List<ChannelSummary>> getChannels() async {
+    if (!_consumerNode.isRunning || _consumerNode.api == null) {
       if (_consumerNode.isMock) return [];
       throw Exception('Nó Lightning não está rodando.');
     }
-    return await _consumerNode.node!.listChannels();
+    return await _consumerNode.api!.channels();
   }
 
   Future<void> openChannel({
@@ -837,15 +865,14 @@ class WalletService extends ChangeNotifier {
     required int port,
     required int amountSats,
   }) async {
-    if (!_consumerNode.isRunning || _consumerNode.node == null) {
+    if (!_consumerNode.isRunning || _consumerNode.api == null) {
       throw Exception('Nó offline');
     }
-    final nodeAddr = ldk.SocketAddress.hostname(addr: host, port: port);
-    await _consumerNode.node!.connectOpenChannel(
-      channelAmountSats: BigInt.from(amountSats),
-      nodeId: ldk.PublicKey(hex: pubKeyHex),
-      socketAddress: nodeAddr,
-      announceChannel: true,
+    await _consumerNode.api!.openChannel(
+      nodeId: pubKeyHex,
+      host: host,
+      port: port,
+      amountSats: amountSats,
     );
     notifyListeners();
   }
@@ -857,20 +884,18 @@ class WalletService extends ChangeNotifier {
   /// Gera fatura BOLT11 real no nó do perfil correspondente.
   Future<String> createInvoice(int amountSats, String desc, {bool forMerchant = false}) async {
     final handle = forMerchant ? _merchantNode : _consumerNode;
-    if (!handle.isRunning || handle.node == null) {
+    if (!handle.isRunning || handle.api == null) {
       if (handle.isMock) {
         throw Exception(
-            'Nó Lightning indisponível no Windows (modo demonstração). Use Android/iOS para faturas reais.');
+            'Motor do nó indisponível nesta plataforma. Verifique a instalação ou configure um daemon local.');
       }
       throw Exception('Nó offline');
     }
-    final bolt11 = await handle.node!.bolt11Payment();
-    final invoice = await bolt11.receive(
-      amountMsat: BigInt.from(amountSats) * BigInt.from(1000),
+    return await handle.api!.createInvoice(
+      amountMsat: amountSats * 1000,
       description: desc,
       expirySecs: 3600,
     );
-    return invoice.signedRawInvoice;
   }
 
   /// Paga uma fatura BOLT11 real via LDK. Para faturas de valor aberto,
@@ -891,22 +916,15 @@ class WalletService extends ChangeNotifier {
       throw Exception('Fatura sem valor definido — informe o valor a enviar.');
     }
 
-    if (handle.node == null) {
+    if (handle.api == null) {
       throw Exception(
-          'Nó Lightning indisponível no Windows (modo demonstração). Use Android/iOS para pagar de verdade.');
+          'Motor do nó indisponível nesta plataforma. Verifique a instalação ou configure um daemon local.');
     }
 
-    final invoice = ldk.Bolt11Invoice(signedRawInvoice: invoiceStr.trim());
-    final bolt11 = await handle.node!.bolt11Payment();
-
-    if (parsed.amountSats == null) {
-      await bolt11.sendUsingAmount(
-        invoice: invoice,
-        amountMsat: BigInt.from(sats) * BigInt.from(1000),
-      );
-    } else {
-      await bolt11.send(invoice: invoice);
-    }
+    await handle.api!.payInvoice(
+      invoiceStr.trim(),
+      amountMsat: parsed.amountSats == null ? sats * 1000 : null,
+    );
 
     final tx = Transaction(
       id: parsed.paymentHashHex,

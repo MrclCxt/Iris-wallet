@@ -56,3 +56,9 @@ flutter_launcher_icons:
 
 dependency_overrides:
   flutter_rust_bridge: 2.0.0
+  # Forks locais com suporte desktop (Windows/Linux/macOS) via cargokit:
+  # cada dispositivo roda o próprio nó localmente — nada de servidores externos.
+  ldk_node:
+    path: packages/ldk_node
+  lwk:
+    path: packages/lwk

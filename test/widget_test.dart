@@ -1,30 +1,25 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// Testes do motor de conversão BRL <-> Sats (requisito: motor de conversão
+// em tempo real com Satoshi como unidade de conta interna e paridade em BRL).
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:iris_wallet/main.dart';
+import 'package:iris_wallet/services/exchange_rate_service.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('ExchangeRateService conversões', () {
+    test('conversões retornam 0 como fallback sem cotação carregada', () {
+      final service = ExchangeRateService();
+      expect(service.brlToSats(100.0), 0);
+      expect(service.satsToBrl(100000), 0.0);
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('toggleCurrencyDisplay alterna entre BRL e Sats', () {
+      final service = ExchangeRateService();
+      expect(service.isSatsDisplay, false);
+      service.toggleCurrencyDisplay();
+      expect(service.isSatsDisplay, true);
+      service.toggleCurrencyDisplay();
+      expect(service.isSatsDisplay, false);
+    });
   });
 }

@@ -100,7 +100,7 @@ class SwapService extends ChangeNotifier {
         _addLog('[ERRO] Boltz API falhou: ${response.body}');
       }
     } catch (e) {
-      _addLog('[ERRO] Falha no roteamento Boltz: \$e');
+      _addLog('[ERRO] Falha no roteamento Boltz: $e');
     }
   }
 }

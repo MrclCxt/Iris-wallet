@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../core/bolt11.dart';
 import '../../services/wallet_service.dart';
-import '../../services/liquid_wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
 import '../../widgets/max_width_container.dart';
 import '../../core/currency_format.dart';
@@ -51,10 +50,10 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final currentSatsMode = context.watch<ExchangeRateService>().isSatsDisplay;
-    if (_lastSatsMode != currentSatsMode) {
-      _lastSatsMode = currentSatsMode;
-      setState(() => _isLoading = true);
+    // A cobrança é sempre uma fatura Lightning (moeda do app = satoshi);
+    // o toggle SATS/R$ muda apenas a exibição do valor.
+    if (_lastSatsMode == null) {
+      _lastSatsMode = true;
       _generateInvoice();
     }
   }
@@ -63,30 +62,22 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
     // Need to use post-frame callback since we need context for ExchangeRateService
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final exchangeRate = context.read<ExchangeRateService>();
-      final isSatsMode = exchangeRate.isSatsDisplay;
       final int satsAmount = exchangeRate.brlToSats(widget.product.price);
 
       try {
-        String payload = '';
-        if (isSatsMode) {
-          if (satsAmount <= 0) {
-            throw Exception('Cotação BTC/BRL indisponível — aguarde a atualização do câmbio.');
-          }
-          final wallet = context.read<WalletService>();
-          payload = await wallet.createInvoice(
-            satsAmount,
-            'Venda: ${widget.product.name}',
-            forMerchant: true,
-          );
-          try {
-            _watchingPaymentHash = Bolt11.decode(payload).paymentHashHex;
-          } catch (_) {
-            _watchingPaymentHash = null;
-          }
-        } else {
-          final liquidWallet = context.read<LiquidWalletService>();
-          final address = await liquidWallet.getReceiveAddress();
-          payload = 'liquid:$address?amount=${widget.product.price}&asset=depix';
+        if (satsAmount <= 0) {
+          throw Exception('Cotação BTC/BRL indisponível — aguarde a atualização do câmbio.');
+        }
+        final wallet = context.read<WalletService>();
+        final payload = await wallet.createInvoice(
+          satsAmount,
+          'Venda: ${widget.product.name}',
+          forMerchant: true,
+        );
+        try {
+          _watchingPaymentHash = Bolt11.decode(payload).paymentHashHex;
+        } catch (_) {
+          _watchingPaymentHash = null;
         }
 
         if (mounted) {

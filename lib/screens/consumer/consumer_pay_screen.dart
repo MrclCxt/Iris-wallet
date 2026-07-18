@@ -5,7 +5,6 @@ import '../../core/bolt11.dart';
 import '../../core/lnurl.dart';
 import '../../services/wallet_service.dart';
 import 'package:provider/provider.dart';
-import '../../services/exchange_rate_service.dart';
 import '../../widgets/currency_toggle_btn.dart';
 import 'pay_confirm_screen.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -161,8 +160,6 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isSatsMode = context.watch<ExchangeRateService>().isSatsDisplay;
-
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -241,9 +238,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
             TextField(
               controller: _invoiceCtrl,
               decoration: InputDecoration(
-                hintText: isSatsMode
-                    ? 'Fatura Lightning, LNURL ou endereço'
-                    : 'Colar endereço Liquid',
+                hintText: 'Fatura Lightning, LNURL ou endereço',
                 hintStyle: const TextStyle(color: IrisTheme.textTertiary),
                 filled: true,
                 fillColor: IrisTheme.s1,

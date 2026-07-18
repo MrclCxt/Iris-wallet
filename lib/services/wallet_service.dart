@@ -94,12 +94,18 @@ class AccountProfile {
   );
 }
 
-/// Notificação de pagamento recebido via Lightning.
+/// Notificação de pagamento recebido (Lightning ou on-chain).
 class ReceivedPayment {
   final bool isMerchant;
-  final String paymentHashHex;
+  final String paymentHashHex; // vazio para recebimentos on-chain
   final int amountSats;
-  ReceivedPayment({required this.isMerchant, required this.paymentHashHex, required this.amountSats});
+  final bool isOnchain;
+  ReceivedPayment({
+    required this.isMerchant,
+    required this.paymentHashHex,
+    required this.amountSats,
+    this.isOnchain = false,
+  });
 }
 
 /// Encapsula um nó LDK por perfil (consumidor ou lojista), cada um com a
@@ -108,10 +114,15 @@ class _NodeHandle {
   ldk.Node? node;
   bool isRunning = false;
   bool isMock = false; // Windows: ldk_node sem suporte nativo
+  bool isMerchant = false;
   int lightningBalanceSats = 0;
   int onchainBalanceSats = 0;
+  bool balancesInitialized = false;
   String? fixedInvoice;
   bool _eventLoopActive = false;
+
+  /// Saldo total do nó em sats: Lightning + Bitcoin on-chain.
+  int get totalSats => lightningBalanceSats + onchainBalanceSats;
 
   Future<void> stop() async {
     _eventLoopActive = false;
@@ -120,6 +131,9 @@ class _NodeHandle {
     } catch (_) {}
     node = null;
     isRunning = false;
+    balancesInitialized = false;
+    lightningBalanceSats = 0;
+    onchainBalanceSats = 0;
   }
 }
 
@@ -220,10 +234,12 @@ class WalletService extends ChangeNotifier {
   final List<Transaction> _consumerTransactions = [];
   final List<Transaction> _merchantTransactions = [];
 
-  /// Saldo Lightning real do nó (testnet). No mock Windows fica em 0 até
-  /// haver canal — igual comportamento de nó recém-criado.
-  int get consumerBalance => _consumerNode.lightningBalanceSats;
-  int get merchantBalance => _merchantNode.lightningBalanceSats;
+  /// Saldo unificado em sats (moeda principal do app): Lightning + on-chain.
+  /// O saldo L-BTC da Liquid é somado na camada de UI via LiquidWalletService.
+  int get consumerBalance => _consumerNode.totalSats;
+  int get merchantBalance => _merchantNode.totalSats;
+  int get consumerLightningSats => _consumerNode.lightningBalanceSats;
+  int get consumerOnchainSats => _consumerNode.onchainBalanceSats;
   List<Transaction> get consumerTransactions => _consumerTransactions;
   List<Transaction> get merchantTransactions => _merchantTransactions;
 
@@ -501,6 +517,7 @@ class WalletService extends ChangeNotifier {
       await handle.node!.start();
       handle.isRunning = true;
       handle.isMock = false;
+      handle.isMerchant = isMerchant;
 
       if (!isMerchant) {
         await _loadMerchantProducts();
@@ -611,7 +628,31 @@ class WalletService extends ChangeNotifier {
     try {
       final balances = await handle.node!.listBalances();
       handle.lightningBalanceSats = balances.totalLightningBalanceSats.toInt();
-      handle.onchainBalanceSats = balances.spendableOnchainBalanceSats.toInt();
+      final newOnchain = balances.totalOnchainBalanceSats.toInt();
+
+      // Detecção de depósito puro na rede Bitcoin (on-chain): o LDK não
+      // emite evento para isso, então comparamos o saldo entre syncs.
+      final previous = handle.onchainBalanceSats;
+      if (handle.balancesInitialized && newOnchain > previous) {
+        final delta = newOnchain - previous;
+        final tx = Transaction(
+          id: 'onchain_${DateTime.now().millisecondsSinceEpoch}',
+          title: 'Recebido on-chain (Bitcoin)',
+          emoji: '₿',
+          amountSats: delta,
+          isIncoming: true,
+          date: DateTime.now(),
+        );
+        (handle.isMerchant ? _merchantTransactions : _consumerTransactions).insert(0, tx);
+        _paymentsCtrl.add(ReceivedPayment(
+          isMerchant: handle.isMerchant,
+          paymentHashHex: '',
+          amountSats: delta,
+          isOnchain: true,
+        ));
+      }
+      handle.onchainBalanceSats = newOnchain;
+      handle.balancesInitialized = true;
     } catch (e) {
       debugPrint('refreshBalances: $e');
     }
@@ -756,12 +797,15 @@ class WalletService extends ChangeNotifier {
   // Gestão do nó (on-chain, canais) — perfil pessoal
   // ---------------------------------------------------------------------
 
-  Future<String> getOnchainAddress() async {
-    if (!_consumerNode.isRunning || _consumerNode.node == null) {
-      if (_consumerNode.isMock) return 'tb1q_modo_demonstracao_windows';
+  /// Endereço Bitcoin on-chain (testnet) do nó — recebimento puro pela
+  /// rede Bitcoin, além da Lightning.
+  Future<String> getOnchainAddress({bool forMerchant = false}) async {
+    final handle = forMerchant ? _merchantNode : _consumerNode;
+    if (!handle.isRunning || handle.node == null) {
+      if (handle.isMock) return 'tb1q_modo_demonstracao_windows';
       throw Exception('Nó Lightning não está rodando.');
     }
-    final onChain = await _consumerNode.node!.onChainPayment();
+    final onChain = await handle.node!.onChainPayment();
     final address = await onChain.newAddress();
     return address.s;
   }

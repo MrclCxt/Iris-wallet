@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../core/currency_format.dart';
 import '../../services/wallet_service.dart';
+import '../../services/liquid_wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
 import '../../services/chroma_service.dart';
 import '../../widgets/currency_toggle_btn.dart';
@@ -21,10 +22,13 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
   @override
   Widget build(BuildContext context) {
     final wallet = context.watch<WalletService>();
+    final liquid = context.watch<LiquidWalletService>();
     final exchangeRate = context.watch<ExchangeRateService>();
     final chroma = context.watch<ChromaService>();
     final _showSats = exchangeRate.isSatsDisplay;
-    final balanceSats = wallet.consumerBalance;
+    // Saldo unificado em satoshis: Lightning + Bitcoin on-chain + L-BTC (Liquid).
+    // A moeda do app é o satoshi; o toggle apenas muda a exibição para BRL.
+    final balanceSats = wallet.consumerBalance + liquid.balanceSats;
     final balanceBrl = exchangeRate.satsToBrl(balanceSats);
 
     return SafeArea(
@@ -43,7 +47,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                   children: [
                     Text('Minha carteira', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 1),
-                    Text('Bitcoin Lightning', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
+                    const Text('Bitcoin · saldo em satoshis', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
                   ],
                 ),
                 const Spacer(),

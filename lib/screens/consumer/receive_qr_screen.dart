@@ -8,10 +8,14 @@ import '../../core/theme.dart';
 import '../../core/currency_format.dart';
 import '../../core/bolt11.dart';
 import '../../services/wallet_service.dart';
-import '../../services/liquid_wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
 import '../../widgets/currency_toggle_btn.dart';
 import 'custom_charge_screen.dart';
+import 'pix_deposit_screen.dart';
+
+/// Método de recebimento. A moeda do app é sempre o satoshi — o toggle
+/// SATS/R$ muda apenas a exibição, nunca o trilho da transação.
+enum ReceiveMethod { lightning, onchain }
 
 class ReceiveQrScreen extends StatefulWidget {
   final int satsAmount;
@@ -19,7 +23,7 @@ class ReceiveQrScreen extends StatefulWidget {
   final bool isStandalone;
 
   const ReceiveQrScreen({
-    super.key, 
+    super.key,
     required this.satsAmount,
     this.isMerchant = false,
     this.isStandalone = false,
@@ -39,24 +43,29 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   String? _watchingPaymentHash;
   StreamSubscription<ReceivedPayment>? _paymentSub;
 
-  bool? _lastSatsMode;
+  ReceiveMethod _method = ReceiveMethod.lightning;
 
   @override
   void initState() {
     super.initState();
     if (widget.satsAmount > 0) {
       _startTimer();
-      // Invoice generation is now handled in didChangeDependencies
     } else {
-      // It's the fixed zero-amount invoice
       _isLoading = false;
     }
-    // Detecção real de recebimento: eventos PaymentReceived do nó LDK
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _generatePayload());
+
+    // Detecção real de recebimento: eventos do nó LDK (Lightning e on-chain)
     _paymentSub = context.read<WalletService>().paymentsReceived.listen((payment) {
       if (!mounted || _isPaid) return;
       if (payment.isMerchant != widget.isMerchant) return;
-      // Confere o hash da fatura exibida; QR fixo aceita qualquer recebimento
-      if (_watchingPaymentHash == null || payment.paymentHashHex == _watchingPaymentHash) {
+      final hashMatches = _watchingPaymentHash != null &&
+          payment.paymentHashHex == _watchingPaymentHash;
+      final onchainMatches = _method == ReceiveMethod.onchain && payment.isOnchain;
+      final openInvoiceMatches =
+          _method == ReceiveMethod.lightning && _watchingPaymentHash == null && !payment.isOnchain;
+      if (hashMatches || onchainMatches || openInvoiceMatches) {
         setState(() {
           _isPaid = true;
           _paidAmountSats = payment.amountSats;
@@ -66,26 +75,13 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
     });
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final currentSatsMode = context.watch<ExchangeRateService>().isSatsDisplay;
-    if (_lastSatsMode != currentSatsMode) {
-      _lastSatsMode = currentSatsMode;
-      setState(() => _isLoading = true);
-      _generateInvoice();
-    }
-  }
-
-  Future<void> _generateInvoice() async {
-    final exchangeRate = context.read<ExchangeRateService>();
-    final isSatsMode = exchangeRate.isSatsDisplay;
-    final amountBrl = exchangeRate.satsToBrl(widget.satsAmount);
-    
+  Future<void> _generatePayload() async {
+    setState(() => _isLoading = true);
     try {
       String payload = '';
-      if (isSatsMode) {
-        final wallet = context.read<WalletService>();
+      final wallet = context.read<WalletService>();
+
+      if (_method == ReceiveMethod.lightning) {
         if (widget.satsAmount > 0) {
           payload = await wallet.createInvoice(
             widget.satsAmount,
@@ -98,22 +94,24 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                   : wallet.mainWalletFixedInvoice) ??
               'Carregando...';
         }
-        // Guarda o payment hash da fatura para detectar o recebimento
         if (Bolt11.looksLikeInvoice(payload)) {
           try {
             _watchingPaymentHash = Bolt11.decode(payload).paymentHashHex;
           } catch (_) {
             _watchingPaymentHash = null;
           }
+        } else {
+          _watchingPaymentHash = null;
         }
       } else {
-        final liquidWallet = context.read<LiquidWalletService>();
-        final address = await liquidWallet.getReceiveAddress();
-        // Liquid URI format with asset parameter for DEPIX (BRL)
+        // Recebimento puro pela rede Bitcoin (on-chain, testnet)
+        final address = await wallet.getOnchainAddress(forMerchant: widget.isMerchant);
+        _watchingPaymentHash = null;
         if (widget.satsAmount > 0) {
-          payload = 'liquid:$address?amount=$amountBrl&asset=depix';
+          final btc = (widget.satsAmount / 100000000).toStringAsFixed(8);
+          payload = 'bitcoin:$address?amount=$btc';
         } else {
-          payload = 'liquid:$address?asset=depix';
+          payload = address;
         }
       }
 
@@ -133,6 +131,15 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
     }
   }
 
+  void _switchMethod(ReceiveMethod method) {
+    if (_method == method) return;
+    setState(() {
+      _method = method;
+      _invoiceData = null;
+    });
+    _generatePayload();
+  }
+
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsRemaining > 0) {
@@ -141,7 +148,6 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
         });
       } else {
         _timer?.cancel();
-        // optionally navigate back or show expired state
       }
     });
   }
@@ -154,7 +160,9 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   }
 
   String get _formattedTime {
-    if (widget.satsAmount == 0) return '∞ (Sem expiração)';
+    if (_method == ReceiveMethod.onchain || widget.satsAmount == 0) {
+      return '∞ (Sem expiração)';
+    }
     final minutes = (_secondsRemaining / 60).floor();
     final seconds = _secondsRemaining % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
@@ -163,6 +171,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   @override
   Widget build(BuildContext context) {
     final exchangeRate = context.watch<ExchangeRateService>();
+    final showSats = exchangeRate.isSatsDisplay;
     final brlAmount = exchangeRate.satsToBrl(widget.satsAmount);
 
     return Scaffold(
@@ -198,24 +207,55 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
             child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 10),
+              // Seletor do trilho de recebimento (sempre em sats)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
-                  color: IrisTheme.success.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(20),
+                  color: IrisTheme.s2,
+                  border: Border.all(color: IrisTheme.bdr2),
+                  borderRadius: BorderRadius.circular(22),
                 ),
-                child: const Text(
-                  'Fatura gerada com sucesso!',
-                  style: TextStyle(
-                    color: IrisTheme.success,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildMethodBtn('⚡ Lightning', ReceiveMethod.lightning),
+                    _buildMethodBtn('₿ On-chain', ReceiveMethod.onchain),
+                  ],
                 ),
               ),
-              const SizedBox(height: 30),
-              
+              const SizedBox(height: 16),
+
+              if (_method == ReceiveMethod.onchain)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: IrisTheme.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Endereço Bitcoin testnet — confirmação em ~10 min por bloco',
+                    style: TextStyle(color: IrisTheme.primary, fontSize: 11, fontWeight: FontWeight.w600),
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: IrisTheme.success.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Fatura Lightning gerada — liquidação instantânea',
+                    style: TextStyle(
+                      color: IrisTheme.success,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 24),
+
               if (_invoiceData != null)
                 Container(
                   padding: const EdgeInsets.all(20),
@@ -226,8 +266,8 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                   child: Column(
                     children: [
                       QrImageView(
-                                  data: _invoiceData!,
-                                  version: QrVersions.auto,
+                        data: _invoiceData!,
+                        version: QrVersions.auto,
                         size: 240.0,
                         backgroundColor: Colors.white,
                         eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Colors.black),
@@ -256,12 +296,14 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                     ],
                   ),
                 ),
-                
+
               const SizedBox(height: 24),
-              
+
               if (widget.satsAmount > 0) ...[
                 Text(
-                  '${CurrencyFormatter.formatSats(widget.satsAmount)} SATS',
+                  showSats
+                      ? '${CurrencyFormatter.formatSats(widget.satsAmount)} SATS'
+                      : 'R\$ ${CurrencyFormatter.formatBrl(brlAmount)}',
                   style: const TextStyle(
                     fontFamily: 'JetBrains Mono',
                     fontSize: 28,
@@ -271,7 +313,9 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '≈ R\$ ${CurrencyFormatter.formatBrl(brlAmount)}',
+                  showSats
+                      ? '≈ R\$ ${CurrencyFormatter.formatBrl(brlAmount)}'
+                      : '≈ ${CurrencyFormatter.formatSats(widget.satsAmount)} sats',
                   style: const TextStyle(
                     fontSize: 14,
                     color: IrisTheme.textSecondary,
@@ -312,7 +356,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                   child: const Text('Ou defina um valor específico', style: TextStyle(color: IrisTheme.primary)),
                 ),
               ],
-              
+
               if (_isPaid)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24),
@@ -362,9 +406,9 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               Row(
                 children: [
                   Expanded(
@@ -408,10 +452,58 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                   ),
                 ],
               ),
+
+              if (!widget.isMerchant) ...[
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const PixDepositScreen()),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: IrisTheme.success),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    icon: const Text('🇧🇷', style: TextStyle(fontSize: 16)),
+                    label: const Text(
+                      'Depositar em Reais via PIX',
+                      style: TextStyle(color: IrisTheme.success, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 10),
             ],
           ),
         ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMethodBtn(String label, ReceiveMethod method) {
+    final isOn = _method == method;
+    return GestureDetector(
+      onTap: () => _switchMethod(method),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          gradient: isOn ? IrisTheme.brandGradient : null,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'JetBrains Mono',
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: isOn ? Colors.white : IrisTheme.textSecondary,
+          ),
         ),
       ),
     );

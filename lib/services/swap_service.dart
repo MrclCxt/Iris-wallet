@@ -31,10 +31,11 @@ class SwapService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Roteamento completo: BRL -> L-BTC (Liquid) -> Lightning BTC.
+  /// Roteamento completo: PIX (BRL) -> DEPIX (Liquid) -> L-BTC -> saldo em sats.
+  /// O usuário só vê Reais entrando e sats no saldo unificado.
   Future<void> executeFullRouting(double brlAmount) async {
     clearLogs();
-    _addLog('[+] BRL Depositado via PIX: R\$ ${brlAmount.toStringAsFixed(2)}');
+    _addLog('[PIX] Depósito recebido: R\$ ${brlAmount.toStringAsFixed(2)} (testnet: simulado)');
 
     // Conversão pelo câmbio real (CoinGecko), não por taxa fixa simulada.
     final satsAmount = exchangeRateService.brlToSats(brlAmount);
@@ -43,9 +44,10 @@ class SwapService extends ChangeNotifier {
       await exchangeRateService.fetchRate();
       return;
     }
-    _addLog('[🔄] Câmbio atual: R\$ ${brlAmount.toStringAsFixed(2)} = $satsAmount sats');
+    _addLog('[DEPIX] R\$ ${brlAmount.toStringAsFixed(2)} emitidos como DEPIX na Liquid.');
+    _addLog('[SWAP] Trocando DEPIX por L-BTC: $satsAmount sats (câmbio em tempo real).');
 
-    _addLog('[BOLTZ] Iniciando Submarine Swap: L-BTC -> Lightning...');
+    _addLog('[BOLTZ] Movendo L-BTC para o saldo Lightning (Submarine Swap)...');
     await _executeBoltzSwap(satsAmount);
   }
 

@@ -42,16 +42,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Node
-node_modules/
-
-# Local scratch files
-build_log.txt
-doc_content.txt
-doc_content_utf8.txt
-read_docx.ps1
-base/
+# Daemon local (iris-noded): artefatos de build e dados/seed do nó
 daemon/target/
 daemon/iris_node_data/
 daemon/seed.txt
+
+# Artefatos Rust dos plugins vendorizados
 packages/*/rust/target/

@@ -947,18 +947,6 @@ class WalletService extends ChangeNotifier {
     };
   }
 
-  void lockApp() {
-    _isUnlocked = false;
-    _isMerchantUnlocked = false;
-    notifyListeners();
-  }
-
-  String generateRandomHex(int length) {
-    final random = Random.secure();
-    final values = List<int>.generate(length ~/ 2, (i) => random.nextInt(256));
-    return values.map((e) => e.toRadixString(16).padLeft(2, '0')).join();
-  }
-
   @override
   void dispose() {
     _syncTimer?.cancel();

@@ -1,6 +1,0 @@
-{
-  "name": "iris_wallet",
-  "dependencies": {
-    "sharp": "^0.35.1"
-  }
-}

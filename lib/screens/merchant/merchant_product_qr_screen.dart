@@ -26,7 +26,7 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
   String? _watchingPaymentHash;
   StreamSubscription<ReceivedPayment>? _paymentSub;
 
-  bool? _lastSatsMode;
+  bool _invoiceRequested = false;
 
   @override
   void initState() {
@@ -52,8 +52,8 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
     super.didChangeDependencies();
     // A cobrança é sempre uma fatura Lightning (moeda do app = satoshi);
     // o toggle SATS/R$ muda apenas a exibição do valor.
-    if (_lastSatsMode == null) {
-      _lastSatsMode = true;
+    if (!_invoiceRequested) {
+      _invoiceRequested = true;
       _generateInvoice();
     }
   }

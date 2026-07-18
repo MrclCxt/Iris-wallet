@@ -11,11 +11,8 @@ dependencies:
     sdk: flutter
   # State Management
   provider: ^6.1.2
-  # Navigation & Routing
-  go_router: ^12.1.1
   # UI & Theming
   google_fonts: ^6.1.0
-  cupertino_icons: ^1.0.6
   # Networking
   http: ^1.2.1
   # Security (Native Keystore/Keychain)
@@ -30,7 +27,6 @@ dependencies:
   mobile_scanner: ^3.5.5
   intl: ^0.20.2
   lwk: ^0.1.7
-  boltz: ^0.1.10
   share_plus: ^10.0.0
   nfc_manager: ^3.5.1
   shared_preferences: ^2.5.3

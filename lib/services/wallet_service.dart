@@ -947,6 +947,28 @@ class WalletService extends ChangeNotifier {
     };
   }
 
+  /// Envio pela rede Bitcoin (on-chain) — trilho de grandes valores.
+  Future<String> sendOnchain({required String address, required int sats}) async {
+    final handle = _consumerNode;
+    if (!handle.isRunning || handle.api == null) {
+      throw Exception('Nó não está rodando.');
+    }
+    final txid = await handle.api!.sendOnchain(address: address, sats: sats);
+
+    final tx = Transaction(
+      id: txid,
+      title: 'Envio on-chain (Bitcoin)',
+      emoji: '₿',
+      amountSats: sats,
+      isIncoming: false,
+      date: DateTime.now(),
+    );
+    _consumerTransactions.insert(0, tx);
+    await _refreshBalances(handle);
+    notifyListeners();
+    return txid;
+  }
+
   @override
   void dispose() {
     _syncTimer?.cancel();

@@ -12,8 +12,9 @@ import 'consumer_pay_success_screen.dart';
 import '../pin_screen.dart';
 
 /// Confirmação de pagamento real (testnet):
-/// - BOLT11: pago via nó LDK local
+/// - BOLT11: pago via nó LDK local (trilho padrão do dia a dia)
 /// - LNURL: busca a fatura final no callback e paga via LDK
+/// - Bitcoin on-chain: grandes valores, direto pela rede base
 /// - Liquid: envia L-BTC assinado localmente via LWK
 class PayConfirmScreen extends StatefulWidget {
   final int satsAmount;
@@ -21,6 +22,7 @@ class PayConfirmScreen extends StatefulWidget {
   final String? rawInvoice;
   final LnurlPayParams? lnurlParams;
   final String? liquidAddress;
+  final String? btcAddress;
   final bool editableAmount;
 
   const PayConfirmScreen({
@@ -30,6 +32,7 @@ class PayConfirmScreen extends StatefulWidget {
     this.rawInvoice,
     this.lnurlParams,
     this.liquidAddress,
+    this.btcAddress,
     this.editableAmount = false,
   });
 
@@ -42,6 +45,7 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
   late int _satsAmount;
 
   bool get _isLiquid => widget.liquidAddress != null;
+  bool get _isOnchain => widget.btcAddress != null;
 
   @override
   void initState() {
@@ -84,12 +88,18 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
       return;
     }
 
-    if (!_isLiquid && wallet.consumerBalance < _satsAmount) {
+    if (_isLiquid) {
+      if (liquid.balanceSats < _satsAmount) {
+        _showError('Saldo L-BTC insuficiente!');
+        return;
+      }
+    } else if (_isOnchain) {
+      if (wallet.consumerOnchainSats < _satsAmount) {
+        _showError('Saldo on-chain insuficiente!');
+        return;
+      }
+    } else if (wallet.consumerLightningSats < _satsAmount) {
       _showError('Saldo Lightning insuficiente!');
-      return;
-    }
-    if (_isLiquid && liquid.balanceSats < _satsAmount) {
-      _showError('Saldo L-BTC insuficiente!');
       return;
     }
 
@@ -104,6 +114,8 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
     try {
       if (_isLiquid) {
         await liquid.sendLbtc(toAddress: widget.liquidAddress!, sats: _satsAmount);
+      } else if (_isOnchain) {
+        await wallet.sendOnchain(address: widget.btcAddress!, sats: _satsAmount);
       } else if (params != null) {
         final invoice = await Lnurl.requestInvoice(params, _satsAmount * 1000);
         final parsed = Bolt11.decode(invoice);
@@ -160,7 +172,11 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
   @override
   Widget build(BuildContext context) {
     final exchangeRate = context.watch<ExchangeRateService>();
-    final networkLabel = _isLiquid ? 'Liquid (testnet)' : 'Lightning (testnet)';
+    final networkLabel = _isLiquid
+        ? 'Liquid (testnet)'
+        : _isOnchain
+            ? 'Bitcoin on-chain (testnet)'
+            : 'Lightning (testnet)';
 
     return Scaffold(
       backgroundColor: IrisTheme.bg,
@@ -242,8 +258,19 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                           '${widget.lnurlParams!.minSendableSats} – ${widget.lnurlParams!.maxSendableSats} sats'),
                       const SizedBox(height: 8),
                     ],
-                    _buildRow('Taxa estimada', _isLiquid ? '~0,1 sat/vB' : 'roteamento LN',
-                        valueColor: IrisTheme.success, isBold: true),
+                    _buildRow(
+                        'Taxa estimada',
+                        _isLiquid
+                            ? '~0,1 sat/vB'
+                            : _isOnchain
+                                ? 'taxa de mineração (on-chain)'
+                                : 'roteamento LN',
+                        valueColor: IrisTheme.success,
+                        isBold: true),
+                    if (_isOnchain) ...[
+                      const SizedBox(height: 8),
+                      _buildRow('Confirmação', '~10 min por bloco'),
+                    ],
                   ],
                 ),
               ),

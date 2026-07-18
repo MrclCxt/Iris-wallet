@@ -4,6 +4,7 @@ import 'core/theme.dart';
 import 'services/wallet_service.dart';
 import 'services/liquid_wallet_service.dart';
 import 'services/swap_service.dart';
+import 'services/pix_service.dart';
 import 'services/exchange_rate_service.dart';
 import 'screens/splash_screen.dart';
 import 'services/chroma_service.dart';
@@ -35,6 +36,14 @@ void main() {
           ),
           update: (context, wallet, liquid, rate, previous) =>
               previous ?? SwapService(walletService: wallet, liquidWalletService: liquid, exchangeRateService: rate),
+        ),
+        ChangeNotifierProxyProvider2<LiquidWalletService, SwapService, PixService>(
+          create: (context) => PixService(
+            liquidWalletService: Provider.of<LiquidWalletService>(context, listen: false),
+            swapService: Provider.of<SwapService>(context, listen: false),
+          ),
+          update: (context, liquid, swap, previous) =>
+              previous ?? PixService(liquidWalletService: liquid, swapService: swap),
         ),
       ],
       child: const IrisApp(),

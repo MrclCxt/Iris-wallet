@@ -53,6 +53,10 @@ abstract class NodeApi {
   Future<void> payInvoice(String invoice, {int? amountMsat});
   Future<NodeBalances> balances();
   Future<String> newOnchainAddress();
+
+  /// Envio puro pela rede Bitcoin (on-chain) — trilho para grandes valores.
+  /// Retorna o txid.
+  Future<String> sendOnchain({required String address, required int sats});
   Future<List<ChannelSummary>> channels();
   Future<void> openChannel({
     required String nodeId,
@@ -151,6 +155,16 @@ class EmbeddedNodeApi implements NodeApi {
     final onChain = await _n.onChainPayment();
     final address = await onChain.newAddress();
     return address.s;
+  }
+
+  @override
+  Future<String> sendOnchain({required String address, required int sats}) async {
+    final onChain = await _n.onChainPayment();
+    final txid = await onChain.sendToAddress(
+      address: ldk.Address(s: address),
+      amountSats: BigInt.from(sats),
+    );
+    return txid.hash;
   }
 
   @override
@@ -289,6 +303,12 @@ class RemoteNodeApi implements NodeApi {
   Future<String> newOnchainAddress() async {
     final r = await _get('/onchain_address');
     return r['address'] as String;
+  }
+
+  @override
+  Future<String> sendOnchain({required String address, required int sats}) async {
+    final r = await _post('/send_onchain', {'address': address, 'amount_sats': sats});
+    return r['txid']?.toString() ?? '';
   }
 
   @override

@@ -119,6 +119,19 @@ fn handle(node: &Arc<Node>, method: &str, path: &str, body: Value) -> Result<Val
                 .map_err(|e| e.to_string())?;
             Ok(json!({ "address": addr.to_string() }))
         }
+        ("POST", "/send_onchain") => {
+            let address_str = body["address"].as_str().ok_or("address ausente")?;
+            let sats = body["amount_sats"].as_u64().ok_or("amount_sats ausente")?;
+            let address = address_str
+                .parse::<ldk_node::bitcoin::Address<_>>()
+                .map_err(|e| format!("endereço inválido: {e}"))?
+                .assume_checked();
+            let txid = node
+                .onchain_payment()
+                .send_to_address(&address, sats)
+                .map_err(|e| e.to_string())?;
+            Ok(json!({ "txid": txid.to_string() }))
+        }
         ("GET", "/channels") => {
             let channels: Vec<Value> = node
                 .list_channels()

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../core/theme.dart';
 import '../../core/currency_format.dart';
 import '../../core/bolt11.dart';
+import '../../core/tx_policy.dart';
 import '../../services/wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
 import '../../widgets/currency_toggle_btn.dart';
@@ -48,6 +49,10 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   @override
   void initState() {
     super.initState();
+    // Política de roteamento: grandes valores vão pela rede Bitcoin (on-chain)
+    if (widget.satsAmount > 0 && TxPolicy.shouldUseOnchain(widget.satsAmount)) {
+      _method = ReceiveMethod.onchain;
+    }
     if (widget.satsAmount > 0) {
       _startTimer();
     } else {
@@ -470,7 +475,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                     ),
                     icon: const Text('🇧🇷', style: TextStyle(fontSize: 16)),
                     label: const Text(
-                      'Depositar em Reais via PIX',
+                      'PIX — receber ou enviar Reais',
                       style: TextStyle(color: IrisTheme.success, fontWeight: FontWeight.w600),
                     ),
                   ),

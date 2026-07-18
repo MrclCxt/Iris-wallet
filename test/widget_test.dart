@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:iris_wallet/core/bolt11.dart';
 import 'package:iris_wallet/core/lnurl.dart';
+import 'package:iris_wallet/core/tx_policy.dart';
 import 'package:iris_wallet/services/exchange_rate_service.dart';
 
 // ---- helpers bech32 (encoder usado apenas nos testes) ----
@@ -164,6 +165,18 @@ void main() {
       expect(params.minSendableSats, 1);
       expect(params.maxSendableSats, 5000);
       expect(params.isFixedAmount, false);
+    });
+  });
+
+  group('TxPolicy roteamento por valor', () {
+    test('transações do dia a dia vão pela Lightning', () {
+      expect(TxPolicy.shouldUseOnchain(1000), false);
+      expect(TxPolicy.shouldUseOnchain(TxPolicy.onchainThresholdSats - 1), false);
+    });
+
+    test('grandes valores vão pela rede Bitcoin on-chain', () {
+      expect(TxPolicy.shouldUseOnchain(TxPolicy.onchainThresholdSats), true);
+      expect(TxPolicy.shouldUseOnchain(5000000), true);
     });
   });
 

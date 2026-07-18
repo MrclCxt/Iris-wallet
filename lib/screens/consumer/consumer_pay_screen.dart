@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../core/theme.dart';
 import '../../core/bolt11.dart';
 import '../../core/lnurl.dart';
+import '../../core/tx_policy.dart';
 import '../../services/wallet_service.dart';
 import 'package:provider/provider.dart';
 import '../../widgets/currency_toggle_btn.dart';
@@ -60,6 +61,31 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
     final lower = s.toLowerCase();
     if (lower.startsWith('lightning:')) s = s.substring(10);
     return s.trim();
+  }
+
+  /// Endereço Bitcoin (testnet: tb1/m/n/2; mainnet: bc1/1/3) ou URI BIP21.
+  bool _looksLikeBitcoin(String input) {
+    final s = input.toLowerCase();
+    if (s.startsWith('bitcoin:')) return true;
+    return RegExp(r'^(tb1|bc1)[a-z0-9]{20,}$').hasMatch(s) ||
+        RegExp(r'^[mn2][a-km-zA-HJ-NP-Z1-9]{25,39}$').hasMatch(input.trim());
+  }
+
+  /// Decompõe URI BIP21: endereço, valor (sats) e fatura Lightning unificada.
+  ({String address, int? sats, String? lightning}) _parseBip21(String input) {
+    var s = input.trim();
+    if (s.toLowerCase().startsWith('bitcoin:')) s = s.substring(8);
+    String? lightning;
+    int? sats;
+    final qIdx = s.indexOf('?');
+    if (qIdx != -1) {
+      final params = Uri.splitQueryString(s.substring(qIdx + 1));
+      final amountBtc = double.tryParse(params['amount'] ?? '');
+      if (amountBtc != null) sats = (amountBtc * 100000000).round();
+      lightning = params['lightning'];
+      s = s.substring(0, qIdx);
+    }
+    return (address: s, sats: sats, lightning: lightning);
   }
 
   bool _looksLikeLiquid(String input) {
@@ -130,6 +156,41 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
             ),
           ),
         );
+      } else if (_looksLikeBitcoin(input)) {
+        final parsed = _parseBip21(input);
+        // Política de roteamento: Lightning para o dia a dia; acima do
+        // limiar (ou sem fatura unificada) vai pela rede Bitcoin on-chain.
+        final useLightning = parsed.lightning != null &&
+            parsed.sats != null &&
+            !TxPolicy.shouldUseOnchain(parsed.sats!);
+        if (useLightning && Bolt11.looksLikeInvoice(parsed.lightning!)) {
+          final inv = Bolt11.decode(parsed.lightning!);
+          if (!mounted) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PayConfirmScreen(
+                satsAmount: inv.amountSats ?? parsed.sats ?? 0,
+                destination: inv.description.isNotEmpty ? inv.description : 'Fatura Lightning',
+                rawInvoice: parsed.lightning,
+                editableAmount: inv.amountSats == null,
+              ),
+            ),
+          );
+        } else {
+          if (!mounted) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PayConfirmScreen(
+                satsAmount: parsed.sats ?? 0,
+                destination: 'Endereço Bitcoin (on-chain)',
+                btcAddress: parsed.address,
+                editableAmount: parsed.sats == null,
+              ),
+            ),
+          );
+        }
       } else if (_looksLikeLiquid(input)) {
         final address = _extractLiquidAddress(input);
         if (!mounted) return;
@@ -145,7 +206,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
           ),
         );
       } else {
-        _showError('Código não reconhecido. Use fatura Lightning, LNURL ou endereço Liquid.');
+        _showError('Código não reconhecido. Use fatura Lightning, LNURL, endereço Bitcoin ou Liquid.');
       }
     } on Bolt11ParseException catch (e) {
       _showError('Fatura inválida: ${e.message}');

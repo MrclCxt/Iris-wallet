@@ -86,16 +86,16 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
     }
 
     return Scaffold(
-      backgroundColor: BitpayTheme.bg,
+      backgroundColor: IrisTheme.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         automaticallyImplyLeading: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: BitpayTheme.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: IrisTheme.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Cobrar Valor Específico', style: TextStyle(color: BitpayTheme.textPrimary, fontSize: 16)),
+        title: const Text('Cobrar Valor Específico', style: TextStyle(color: IrisTheme.textPrimary, fontSize: 16)),
       ),
       body: SafeArea(
         child: Column(
@@ -121,7 +121,7 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
                       fontFamily: 'JetBrains Mono',
                       fontSize: 48,
                       fontWeight: FontWeight.w600,
-                      color: BitpayTheme.primary,
+                      color: IrisTheme.primary,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -130,7 +130,7 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
                     style: const TextStyle(
                       fontFamily: 'JetBrains Mono',
                       fontSize: 16,
-                      color: BitpayTheme.textSecondary,
+                      color: IrisTheme.textSecondary,
                     ),
                   ),
                 ],
@@ -179,7 +179,7 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? BitpayTheme.s3 : Colors.transparent,
+          color: isSelected ? IrisTheme.s3 : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
@@ -187,7 +187,7 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected ? BitpayTheme.textPrimary : BitpayTheme.textTertiary,
+            color: isSelected ? IrisTheme.textPrimary : IrisTheme.textTertiary,
           ),
         ),
       ),

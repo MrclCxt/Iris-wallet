@@ -74,7 +74,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: BitpayTheme.s1,
+      backgroundColor: IrisTheme.s1,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateModal) {
@@ -84,16 +84,16 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('Abrir Novo Canal', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: BitpayTheme.textPrimary)),
+                const Text('Abrir Novo Canal', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: IrisTheme.textPrimary)),
                 const SizedBox(height: 16),
                 TextField(
                   controller: pubkeyCtrl,
-                  style: const TextStyle(color: BitpayTheme.textPrimary),
+                  style: const TextStyle(color: IrisTheme.textPrimary),
                   decoration: InputDecoration(
                     labelText: 'Node PubKey (Hex)',
-                    labelStyle: const TextStyle(color: BitpayTheme.textSecondary),
+                    labelStyle: const TextStyle(color: IrisTheme.textSecondary),
                     filled: true,
-                    fillColor: BitpayTheme.bg,
+                    fillColor: IrisTheme.bg,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   ),
                 ),
@@ -104,12 +104,12 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                       flex: 2,
                       child: TextField(
                         controller: hostCtrl,
-                        style: const TextStyle(color: BitpayTheme.textPrimary),
+                        style: const TextStyle(color: IrisTheme.textPrimary),
                         decoration: InputDecoration(
                           labelText: 'Host (IP ou Tor)',
-                          labelStyle: const TextStyle(color: BitpayTheme.textSecondary),
+                          labelStyle: const TextStyle(color: IrisTheme.textSecondary),
                           filled: true,
-                          fillColor: BitpayTheme.bg,
+                          fillColor: IrisTheme.bg,
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                         ),
                       ),
@@ -119,12 +119,12 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                       child: TextField(
                         controller: portCtrl,
                         keyboardType: TextInputType.number,
-                        style: const TextStyle(color: BitpayTheme.textPrimary),
+                        style: const TextStyle(color: IrisTheme.textPrimary),
                         decoration: InputDecoration(
                           labelText: 'Porta',
-                          labelStyle: const TextStyle(color: BitpayTheme.textSecondary),
+                          labelStyle: const TextStyle(color: IrisTheme.textSecondary),
                           filled: true,
-                          fillColor: BitpayTheme.bg,
+                          fillColor: IrisTheme.bg,
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                         ),
                       ),
@@ -135,15 +135,15 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                 TextField(
                   controller: amountCtrl,
                   keyboardType: TextInputType.number,
-                  style: const TextStyle(color: BitpayTheme.textPrimary),
+                  style: const TextStyle(color: IrisTheme.textPrimary),
                   decoration: InputDecoration(
                     labelText: 'Capacidade do Canal (Sats)',
-                    labelStyle: const TextStyle(color: BitpayTheme.textSecondary),
+                    labelStyle: const TextStyle(color: IrisTheme.textSecondary),
                     filled: true,
-                    fillColor: BitpayTheme.bg,
+                    fillColor: IrisTheme.bg,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     helperText: 'Saldo disponível: $_onChainBalance sats',
-                    helperStyle: const TextStyle(color: BitpayTheme.primary),
+                    helperStyle: const TextStyle(color: IrisTheme.primary),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -163,13 +163,13 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                       
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Sinal de abertura de canal enviado! Aguarde a confirmação on-chain.'), backgroundColor: BitpayTheme.success),
+                        const SnackBar(content: Text('Sinal de abertura de canal enviado! Aguarde a confirmação on-chain.'), backgroundColor: IrisTheme.success),
                       );
                       _loadNodeData();
                     } catch (e) {
                       setStateModal(() => isOpening = false);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Erro: $e'), backgroundColor: BitpayTheme.danger),
+                        SnackBar(content: Text('Erro: $e'), backgroundColor: IrisTheme.danger),
                       );
                     }
                   },
@@ -187,11 +187,11 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: BitpayTheme.bg,
+      backgroundColor: IrisTheme.bg,
       appBar: AppBar(
-        backgroundColor: BitpayTheme.s1,
-        title: const Text('Gestão do Nó Nativo ⚡', style: TextStyle(color: BitpayTheme.textPrimary, fontSize: 18)),
-        iconTheme: const IconThemeData(color: BitpayTheme.textPrimary),
+        backgroundColor: IrisTheme.s1,
+        title: const Text('Gestão do Nó Nativo ⚡', style: TextStyle(color: IrisTheme.textPrimary, fontSize: 18)),
+        iconTheme: const IconThemeData(color: IrisTheme.textPrimary),
         actions: [
           IconButton(
             icon: const Icon(Icons.sync),
@@ -223,23 +223,23 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: BitpayTheme.s1,
+        color: IrisTheme.s1,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: BitpayTheme.bdr),
+        border: Border.all(color: IrisTheme.bdr),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(Icons.account_balance_wallet, color: BitpayTheme.primary),
+              Icon(Icons.account_balance_wallet, color: IrisTheme.primary),
               SizedBox(width: 8),
-              Text('Cofre (On-chain)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: BitpayTheme.textPrimary)),
+              Text('Cofre (On-chain)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: IrisTheme.textPrimary)),
             ],
           ),
           const SizedBox(height: 16),
-          Text('$_onChainBalance sats', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: BitpayTheme.textPrimary)),
-          const Text('Disponível para abrir novos canais', style: TextStyle(fontSize: 12, color: BitpayTheme.textSecondary)),
+          Text('$_onChainBalance sats', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: IrisTheme.textPrimary)),
+          const Text('Disponível para abrir novos canais', style: TextStyle(fontSize: 12, color: IrisTheme.textSecondary)),
           const SizedBox(height: 24),
           
           if (_onChainAddress.isNotEmpty) ...[
@@ -255,7 +255,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            const Center(child: Text('Endereço Testnet (SegWit)', style: TextStyle(color: BitpayTheme.textSecondary, fontSize: 12))),
+            const Center(child: Text('Endereço Testnet (SegWit)', style: TextStyle(color: IrisTheme.textSecondary, fontSize: 12))),
             const SizedBox(height: 4),
             InkWell(
               onTap: () {
@@ -265,7 +265,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                 decoration: BoxDecoration(
-                  color: BitpayTheme.bg,
+                  color: IrisTheme.bg,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -273,11 +273,11 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                     Expanded(
                       child: Text(
                         _onChainAddress,
-                        style: const TextStyle(fontFamily: 'monospace', color: BitpayTheme.primaryLight, fontSize: 13),
+                        style: const TextStyle(fontFamily: 'monospace', color: IrisTheme.primaryLight, fontSize: 13),
                         textAlign: TextAlign.center,
                       ),
                     ),
-                    const Icon(Icons.copy, size: 16, color: BitpayTheme.textSecondary),
+                    const Icon(Icons.copy, size: 16, color: IrisTheme.textSecondary),
                   ],
                 ),
               ),
@@ -285,7 +285,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
             const SizedBox(height: 8),
             const Text(
               'Dica: Use um Faucet (ex: bitcoinfaucet.uo1.net) para receber moedas de teste grátis neste endereço.',
-              style: TextStyle(color: BitpayTheme.textTertiary, fontSize: 11, fontStyle: FontStyle.italic),
+              style: TextStyle(color: IrisTheme.textTertiary, fontSize: 11, fontStyle: FontStyle.italic),
               textAlign: TextAlign.center,
             ),
           ]
@@ -301,12 +301,12 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Canais Lightning', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: BitpayTheme.textPrimary)),
+            const Text('Canais Lightning', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: IrisTheme.textPrimary)),
             TextButton.icon(
               onPressed: _showOpenChannelDialog,
               icon: const Icon(Icons.add),
               label: const Text('Abrir Canal'),
-              style: TextButton.styleFrom(foregroundColor: BitpayTheme.primary),
+              style: TextButton.styleFrom(foregroundColor: IrisTheme.primary),
             )
           ],
         ),
@@ -315,15 +315,15 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: BitpayTheme.s1,
+              color: IrisTheme.s1,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: BitpayTheme.bdr),
+              border: Border.all(color: IrisTheme.bdr),
             ),
             child: const Center(
               child: Text(
                 'Nenhum canal aberto.\nVocê precisa depositar fundos On-chain e abrir um canal para começar a transacionar via Lightning.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: BitpayTheme.textSecondary),
+                style: TextStyle(color: IrisTheme.textSecondary),
               ),
             ),
           )
@@ -338,9 +338,9 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: BitpayTheme.s1,
+                color: IrisTheme.s1,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isUsable ? BitpayTheme.primary.withOpacity(0.5) : BitpayTheme.bdr),
+                border: Border.all(color: isUsable ? IrisTheme.primary.withOpacity(0.5) : IrisTheme.bdr),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,17 +350,17 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                     children: [
                       Text(
                         'Canal com ${ch.counterpartyNodeId.hex.substring(0, 8)}...',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: BitpayTheme.textPrimary),
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textPrimary),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: isUsable ? BitpayTheme.success.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
+                          color: isUsable ? IrisTheme.success.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           isUsable ? 'Ativo' : 'Pendente/Inativo',
-                          style: TextStyle(color: isUsable ? BitpayTheme.success : Colors.orange, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: isUsable ? IrisTheme.success : Colors.orange, fontSize: 10, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
@@ -372,8 +372,8 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Posso Enviar', style: TextStyle(fontSize: 10, color: BitpayTheme.textSecondary)),
-                            Text('$outbound sats', style: const TextStyle(color: BitpayTheme.primaryLight, fontWeight: FontWeight.bold)),
+                            const Text('Posso Enviar', style: TextStyle(fontSize: 10, color: IrisTheme.textSecondary)),
+                            Text('$outbound sats', style: const TextStyle(color: IrisTheme.primaryLight, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -381,8 +381,8 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            const Text('Capacidade', style: TextStyle(fontSize: 10, color: BitpayTheme.textSecondary)),
-                            Text('$capacity sats', style: const TextStyle(color: BitpayTheme.textPrimary, fontWeight: FontWeight.bold)),
+                            const Text('Capacidade', style: TextStyle(fontSize: 10, color: IrisTheme.textSecondary)),
+                            Text('$capacity sats', style: const TextStyle(color: IrisTheme.textPrimary, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -390,8 +390,8 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            const Text('Posso Receber', style: TextStyle(fontSize: 10, color: BitpayTheme.textSecondary)),
-                            Text('$inbound sats', style: const TextStyle(color: BitpayTheme.success, fontWeight: FontWeight.bold)),
+                            const Text('Posso Receber', style: TextStyle(fontSize: 10, color: IrisTheme.textSecondary)),
+                            Text('$inbound sats', style: const TextStyle(color: IrisTheme.success, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),

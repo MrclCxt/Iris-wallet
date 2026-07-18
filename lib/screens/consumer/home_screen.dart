@@ -43,7 +43,7 @@ class _ConsumerHomeScreenState extends State<ConsumerHomeScreen> {
             NavigationRail(
               extended: _isRailExtended,
               minExtendedWidth: 160,
-              backgroundColor: BitpayTheme.s1,
+              backgroundColor: IrisTheme.s1,
               selectedIndex: _currentIndex,
               onDestinationSelected: _onTabTapped,
               leading: Padding(
@@ -70,8 +70,8 @@ class _ConsumerHomeScreenState extends State<ConsumerHomeScreen> {
                   ),
                 ),
               ),
-              selectedIconTheme: const IconThemeData(color: BitpayTheme.primary),
-              unselectedIconTheme: const IconThemeData(color: BitpayTheme.textTertiary),
+              selectedIconTheme: const IconThemeData(color: IrisTheme.primary),
+              unselectedIconTheme: const IconThemeData(color: IrisTheme.textTertiary),
               destinations: const [
                 NavigationRailDestination(
                   icon: Text('🏠', style: TextStyle(fontSize: 20)),
@@ -91,7 +91,7 @@ class _ConsumerHomeScreenState extends State<ConsumerHomeScreen> {
                 ),
               ],
             ),
-            const VerticalDivider(thickness: 1, width: 1, color: BitpayTheme.bdr),
+            const VerticalDivider(thickness: 1, width: 1, color: IrisTheme.bdr),
             Expanded(child: _pagesWithArgs[_currentIndex]),
           ],
         ),
@@ -137,8 +137,8 @@ class _IrisBottomNav extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: BitpayTheme.s1,
-        border: const Border(top: BorderSide(color: BitpayTheme.bdr, width: 1.0)),
+        color: IrisTheme.s1,
+        border: const Border(top: BorderSide(color: IrisTheme.bdr, width: 1.0)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -183,7 +183,7 @@ class _IrisBottomNav extends StatelessWidget {
                               fontSize: 9,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.5,
-                              color: isSelected ? tabColors[i] : BitpayTheme.textTertiary,
+                              color: isSelected ? tabColors[i] : IrisTheme.textTertiary,
                             ),
                           ),
                         ],

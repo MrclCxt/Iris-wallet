@@ -45,11 +45,11 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
             NavigationRail(
               extended: _isRailExtended,
               minExtendedWidth: 160,
-              backgroundColor: BitpayTheme.s1,
+              backgroundColor: IrisTheme.s1,
               selectedIndex: _currentIndex,
               onDestinationSelected: _onTabTapped,
               leading: IconButton(
-                icon: Icon(_isRailExtended ? Icons.menu_open : Icons.menu, color: BitpayTheme.primary),
+                icon: Icon(_isRailExtended ? Icons.menu_open : Icons.menu, color: IrisTheme.primary),
                 onPressed: () {
                   setState(() {
                     _isRailExtended = !_isRailExtended;
@@ -65,8 +65,8 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
                   ),
                 ),
               ),
-              selectedIconTheme: const IconThemeData(color: BitpayTheme.primary),
-              unselectedIconTheme: const IconThemeData(color: BitpayTheme.textTertiary),
+              selectedIconTheme: const IconThemeData(color: IrisTheme.primary),
+              unselectedIconTheme: const IconThemeData(color: IrisTheme.textTertiary),
               destinations: [
                 NavigationRailDestination(
                   icon: const Text('📈', style: TextStyle(fontSize: 20)), 
@@ -90,7 +90,7 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
                 ),
               ],
             ),
-            const VerticalDivider(thickness: 1, width: 1, color: BitpayTheme.bdr),
+            const VerticalDivider(thickness: 1, width: 1, color: IrisTheme.bdr),
             Expanded(child: _pagesWithArgs[_currentIndex]),
           ],
         ),
@@ -99,9 +99,9 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
         body: _pagesWithArgs[_currentIndex],
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
-            color: BitpayTheme.bg,
+            color: IrisTheme.bg,
             border: const Border(
-              top: BorderSide(color: BitpayTheme.bdr, width: 1.0),
+              top: BorderSide(color: IrisTheme.bdr, width: 1.0),
             ),
           ),
           padding: const EdgeInsets.only(top: 6, bottom: 12),
@@ -144,7 +144,7 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.2,
-                color: isSelected ? BitpayTheme.primary : BitpayTheme.textTertiary,
+                color: isSelected ? IrisTheme.primary : IrisTheme.textTertiary,
               ),
             ),
           ],

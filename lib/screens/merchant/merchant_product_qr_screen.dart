@@ -72,7 +72,7 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
         if (mounted) {
           setState(() => _isLoading = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erro ao gerar fatura: $e'), backgroundColor: BitpayTheme.danger),
+            SnackBar(content: Text('Erro ao gerar fatura: $e'), backgroundColor: IrisTheme.danger),
           );
         }
       }
@@ -90,14 +90,14 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
 
     // Se o produto foi excluido enquanto nesta tela (embora pop resolva, é bom checar)
     if (!wallet.merchantProducts.any((p) => p.id == widget.product.id)) {
-      return const Scaffold(backgroundColor: BitpayTheme.bg, body: SizedBox());
+      return const Scaffold(backgroundColor: IrisTheme.bg, body: SizedBox());
     }
 
     final exchangeRate = context.watch<ExchangeRateService>();
     final int satsAmount = exchangeRate.brlToSats(product.price);
 
     return Scaffold(
-      backgroundColor: BitpayTheme.bg,
+      backgroundColor: IrisTheme.bg,
       body: MaxWidthContainer(
         child: SafeArea(
           child: Column(
@@ -110,7 +110,7 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: BitpayTheme.primary.withOpacity(0.12),
+                      color: IrisTheme.primary.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Center(child: Text(product.emoji, style: const TextStyle(fontSize: 17))),
@@ -126,13 +126,13 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                   ),
                   if (_invoiceData != null)
                     IconButton(
-                      icon: const Icon(Icons.share, color: BitpayTheme.primary),
+                      icon: const Icon(Icons.share, color: IrisTheme.primary),
                       onPressed: () {
                         Share.share(_invoiceData!);
                       },
                     ),
                   IconButton(
-                    icon: const Icon(Icons.edit, color: BitpayTheme.primary),
+                    icon: const Icon(Icons.edit, color: IrisTheme.primary),
                     onPressed: () {
                       showDialog(
                         context: context,
@@ -151,7 +151,7 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                     },
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: BitpayTheme.textPrimary),
+                    icon: const Icon(Icons.close, color: IrisTheme.textPrimary),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -165,17 +165,17 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                   children: [
                     Text(
                       'R\$ ${CurrencyFormatter.formatBrl(product.price)}',
-                      style: Theme.of(context).textTheme.displayLarge?.copyWith(color: BitpayTheme.success, fontSize: 42),
+                      style: Theme.of(context).textTheme.displayLarge?.copyWith(color: IrisTheme.success, fontSize: 42),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       '${CurrencyFormatter.formatSats(satsAmount)} sats',
-                      style: const TextStyle(fontSize: 15, color: BitpayTheme.textSecondary, fontFamily: 'JetBrains Mono'),
+                      style: const TextStyle(fontSize: 15, color: IrisTheme.textSecondary, fontFamily: 'JetBrains Mono'),
                     ),
                     const SizedBox(height: 32),
                     
                     if (_isLoading)
-                      const CircularProgressIndicator(color: BitpayTheme.primary)
+                      const CircularProgressIndicator(color: IrisTheme.primary)
                     else if (_invoiceData != null)
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -184,7 +184,7 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: BitpayTheme.primary.withOpacity(0.15),
+                              color: IrisTheme.primary.withOpacity(0.15),
                               blurRadius: 30,
                               spreadRadius: 5,
                             ),
@@ -203,16 +203,16 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: BitpayTheme.bg,
+                                color: IrisTheme.bg,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: BitpayTheme.bdr),
+                                border: Border.all(color: IrisTheme.bdr),
                               ),
                               child: Text(
                                 _invoiceData!,
                                 style: const TextStyle(
                                   fontFamily: 'JetBrains Mono',
                                   fontSize: 12,
-                                  color: BitpayTheme.textSecondary,
+                                  color: IrisTheme.textSecondary,
                                 ),
                                 textAlign: TextAlign.center,
                                 maxLines: 3,
@@ -228,10 +228,10 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                     const SizedBox(height: 24),
                     const Text(
                       'Aguardando pagamento...',
-                      style: TextStyle(color: BitpayTheme.primary, fontWeight: FontWeight.w600, fontSize: 16),
+                      style: TextStyle(color: IrisTheme.primary, fontWeight: FontWeight.w600, fontSize: 16),
                     ),
                     const SizedBox(height: 8),
-                    const CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(BitpayTheme.primary)),
+                    const CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(IrisTheme.primary)),
                   ],
                 ),
               ),
@@ -247,7 +247,7 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                     children: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('← Voltar', style: TextStyle(color: BitpayTheme.textSecondary)),
+                        child: const Text('← Voltar', style: TextStyle(color: IrisTheme.textSecondary)),
                       ),
                     ],
                   ),

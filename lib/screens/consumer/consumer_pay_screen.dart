@@ -96,8 +96,8 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
                 borderRadius: BorderRadius.circular(24),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: BitpayTheme.s1,
-                    border: Border.all(color: BitpayTheme.bdr),
+                    color: IrisTheme.s1,
+                    border: Border.all(color: IrisTheme.bdr),
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Stack(
@@ -146,19 +146,19 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
               controller: _invoiceCtrl,
               decoration: InputDecoration(
                 hintText: isSatsMode ? 'Colar fatura Lightning' : 'Colar endereço Liquid',
-                hintStyle: const TextStyle(color: BitpayTheme.textTertiary),
+                hintStyle: const TextStyle(color: IrisTheme.textTertiary),
                 filled: true,
-                fillColor: BitpayTheme.s1,
+                fillColor: IrisTheme.s1,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: BitpayTheme.bdr),
+                  borderSide: const BorderSide(color: IrisTheme.bdr),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: BitpayTheme.bdr),
+                  borderSide: const BorderSide(color: IrisTheme.bdr),
                 ),
                 suffixIcon: IconButton(
-                  icon: const Icon(Icons.paste, color: BitpayTheme.primary),
+                  icon: const Icon(Icons.paste, color: IrisTheme.primary),
                   onPressed: () async {
                     final data = await Clipboard.getData('text/plain');
                     if (data?.text != null && data!.text!.isNotEmpty) {
@@ -177,9 +177,9 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: BitpayTheme.s1,
+                color: IrisTheme.s1,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: BitpayTheme.bdr),
+                border: Border.all(color: IrisTheme.bdr),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -187,7 +187,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
                   Expanded(
                     child: Row(
                       children: [
-                        const Icon(Icons.contactless, color: BitpayTheme.textSecondary),
+                        const Icon(Icons.contactless, color: IrisTheme.textSecondary),
                         const SizedBox(width: 12),
                         const Expanded(child: Text('Pagar por aproximação', overflow: TextOverflow.ellipsis)),
                       ],
@@ -195,7 +195,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
                   ),
                   Switch(
                     value: context.watch<WalletService>().isNfcEnabled,
-                    activeColor: BitpayTheme.primary,
+                    activeColor: IrisTheme.primary,
                     onChanged: _isNfcAvailable ? (val) async {
                       context.read<WalletService>().toggleNfc(val);
                       if (val) {

@@ -1,4 +1,4 @@
-name: bitpay_flutter
+name: iris_wallet
 description: A real non-custodial Bitcoin & Lightning wallet with PIX integrations via DEPIX/Liquid.
 publish_to: 'none'
 version: 1.0.0+1

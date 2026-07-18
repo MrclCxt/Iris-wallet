@@ -43,7 +43,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                   children: [
                     Text('Minha carteira', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 1),
-                    Text('Bitcoin Lightning', style: TextStyle(fontSize: 11, color: BitpayTheme.textSecondary)),
+                    Text('Bitcoin Lightning', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
                   ],
                 ),
                 const Spacer(),
@@ -70,7 +70,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                           'SALDO',
                           style: TextStyle(
                             fontSize: 10,
-                            color: BitpayTheme.textSecondary,
+                            color: IrisTheme.textSecondary,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.8,
                           ),
@@ -97,7 +97,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                           _showSats
                               ? 'sats · ≈ R\$ ${CurrencyFormatter.formatBrl(balanceBrl)}'
                               : '≈ ${CurrencyFormatter.formatSats(balanceSats)} sats',
-                          style: const TextStyle(fontSize: 12, color: BitpayTheme.textSecondary),
+                          style: const TextStyle(fontSize: 12, color: IrisTheme.textSecondary),
                         ),
                         const SizedBox(height: 3),
                         Text(
@@ -105,7 +105,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                           style: const TextStyle(
                             fontFamily: 'JetBrains Mono',
                             fontSize: 10,
-                            color: BitpayTheme.textTertiary,
+                            color: IrisTheme.textTertiary,
                           ),
                         ),
                       ],
@@ -139,10 +139,10 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                               }
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: BitpayTheme.s2,
-                              foregroundColor: BitpayTheme.textPrimary,
+                              backgroundColor: IrisTheme.s2,
+                              foregroundColor: IrisTheme.textPrimary,
                               padding: const EdgeInsets.symmetric(vertical: 13),
-                              side: const BorderSide(color: BitpayTheme.bdr2),
+                              side: const BorderSide(color: IrisTheme.bdr2),
                             ),
                             child: const Text('⬇ Receber', style: TextStyle(fontSize: 14)),
                           ),
@@ -152,7 +152,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                   ),
                   
                   const SizedBox(height: 14),
-                  const Divider(color: BitpayTheme.bdr, height: 1),
+                  const Divider(color: IrisTheme.bdr, height: 1),
                   const SizedBox(height: 14),
 
                   // History
@@ -169,7 +169,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.8,
-                              color: BitpayTheme.textTertiary,
+                              color: IrisTheme.textTertiary,
                             ),
                           ),
                         ),
@@ -177,7 +177,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 24),
                             child: Center(
-                              child: Text('Nenhuma movimentação ainda.', style: TextStyle(color: BitpayTheme.textSecondary)),
+                              child: Text('Nenhuma movimentação ainda.', style: TextStyle(color: IrisTheme.textSecondary)),
                             ),
                           )
                         else if (MediaQuery.of(context).size.width >= 850)
@@ -185,15 +185,15 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                         else
                           Container(
                             decoration: BoxDecoration(
-                              color: BitpayTheme.s1,
-                              border: Border.all(color: BitpayTheme.bdr),
+                              color: IrisTheme.s1,
+                              border: Border.all(color: IrisTheme.bdr),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             padding: const EdgeInsets.all(14),
                             child: Column(
                               children: [
                                 for (int i = 0; i < wallet.consumerTransactions.length; i++) ...[
-                                  if (i > 0) const Divider(color: BitpayTheme.bdr, height: 20),
+                                  if (i > 0) const Divider(color: IrisTheme.bdr, height: 20),
                                   _buildTxRow(
                                     wallet.consumerTransactions[i].emoji,
                                     wallet.consumerTransactions[i].title,
@@ -223,28 +223,28 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: BitpayTheme.s1,
-        border: Border.all(color: BitpayTheme.bdr),
+        color: IrisTheme.s1,
+        border: Border.all(color: IrisTheme.bdr),
         borderRadius: BorderRadius.circular(16),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: DataTable(
-          headingRowColor: MaterialStateProperty.all(BitpayTheme.s2),
+          headingRowColor: MaterialStateProperty.all(IrisTheme.s2),
           dataRowMinHeight: 60,
           dataRowMaxHeight: 60,
           columnSpacing: 24,
           horizontalMargin: 24,
           columns: const [
-            DataColumn(label: Text('Data', style: TextStyle(fontWeight: FontWeight.bold, color: BitpayTheme.textSecondary))),
-            DataColumn(label: Text('Descrição', style: TextStyle(fontWeight: FontWeight.bold, color: BitpayTheme.textSecondary))),
-            DataColumn(label: Text('Tipo', style: TextStyle(fontWeight: FontWeight.bold, color: BitpayTheme.textSecondary))),
-            DataColumn(label: Text('Valor', style: TextStyle(fontWeight: FontWeight.bold, color: BitpayTheme.textSecondary)), numeric: true),
-            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, color: BitpayTheme.textSecondary))),
+            DataColumn(label: Text('Data', style: TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textSecondary))),
+            DataColumn(label: Text('Descrição', style: TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textSecondary))),
+            DataColumn(label: Text('Tipo', style: TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textSecondary))),
+            DataColumn(label: Text('Valor', style: TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textSecondary)), numeric: true),
+            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textSecondary))),
           ],
           rows: wallet.consumerTransactions.map((tx) {
             final isPos = tx.isIncoming;
-            final color = isPos ? BitpayTheme.success : BitpayTheme.danger;
+            final color = isPos ? IrisTheme.success : IrisTheme.danger;
             final sats = isPos ? tx.amountSats : -tx.amountSats;
             final valStr = exchangeRate.isSatsDisplay
                 ? '${isPos ? '+' : ''}${CurrencyFormatter.formatSats(sats)} sats'
@@ -252,7 +252,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
 
             return DataRow(
               cells: [
-                DataCell(Text('${tx.date.day.toString().padLeft(2, '0')}/${tx.date.month.toString().padLeft(2, '0')} ${tx.date.hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')}', style: const TextStyle(color: BitpayTheme.textSecondary))),
+                DataCell(Text('${tx.date.day.toString().padLeft(2, '0')}/${tx.date.month.toString().padLeft(2, '0')} ${tx.date.hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')}', style: const TextStyle(color: IrisTheme.textSecondary))),
                 DataCell(Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -261,16 +261,16 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                     Text(tx.title, style: const TextStyle(fontWeight: FontWeight.w600)),
                   ],
                 )),
-                DataCell(Text(isPos ? 'Depósito' : 'Pagamento', style: TextStyle(color: isPos ? BitpayTheme.textPrimary : BitpayTheme.textSecondary))),
+                DataCell(Text(isPos ? 'Depósito' : 'Pagamento', style: TextStyle(color: isPos ? IrisTheme.textPrimary : IrisTheme.textSecondary))),
                 DataCell(Text(valStr, style: TextStyle(color: color, fontFamily: 'JetBrains Mono', fontWeight: FontWeight.bold))),
                 DataCell(Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: BitpayTheme.success.withOpacity(0.1),
+                    color: IrisTheme.success.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: BitpayTheme.success.withOpacity(0.3)),
+                    border: Border.all(color: IrisTheme.success.withOpacity(0.3)),
                   ),
-                  child: const Text('Concluído', style: TextStyle(color: BitpayTheme.success, fontSize: 12, fontWeight: FontWeight.bold)),
+                  child: const Text('Concluído', style: TextStyle(color: IrisTheme.success, fontSize: 12, fontWeight: FontWeight.bold)),
                 )),
               ],
             );
@@ -284,7 +284,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
 
   Widget _buildTxRow(String emoji, String title, String time, int sats, bool showSats, ExchangeRateService exchangeRate) {
     final isPos = sats >= 0;
-    final color = isPos ? BitpayTheme.success : BitpayTheme.danger;
+    final color = isPos ? IrisTheme.success : IrisTheme.danger;
     final brl = exchangeRate.satsToBrl(sats.abs());
     
     return Row(
@@ -293,7 +293,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-            color: BitpayTheme.s3,
+            color: IrisTheme.s3,
             borderRadius: BorderRadius.circular(9),
           ),
           child: Center(child: Text(emoji, style: const TextStyle(fontSize: 15))),
@@ -305,7 +305,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
             children: [
               Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: 1),
-              Text(time, style: const TextStyle(fontSize: 11, color: BitpayTheme.textSecondary, fontFamily: 'JetBrains Mono')),
+              Text(time, style: const TextStyle(fontSize: 11, color: IrisTheme.textSecondary, fontFamily: 'JetBrains Mono')),
             ],
           ),
         ),
@@ -322,7 +322,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
               showSats
                   ? '≈ R\$ ${CurrencyFormatter.formatBrl(brl)}'
                   : '≈ ${CurrencyFormatter.formatSats(sats.abs())} sats',
-              style: const TextStyle(fontSize: 10, color: BitpayTheme.textTertiary, fontFamily: 'JetBrains Mono'),
+              style: const TextStyle(fontSize: 10, color: IrisTheme.textTertiary, fontFamily: 'JetBrains Mono'),
             ),
           ],
         ),

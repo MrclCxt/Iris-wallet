@@ -97,7 +97,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao gerar recebimento: $e'), backgroundColor: BitpayTheme.danger),
+          SnackBar(content: Text('Erro ao gerar recebimento: $e'), backgroundColor: IrisTheme.danger),
         );
       }
     }
@@ -135,19 +135,19 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
     final brlAmount = exchangeRate.satsToBrl(widget.satsAmount);
 
     return Scaffold(
-      backgroundColor: BitpayTheme.bg,
+      backgroundColor: IrisTheme.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         automaticallyImplyLeading: widget.isStandalone,
         leading: widget.isStandalone ? IconButton(
-          icon: const Icon(Icons.arrow_back, color: BitpayTheme.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: IrisTheme.textPrimary),
           onPressed: () => Navigator.pop(context),
         ) : null,
         title: const Text(
           'Receber Bitcoin',
           style: TextStyle(
-            color: BitpayTheme.textPrimary,
+            color: IrisTheme.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -171,13 +171,13 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: BitpayTheme.success.withOpacity(0.12),
+                  color: IrisTheme.success.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text(
                   'Fatura gerada com sucesso!',
                   style: TextStyle(
-                    color: BitpayTheme.success,
+                    color: IrisTheme.success,
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
                   ),
@@ -206,16 +206,16 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: BitpayTheme.bg,
+                          color: IrisTheme.bg,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: BitpayTheme.bdr),
+                          border: Border.all(color: IrisTheme.bdr),
                         ),
                         child: Text(
                           _invoiceData!,
                           style: const TextStyle(
                             fontFamily: 'JetBrains Mono',
                             fontSize: 12,
-                            color: BitpayTheme.textSecondary,
+                            color: IrisTheme.textSecondary,
                           ),
                           textAlign: TextAlign.center,
                           maxLines: 3,
@@ -235,7 +235,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                     fontFamily: 'JetBrains Mono',
                     fontSize: 28,
                     fontWeight: FontWeight.w700,
-                    color: BitpayTheme.primary,
+                    color: IrisTheme.primary,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -243,7 +243,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                   '≈ R\$ ${CurrencyFormatter.formatBrl(brlAmount)}',
                   style: const TextStyle(
                     fontSize: 14,
-                    color: BitpayTheme.textSecondary,
+                    color: IrisTheme.textSecondary,
                   ),
                 ),
               ] else ...[
@@ -253,7 +253,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                     fontFamily: 'JetBrains Mono',
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
-                    color: BitpayTheme.primary,
+                    color: IrisTheme.primary,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -261,7 +261,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                   'O pagador definirá o valor',
                   style: TextStyle(
                     fontSize: 14,
-                    color: BitpayTheme.textSecondary,
+                    color: IrisTheme.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -275,17 +275,17 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                     );
                   },
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: BitpayTheme.primary),
+                    side: const BorderSide(color: IrisTheme.primary),
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   ),
-                  child: const Text('Ou defina um valor específico', style: TextStyle(color: BitpayTheme.primary)),
+                  child: const Text('Ou defina um valor específico', style: TextStyle(color: IrisTheme.primary)),
                 ),
               ],
               
               if (_isLoading)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: CircularProgressIndicator(color: BitpayTheme.primary)),
+                  child: Center(child: CircularProgressIndicator(color: IrisTheme.primary)),
                 )
               else if (_invoiceData != null)
                 Padding(
@@ -294,9 +294,9 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.wifi_tethering, color: BitpayTheme.primary, size: 32),
+                        const Icon(Icons.wifi_tethering, color: IrisTheme.primary, size: 32),
                         const SizedBox(height: 12),
-                        const Text('Aguardando pagamento...', style: TextStyle(color: BitpayTheme.textSecondary, fontSize: 14)),
+                        const Text('Aguardando pagamento...', style: TextStyle(color: IrisTheme.textSecondary, fontSize: 14)),
                       ],
                     ),
                   ),
@@ -309,7 +309,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                 style: TextStyle(
                   fontFamily: 'JetBrains Mono',
                   fontSize: 14,
-                  color: _secondsRemaining < 60 ? BitpayTheme.danger : BitpayTheme.textTertiary,
+                  color: _secondsRemaining < 60 ? IrisTheme.danger : IrisTheme.textTertiary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -330,10 +330,10 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: BitpayTheme.s1,
-                        foregroundColor: BitpayTheme.textPrimary,
+                        backgroundColor: IrisTheme.s1,
+                        foregroundColor: IrisTheme.textPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(color: BitpayTheme.bdr),
+                        side: const BorderSide(color: IrisTheme.bdr),
                       ),
                       icon: const Icon(Icons.copy, size: 18),
                       label: const Text('Copiar'),

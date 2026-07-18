@@ -148,7 +148,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
               }
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Os PINs não coincidem. Tente novamente.'), backgroundColor: BitpayTheme.danger),
+                const SnackBar(content: Text('Os PINs não coincidem. Tente novamente.'), backgroundColor: IrisTheme.danger),
               );
               setState(() {
                 _pin = '';
@@ -165,12 +165,12 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: BitpayTheme.bg,
+      backgroundColor: IrisTheme.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: BitpayTheme.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: IrisTheme.textPrimary),
           onPressed: () {
             if (_step == 4 && _mode == 'import') {
               setState(() => _step = 2);
@@ -214,14 +214,14 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
             const SizedBox(height: 16),
             const Text('Criar perfil de Loja', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            const Text('O seu PDV terá saldo e configurações independentes da sua carteira pessoal.', style: TextStyle(color: BitpayTheme.textSecondary)),
+            const Text('O seu PDV terá saldo e configurações independentes da sua carteira pessoal.', style: TextStyle(color: IrisTheme.textSecondary)),
             const SizedBox(height: 32),
             TextField(
               controller: _nameCtrl,
               decoration: InputDecoration(
                 labelText: 'Nome do seu estabelecimento',
                 filled: true,
-                fillColor: BitpayTheme.s1,
+                fillColor: IrisTheme.s1,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
               ),
             ),
@@ -246,7 +246,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
           children: [
             const Text('Opções de Carteira', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            const Text('Como deseja configurar a carteira do seu estabelecimento?', style: TextStyle(color: BitpayTheme.textSecondary)),
+            const Text('Como deseja configurar a carteira do seu estabelecimento?', style: TextStyle(color: IrisTheme.textSecondary)),
             const Spacer(),
             ElevatedButton(
               onPressed: () {
@@ -254,7 +254,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                 _mode = 'new';
                 _nextStep();
               },
-              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), backgroundColor: BitpayTheme.primary),
+              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), backgroundColor: IrisTheme.primary),
               child: const Text('Criar com nova carteira →', style: TextStyle(color: Colors.white)),
             ),
             const SizedBox(height: 16),
@@ -263,7 +263,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                 _mode = 'import';
                 _nextStep();
               },
-              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), backgroundColor: BitpayTheme.s2, foregroundColor: BitpayTheme.textPrimary),
+              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), backgroundColor: IrisTheme.s2, foregroundColor: IrisTheme.textPrimary),
               child: const Text('🔄 Importar carteira existente'),
             ),
           ],
@@ -286,7 +286,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: BitpayTheme.success.withOpacity(0.12),
+                    color: IrisTheme.success.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Center(child: Text('🔑', style: TextStyle(fontSize: 17))),
@@ -298,7 +298,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                     children: [
                       Text('Semente da Loja', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 1),
-                      const Text('12 palavras que abrem sua loja', style: TextStyle(fontSize: 11, color: BitpayTheme.textSecondary)),
+                      const Text('12 palavras que abrem sua loja', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
                     ],
                   ),
                 ),
@@ -309,7 +309,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text('ANOTE EM PAPEL ANTES DE CONTINUAR', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: BitpayTheme.textTertiary)),
+              child: Text('ANOTE EM PAPEL ANTES DE CONTINUAR', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: IrisTheme.textTertiary)),
             ),
           ),
           Expanded(
@@ -325,8 +325,8 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
               itemBuilder: (ctx, i) {
                 return Container(
                   decoration: BoxDecoration(
-                    color: BitpayTheme.s2,
-                    border: Border.all(color: BitpayTheme.bdr),
+                    color: IrisTheme.s2,
+                    border: Border.all(color: IrisTheme.bdr),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -334,9 +334,9 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                     children: [
                       SizedBox(
                         width: 20,
-                        child: Text('${i + 1}.', style: const TextStyle(fontSize: 10, fontFamily: 'JetBrains Mono', color: BitpayTheme.textTertiary)),
+                        child: Text('${i + 1}.', style: const TextStyle(fontSize: 10, fontFamily: 'JetBrains Mono', color: IrisTheme.textTertiary)),
                       ),
-                      Text(words[i], style: const TextStyle(fontSize: 12, fontFamily: 'JetBrains Mono', color: BitpayTheme.primary, fontWeight: FontWeight.w600)),
+                      Text(words[i], style: const TextStyle(fontSize: 12, fontFamily: 'JetBrains Mono', color: IrisTheme.primary, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 );
@@ -348,13 +348,13 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
               decoration: BoxDecoration(
-                color: BitpayTheme.primaryDark,
-                border: Border.all(color: BitpayTheme.primary.withOpacity(0.2)),
+                color: IrisTheme.primaryDark,
+                border: Border.all(color: IrisTheme.primary.withOpacity(0.2)),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Text(
                 'Guarde essas palavras em lugar seguro. Se perder o acesso, elas recuperam o saldo da loja.',
-                style: TextStyle(color: BitpayTheme.primaryLight, fontSize: 12, height: 1.55),
+                style: TextStyle(color: IrisTheme.primaryLight, fontSize: 12, height: 1.55),
               ),
             ),
           ),
@@ -370,8 +370,8 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                 const SizedBox(height: 8),
                 OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: BitpayTheme.textSecondary,
-                    side: const BorderSide(color: BitpayTheme.bdr),
+                    foregroundColor: IrisTheme.textSecondary,
+                    side: const BorderSide(color: IrisTheme.bdr),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, fontFamily: 'Outfit'),
@@ -404,7 +404,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: BitpayTheme.success.withOpacity(0.12),
+                    color: IrisTheme.success.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Center(child: Text('🔄', style: TextStyle(fontSize: 17))),
@@ -416,7 +416,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                     children: [
                       Text('Importar carteira', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 1),
-                      const Text('Use uma seed já existente', style: TextStyle(fontSize: 11, color: BitpayTheme.textSecondary)),
+                      const Text('Use uma seed já existente', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
                     ],
                   ),
                 ),
@@ -431,24 +431,24 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                 children: [
                   const Text(
                     '12 palavras (separadas por espaço)',
-                    style: TextStyle(fontSize: 12, color: BitpayTheme.textSecondary, fontWeight: FontWeight.w500),
+                    style: TextStyle(fontSize: 12, color: IrisTheme.textSecondary, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 4),
                   TextField(
                     controller: _seedCtrl,
                     maxLines: 4,
-                    style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 13, color: BitpayTheme.textPrimary),
+                    style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 13, color: IrisTheme.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'palavra1 palavra2 ...',
-                      hintStyle: TextStyle(color: BitpayTheme.textSecondary.withOpacity(0.5)),
+                      hintStyle: TextStyle(color: IrisTheme.textSecondary.withOpacity(0.5)),
                       filled: true,
-                      fillColor: BitpayTheme.s2,
+                      fillColor: IrisTheme.s2,
                       enabledBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: BitpayTheme.bdr2, width: 1.5),
+                        borderSide: const BorderSide(color: IrisTheme.bdr2, width: 1.5),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: BitpayTheme.primary, width: 1.5),
+                        borderSide: const BorderSide(color: IrisTheme.primary, width: 1.5),
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
@@ -457,13 +457,13 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
                     decoration: BoxDecoration(
-                      color: BitpayTheme.primaryDark,
-                      border: Border.all(color: BitpayTheme.primary.withOpacity(0.2)),
+                      color: IrisTheme.primaryDark,
+                      border: Border.all(color: IrisTheme.primary.withOpacity(0.2)),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Text(
                       'Use se já tem uma carteira Bitcoin Lightning para a loja.',
-                      style: TextStyle(color: BitpayTheme.primaryLight, fontSize: 12, height: 1.55),
+                      style: TextStyle(color: IrisTheme.primaryLight, fontSize: 12, height: 1.55),
                     ),
                   ),
                 ],
@@ -496,7 +496,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: BitpayTheme.success.withOpacity(0.12),
+                    color: IrisTheme.success.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Center(child: Text('✅', style: TextStyle(fontSize: 17))),
@@ -508,7 +508,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                     children: [
                       Text('Confirme as palavras', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 1),
-                      const Text('Selecione na ordem certa', style: TextStyle(fontSize: 11, color: BitpayTheme.textSecondary)),
+                      const Text('Selecione na ordem certa', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
                     ],
                   ),
                 ),
@@ -529,7 +529,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                     Padding(
                       padding: const EdgeInsets.only(top: 16),
                       child: Center(
-                        child: Text(_errorMsg!, style: const TextStyle(color: BitpayTheme.danger, fontSize: 12), textAlign: TextAlign.center),
+                        child: Text(_errorMsg!, style: const TextStyle(color: IrisTheme.danger, fontSize: 12), textAlign: TextAlign.center),
                       ),
                     ),
                 ],
@@ -548,8 +548,8 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                 const SizedBox(height: 8),
                 OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: BitpayTheme.textSecondary,
-                    side: const BorderSide(color: BitpayTheme.bdr),
+                    foregroundColor: IrisTheme.textSecondary,
+                    side: const BorderSide(color: IrisTheme.bdr),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, fontFamily: 'Outfit'),
@@ -584,7 +584,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
               children: [
                 Text(_isConfirmingPin ? 'Confirme o PIN' : 'Crie um PIN para a Loja', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
-                const Text('Seus funcionários podem usar este PIN para cobrar clientes sem acessar seu saldo pessoal.', style: TextStyle(color: BitpayTheme.textSecondary)),
+                const Text('Seus funcionários podem usar este PIN para cobrar clientes sem acessar seu saldo pessoal.', style: TextStyle(color: IrisTheme.textSecondary)),
               ],
             ),
           ),
@@ -604,7 +604,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
       children: [
         Text(
           'Qual é a ${idx + 1}ª palavra?',
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: BitpayTheme.textPrimary),
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: IrisTheme.textPrimary),
         ),
         const SizedBox(height: 8),
         Row(
@@ -617,8 +617,8 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
-                    color: isSelected ? BitpayTheme.primary : BitpayTheme.s2,
-                    border: Border.all(color: isSelected ? BitpayTheme.primary : BitpayTheme.bdr2, width: 1.5),
+                    color: isSelected ? IrisTheme.primary : IrisTheme.s2,
+                    border: Border.all(color: isSelected ? IrisTheme.primary : IrisTheme.bdr2, width: 1.5),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   alignment: Alignment.center,
@@ -628,7 +628,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                       fontFamily: 'JetBrains Mono',
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: isSelected ? Colors.black : BitpayTheme.textPrimary,
+                      color: isSelected ? Colors.black : IrisTheme.textPrimary,
                     ),
                   ),
                 ),
@@ -653,10 +653,10 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: isFilled ? BitpayTheme.primary : BitpayTheme.textTertiary,
+              color: isFilled ? IrisTheme.primary : IrisTheme.textTertiary,
               width: 2,
             ),
-            color: isFilled ? BitpayTheme.primary : Colors.transparent,
+            color: isFilled ? IrisTheme.primary : Colors.transparent,
           ),
         );
       }),
@@ -690,15 +690,15 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
 
   Widget _keyBtn(String val, {String? icon}) {
     return Material(
-      color: BitpayTheme.s2,
+      color: IrisTheme.s2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: BitpayTheme.bdr),
+        side: const BorderSide(color: IrisTheme.bdr),
       ),
       child: InkWell(
         onTap: () => _onKeyPress(val),
         borderRadius: BorderRadius.circular(12),
-        highlightColor: BitpayTheme.s3,
+        highlightColor: IrisTheme.s3,
         child: Center(
           child: Text(
             icon ?? val,
@@ -706,7 +706,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
               fontSize: icon != null ? 16 : 20,
               fontFamily: 'JetBrains Mono',
               fontWeight: FontWeight.w600,
-              color: BitpayTheme.textPrimary,
+              color: IrisTheme.textPrimary,
             ),
           ),
         ),

@@ -32,23 +32,23 @@ class ConsumerConfigScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: BitpayTheme.s1,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: BitpayTheme.bdr)),
-        title: Text(isMerchant ? 'Frase de Recuperação (Loja)' : 'Frase de Recuperação', style: const TextStyle(color: BitpayTheme.danger, fontSize: 16)),
+        backgroundColor: IrisTheme.s1,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: IrisTheme.bdr)),
+        title: Text(isMerchant ? 'Frase de Recuperação (Loja)' : 'Frase de Recuperação', style: const TextStyle(color: IrisTheme.danger, fontSize: 16)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
               'Anotou no papel? Nunca compartilhe isso com ninguém.',
-              style: TextStyle(color: BitpayTheme.textSecondary, fontSize: 13),
+              style: TextStyle(color: IrisTheme.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: BitpayTheme.bg,
+                color: IrisTheme.bg,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: BitpayTheme.bdr),
+                border: Border.all(color: IrisTheme.bdr),
               ),
               child: Text(
                 seed,
@@ -56,7 +56,7 @@ class ConsumerConfigScreen extends StatelessWidget {
                   fontFamily: 'JetBrains Mono',
                   fontSize: 14,
                   height: 1.5,
-                  color: BitpayTheme.textPrimary,
+                  color: IrisTheme.textPrimary,
                 ),
               ),
             ),
@@ -65,7 +65,7 @@ class ConsumerConfigScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Fechar', style: TextStyle(color: BitpayTheme.textPrimary)),
+            child: const Text('Fechar', style: TextStyle(color: IrisTheme.textPrimary)),
           ),
         ],
       ),
@@ -88,20 +88,20 @@ class ConsumerConfigScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: BitpayTheme.s1,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: BitpayTheme.bdr)),
-        title: const Text('Apagar Carteira Atual?', style: TextStyle(color: BitpayTheme.danger)),
+        backgroundColor: IrisTheme.s1,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: IrisTheme.bdr)),
+        title: const Text('Apagar Carteira Atual?', style: TextStyle(color: IrisTheme.danger)),
         content: const Text(
           'Isso apagará a carteira atual. Tenha certeza que você anotou sua Semente antes de continuar.',
-          style: TextStyle(color: BitpayTheme.textSecondary),
+          style: TextStyle(color: IrisTheme.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar', style: TextStyle(color: BitpayTheme.textPrimary)),
+            child: const Text('Cancelar', style: TextStyle(color: IrisTheme.textPrimary)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: BitpayTheme.danger, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: IrisTheme.danger, foregroundColor: Colors.white),
             onPressed: () {
               Navigator.pop(context); // Close dialog
               final wallet = context.read<WalletService>();
@@ -136,20 +136,20 @@ class ConsumerConfigScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: BitpayTheme.s1,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: BitpayTheme.bdr)),
-        title: const Text('Criar Nova Conta?', style: TextStyle(color: BitpayTheme.primary)),
+        backgroundColor: IrisTheme.s1,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: IrisTheme.bdr)),
+        title: const Text('Criar Nova Conta?', style: TextStyle(color: IrisTheme.primary)),
         content: const Text(
           'Isso criará um novo perfil independente. Você poderá alternar entre suas contas pelo menu de Trocar de Conta.',
-          style: TextStyle(color: BitpayTheme.textSecondary),
+          style: TextStyle(color: IrisTheme.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar', style: TextStyle(color: BitpayTheme.textPrimary)),
+            child: const Text('Cancelar', style: TextStyle(color: IrisTheme.textPrimary)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: BitpayTheme.primary, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: IrisTheme.primary, foregroundColor: Colors.white),
             onPressed: () {
               Navigator.pop(context); // Close dialog
               Navigator.pushNamed(context, '/welcome');
@@ -169,7 +169,7 @@ class ConsumerConfigScreen extends StatelessWidget {
       context: context,
       builder: (context) {
         return Dialog(
-          backgroundColor: BitpayTheme.bg,
+          backgroundColor: IrisTheme.bg,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
@@ -178,14 +178,14 @@ class ConsumerConfigScreen extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Minhas Carteiras Pessoais', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: BitpayTheme.textPrimary)),
+                  const Text('Minhas Carteiras Pessoais', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: IrisTheme.textPrimary)),
                   const SizedBox(height: 16),
                   ...accounts.map((acc) {
                     final isActive = acc.id == wallet.activeConsumer?.id;
                     return ListTile(
-                      leading: const Icon(Icons.account_balance_wallet, color: BitpayTheme.primary),
-                      title: Text(acc.name, style: TextStyle(color: isActive ? BitpayTheme.primary : BitpayTheme.textPrimary, fontWeight: isActive ? FontWeight.w700 : FontWeight.w500)),
-                      trailing: isActive ? const Icon(Icons.check, color: BitpayTheme.primary) : null,
+                      leading: const Icon(Icons.account_balance_wallet, color: IrisTheme.primary),
+                      title: Text(acc.name, style: TextStyle(color: isActive ? IrisTheme.primary : IrisTheme.textPrimary, fontWeight: isActive ? FontWeight.w700 : FontWeight.w500)),
+                      trailing: isActive ? const Icon(Icons.check, color: IrisTheme.primary) : null,
                       onTap: () async {
                         if (!isActive) {
                           Navigator.pop(context); // fechar dialog
@@ -197,10 +197,10 @@ class ConsumerConfigScreen extends StatelessWidget {
                       },
                     );
                   }),
-                  const Divider(color: BitpayTheme.bdr),
+                  const Divider(color: IrisTheme.bdr),
                   ListTile(
-                    leading: const Icon(Icons.add_circle_outline, color: BitpayTheme.textPrimary),
-                    title: const Text('Adicionar nova carteira', style: TextStyle(color: BitpayTheme.textPrimary, fontWeight: FontWeight.w600)),
+                    leading: const Icon(Icons.add_circle_outline, color: IrisTheme.textPrimary),
+                    title: const Text('Adicionar nova carteira', style: TextStyle(color: IrisTheme.textPrimary, fontWeight: FontWeight.w600)),
                     onTap: () {
                       Navigator.pop(context);
                       wallet.resetAndGenerateSeed();
@@ -277,7 +277,7 @@ class ConsumerConfigScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             
-            const Divider(color: BitpayTheme.bdr),
+            const Divider(color: IrisTheme.bdr),
             
             const SizedBox(height: 16),
             _buildActionItem(
@@ -298,7 +298,7 @@ class ConsumerConfigScreen extends StatelessWidget {
               icon: Icons.delete_forever,
               title: 'Apagar Carteira Atual',
               subtitle: 'Remove a carteira selecionada do dispositivo',
-              color: BitpayTheme.danger,
+              color: IrisTheme.danger,
               onTap: () => _handleWipe(context),
             ),
           ],
@@ -314,7 +314,7 @@ class ConsumerConfigScreen extends StatelessWidget {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
-    Color color = BitpayTheme.primary,
+    Color color = IrisTheme.primary,
   }) {
     return InkWell(
       onTap: onTap,
@@ -322,9 +322,9 @@ class ConsumerConfigScreen extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: BitpayTheme.s1,
+          color: IrisTheme.s1,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: BitpayTheme.bdr),
+          border: Border.all(color: IrisTheme.bdr),
         ),
         child: Row(
           children: [
@@ -334,13 +334,13 @@ class ConsumerConfigScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: color == BitpayTheme.danger ? color : BitpayTheme.textPrimary)),
+                  Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: color == IrisTheme.danger ? color : IrisTheme.textPrimary)),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: const TextStyle(fontSize: 12, color: BitpayTheme.textSecondary)),
+                  Text(subtitle, style: const TextStyle(fontSize: 12, color: IrisTheme.textSecondary)),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: BitpayTheme.textTertiary),
+            const Icon(Icons.chevron_right, color: IrisTheme.textTertiary),
           ],
         ),
       ),

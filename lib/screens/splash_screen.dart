@@ -64,7 +64,7 @@ class _SplashScreenState extends State<SplashScreen>
     final chroma = context.watch<ChromaService>();
 
     return Scaffold(
-      backgroundColor: BitpayTheme.bg,
+      backgroundColor: IrisTheme.bg,
       body: Center(
         child: AnimatedBuilder(
           animation: _ctrl,
@@ -123,7 +123,7 @@ class _SplashScreenState extends State<SplashScreen>
                 width: 120,
                 height: 3,
                 decoration: BoxDecoration(
-                  gradient: BitpayTheme.rainbowGradient,
+                  gradient: IrisTheme.rainbowGradient,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

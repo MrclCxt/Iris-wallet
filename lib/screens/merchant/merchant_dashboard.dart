@@ -42,7 +42,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: BitpayTheme.primary.withOpacity(0.12),
+                    color: IrisTheme.primary.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Center(child: Text('🏪', style: TextStyle(fontSize: 17))),
@@ -59,7 +59,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 1),
-                      const Text('Lojista · ⚡ Ativo', style: TextStyle(fontSize: 11, color: BitpayTheme.textSecondary)),
+                      const Text('Lojista · ⚡ Ativo', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
                     ],
                   ),
                 ),
@@ -92,7 +92,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                           exchangeRate.isSatsDisplay
                               ? '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(todaySats))} · $todaySales vendas'
                               : '≈ ${CurrencyFormatter.formatSats(todaySats)} sats · $todaySales vendas',
-                          BitpayTheme.success,
+                          IrisTheme.success,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -105,7 +105,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                           exchangeRate.isSatsDisplay
                               ? '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(weekSats))} · $weekSales vendas'
                               : '≈ ${CurrencyFormatter.formatSats(weekSats)} sats · $weekSales vendas',
-                          BitpayTheme.textPrimary,
+                          IrisTheme.textPrimary,
                         ),
                       ),
                     ],
@@ -123,7 +123,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                           exchangeRate.isSatsDisplay
                               ? '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(totalSats))}'
                               : '≈ ${CurrencyFormatter.formatSats(totalSats)} sats',
-                          BitpayTheme.primary,
+                          IrisTheme.primary,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -132,7 +132,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                           'Taxa paga',
                           exchangeRate.isSatsDisplay ? '0 SATS' : 'R\$ 0,00',
                           'vs R\$ 31 maquininha',
-                          BitpayTheme.success,
+                          IrisTheme.success,
                         ),
                       ),
                     ],
@@ -174,7 +174,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                   ),
                   
                   const SizedBox(height: 24),
-                  const Divider(color: BitpayTheme.bdr, height: 1),
+                  const Divider(color: IrisTheme.bdr, height: 1),
                   const SizedBox(height: 24),
                   
                   // Produtos Ativos
@@ -188,7 +188,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                             widget.onNavigateTab!(1);
                           }
                         },
-                        child: const Text('Gerenciar →', style: TextStyle(fontSize: 12, color: BitpayTheme.primary, fontWeight: FontWeight.w600)),
+                        child: const Text('Gerenciar →', style: TextStyle(fontSize: 12, color: IrisTheme.primary, fontWeight: FontWeight.w600)),
                       ),
                     ],
                   ),
@@ -196,7 +196,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                   
                   // Dynamic Products row
                   if (wallet.merchantProducts.isEmpty)
-                    const Text('Nenhum produto cadastrado.', style: TextStyle(color: BitpayTheme.textSecondary))
+                    const Text('Nenhum produto cadastrado.', style: TextStyle(color: IrisTheme.textSecondary))
                   else
                     Column(
                       children: wallet.merchantProducts.where((p) => p.isActive).map((p) => _buildProductRow(p)).toList(),
@@ -216,18 +216,18 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: BitpayTheme.s1,
+        color: IrisTheme.s1,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: BitpayTheme.bdr),
+        border: Border.all(color: IrisTheme.bdr),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: BitpayTheme.textSecondary)),
+          Text(label, style: const TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
           const SizedBox(height: 4),
           Text(value, style: TextStyle(fontFamily: 'JetBrains Mono', fontSize: 13, fontWeight: FontWeight.w700, color: valueColor)),
           const SizedBox(height: 2),
-          Text(unit, style: const TextStyle(fontSize: 10, color: BitpayTheme.textTertiary)),
+          Text(unit, style: const TextStyle(fontSize: 10, color: IrisTheme.textTertiary)),
         ],
       ),
     );
@@ -256,9 +256,9 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: BitpayTheme.s1,
+          color: IrisTheme.s1,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: BitpayTheme.bdr),
+          border: Border.all(color: IrisTheme.bdr),
         ),
         child: Row(
           children: [
@@ -273,7 +273,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                     exchangeRate.isSatsDisplay
                         ? '${CurrencyFormatter.formatSats(exchangeRate.brlToSats(p.price))} SATS'
                         : 'R\$ ${CurrencyFormatter.formatBrl(p.price)}',
-                    style: const TextStyle(fontSize: 11, color: BitpayTheme.textSecondary),
+                    style: const TextStyle(fontSize: 11, color: IrisTheme.textSecondary),
                   ),
                 ],
               ),
@@ -281,7 +281,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: BitpayTheme.primary.withOpacity(0.12),
+                color: IrisTheme.primary.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Text('⚡', style: TextStyle(fontSize: 14)),

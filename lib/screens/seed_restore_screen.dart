@@ -57,7 +57,7 @@ class _SeedRestoreScreenState extends State<SeedRestoreScreen> {
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          color: BitpayTheme.success.withOpacity(0.12),
+                          color: IrisTheme.success.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Center(child: Text('🔄', style: TextStyle(fontSize: 17))),
@@ -69,7 +69,7 @@ class _SeedRestoreScreenState extends State<SeedRestoreScreen> {
                           children: [
                             Text('Importar carteira', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 1),
-                            Text('Use uma seed já existente', style: TextStyle(fontSize: 11, color: BitpayTheme.textSecondary)),
+                            Text('Use uma seed já existente', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
                           ],
                         ),
                       ),
@@ -84,24 +84,24 @@ class _SeedRestoreScreenState extends State<SeedRestoreScreen> {
                       children: [
                         const Text(
                           '12 palavras (separadas por espaço)',
-                          style: TextStyle(fontSize: 12, color: BitpayTheme.textSecondary, fontWeight: FontWeight.w500),
+                          style: TextStyle(fontSize: 12, color: IrisTheme.textSecondary, fontWeight: FontWeight.w500),
                         ),
                         const SizedBox(height: 4),
                         TextField(
                           controller: _seedController,
                           maxLines: 4,
-                          style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 13, color: BitpayTheme.textPrimary),
+                          style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 13, color: IrisTheme.textPrimary),
                           decoration: InputDecoration(
                             hintText: 'palavra1 palavra2 ...',
-                            hintStyle: TextStyle(color: BitpayTheme.textSecondary.withOpacity(0.5)),
+                            hintStyle: TextStyle(color: IrisTheme.textSecondary.withOpacity(0.5)),
                             filled: true,
-                            fillColor: BitpayTheme.s2,
+                            fillColor: IrisTheme.s2,
                             enabledBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: BitpayTheme.bdr2, width: 1.5),
+                              borderSide: const BorderSide(color: IrisTheme.bdr2, width: 1.5),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: BitpayTheme.primary, width: 1.5),
+                              borderSide: const BorderSide(color: IrisTheme.primary, width: 1.5),
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
@@ -109,19 +109,19 @@ class _SeedRestoreScreenState extends State<SeedRestoreScreen> {
                         if (_error != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 8),
-                            child: Text(_error!, style: const TextStyle(fontSize: 12, color: BitpayTheme.danger)),
+                            child: Text(_error!, style: const TextStyle(fontSize: 12, color: IrisTheme.danger)),
                           ),
                         const SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
                           decoration: BoxDecoration(
-                            color: BitpayTheme.primaryDark,
-                            border: Border.all(color: BitpayTheme.primary.withOpacity(0.2)),
+                            color: IrisTheme.primaryDark,
+                            border: Border.all(color: IrisTheme.primary.withOpacity(0.2)),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Text(
                             'Use se já tem uma carteira Bitcoin Lightning para a loja ou uso pessoal.',
-                            style: TextStyle(color: BitpayTheme.primaryLight, fontSize: 12, height: 1.55),
+                            style: TextStyle(color: IrisTheme.primaryLight, fontSize: 12, height: 1.55),
                           ),
                         ),
                       ],
@@ -141,8 +141,8 @@ class _SeedRestoreScreenState extends State<SeedRestoreScreen> {
                         const SizedBox(height: 8),
                         OutlinedButton(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: BitpayTheme.textSecondary,
-                            side: const BorderSide(color: BitpayTheme.bdr),
+                            foregroundColor: IrisTheme.textSecondary,
+                            side: const BorderSide(color: IrisTheme.bdr),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, fontFamily: 'Outfit'),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// IRIS Theme — Rainbow/Spectrum identity
-class BitpayTheme {
+class IrisTheme {
   // ── Backgrounds ─────────────────────────────────────────────
   static const Color bg  = Color(0xFF06080F);
   static const Color s1  = Color(0xFF0C0E1A);

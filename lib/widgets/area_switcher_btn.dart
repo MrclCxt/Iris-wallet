@@ -50,8 +50,8 @@ class AreaSwitcherBtn extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
         decoration: BoxDecoration(
-          color: BitpayTheme.s2,
-          border: Border.all(color: BitpayTheme.bdr2),
+          color: IrisTheme.s2,
+          border: Border.all(color: IrisTheme.bdr2),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -62,7 +62,7 @@ class AreaSwitcherBtn extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 isCurrentlyConsumer ? 'Lojista' : 'Eu',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: BitpayTheme.textPrimary),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: IrisTheme.textPrimary),
               ),
             ]
           ],
@@ -77,7 +77,7 @@ class AreaSwitcherBtn extends StatelessWidget {
       context: context,
       builder: (context) {
         return Dialog(
-          backgroundColor: BitpayTheme.bg,
+          backgroundColor: IrisTheme.bg,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
@@ -86,14 +86,14 @@ class AreaSwitcherBtn extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Selecione a Loja', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: BitpayTheme.textPrimary)),
+                  const Text('Selecione a Loja', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: IrisTheme.textPrimary)),
                   const SizedBox(height: 16),
                   ...accounts.map((acc) {
                     final isActive = acc.id == wallet.activeMerchant?.id;
                     return ListTile(
-                      leading: const Icon(Icons.store_mall_directory, color: BitpayTheme.primary),
-                      title: Text(acc.name, style: TextStyle(color: isActive ? BitpayTheme.primary : BitpayTheme.textPrimary, fontWeight: isActive ? FontWeight.w700 : FontWeight.w500)),
-                      trailing: isActive ? const Icon(Icons.check, color: BitpayTheme.primary) : null,
+                      leading: const Icon(Icons.store_mall_directory, color: IrisTheme.primary),
+                      title: Text(acc.name, style: TextStyle(color: isActive ? IrisTheme.primary : IrisTheme.textPrimary, fontWeight: isActive ? FontWeight.w700 : FontWeight.w500)),
+                      trailing: isActive ? const Icon(Icons.check, color: IrisTheme.primary) : null,
                       onTap: () async {
                         Navigator.pop(context);
                         if (!isActive) {
@@ -125,7 +125,7 @@ class AreaSwitcherBtn extends StatelessWidget {
       context: context,
       builder: (context) {
         return Dialog(
-          backgroundColor: BitpayTheme.bg,
+          backgroundColor: IrisTheme.bg,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
@@ -134,14 +134,14 @@ class AreaSwitcherBtn extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Minhas Carteiras Pessoais', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: BitpayTheme.textPrimary)),
+                  const Text('Minhas Carteiras Pessoais', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: IrisTheme.textPrimary)),
                   const SizedBox(height: 16),
                   ...accounts.map((acc) {
                     final isActive = acc.id == wallet.activeConsumer?.id;
                     return ListTile(
-                      leading: const Icon(Icons.account_balance_wallet, color: BitpayTheme.primary),
-                      title: Text(acc.name, style: TextStyle(color: isActive ? BitpayTheme.primary : BitpayTheme.textPrimary, fontWeight: isActive ? FontWeight.w700 : FontWeight.w500)),
-                      trailing: isActive ? const Icon(Icons.check, color: BitpayTheme.primary) : null,
+                      leading: const Icon(Icons.account_balance_wallet, color: IrisTheme.primary),
+                      title: Text(acc.name, style: TextStyle(color: isActive ? IrisTheme.primary : IrisTheme.textPrimary, fontWeight: isActive ? FontWeight.w700 : FontWeight.w500)),
+                      trailing: isActive ? const Icon(Icons.check, color: IrisTheme.primary) : null,
                       onTap: () async {
                         Navigator.pop(context);
                         if (!isActive) {
@@ -158,10 +158,10 @@ class AreaSwitcherBtn extends StatelessWidget {
                       },
                     );
                   }),
-                  const Divider(color: BitpayTheme.bdr),
+                  const Divider(color: IrisTheme.bdr),
                   ListTile(
-                    leading: const Icon(Icons.add_circle_outline, color: BitpayTheme.textPrimary),
-                    title: const Text('Adicionar nova carteira', style: TextStyle(color: BitpayTheme.textPrimary, fontWeight: FontWeight.w600)),
+                    leading: const Icon(Icons.add_circle_outline, color: IrisTheme.textPrimary),
+                    title: const Text('Adicionar nova carteira', style: TextStyle(color: IrisTheme.textPrimary, fontWeight: FontWeight.w600)),
                     onTap: () {
                       Navigator.pop(context);
                       wallet.resetAndGenerateSeed();

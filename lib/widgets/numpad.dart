@@ -70,9 +70,9 @@ class Numpad extends StatelessWidget {
       child: Container(
         height: 60,
         decoration: BoxDecoration(
-          color: BitpayTheme.s1,
+          color: IrisTheme.s1,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: BitpayTheme.bdr),
+          border: Border.all(color: IrisTheme.bdr),
         ),
         alignment: Alignment.center,
         child: Text(

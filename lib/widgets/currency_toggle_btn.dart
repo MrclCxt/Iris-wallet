@@ -14,8 +14,8 @@ class CurrencyToggleBtn extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: BitpayTheme.s2,
-        border: Border.all(color: BitpayTheme.bdr2),
+        color: IrisTheme.s2,
+        border: Border.all(color: IrisTheme.bdr2),
         borderRadius: BorderRadius.circular(22),
       ),
       child: Row(
@@ -23,10 +23,10 @@ class CurrencyToggleBtn extends StatelessWidget {
         children: [
           _buildToggleBtn(context, '⚡ SATS', isSats, () {
             if (!isSats) context.read<ExchangeRateService>().toggleCurrencyDisplay();
-          }, BitpayTheme.brandGradient),
+          }, IrisTheme.brandGradient),
           _buildToggleBtn(context, '🌈 R\$', !isSats, () {
             if (isSats) context.read<ExchangeRateService>().toggleCurrencyDisplay();
-          }, const LinearGradient(colors: [BitpayTheme.green, BitpayTheme.cyan])),
+          }, const LinearGradient(colors: [IrisTheme.green, IrisTheme.cyan])),
         ],
       ),
     );
@@ -49,7 +49,7 @@ class CurrencyToggleBtn extends StatelessWidget {
           color: isOn ? null : Colors.transparent,
           borderRadius: BorderRadius.circular(18),
           boxShadow: isOn
-              ? [BoxShadow(color: BitpayTheme.primary.withOpacity(0.3), blurRadius: 8)]
+              ? [BoxShadow(color: IrisTheme.primary.withOpacity(0.3), blurRadius: 8)]
               : null,
         ),
         child: Text(
@@ -58,7 +58,7 @@ class CurrencyToggleBtn extends StatelessWidget {
             fontFamily: 'JetBrains Mono',
             fontSize: 11,
             fontWeight: FontWeight.w700,
-            color: isOn ? Colors.white : BitpayTheme.textSecondary,
+            color: isOn ? Colors.white : IrisTheme.textSecondary,
           ),
         ),
       ),

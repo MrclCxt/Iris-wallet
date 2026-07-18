@@ -1,11 +1,11 @@
 {
-    "name": "bitpay_flutter",
-    "short_name": "bitpay_flutter",
+    "name": "Iris Wallet",
+    "short_name": "Iris Wallet",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "A real non-custodial Bitcoin & Lightning wallet with PIX integrations via DEPIX/Liquid.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

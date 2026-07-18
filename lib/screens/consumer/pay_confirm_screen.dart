@@ -37,7 +37,7 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
             // Check balance
             if (wallet.consumerBalance < widget.satsAmount) {
                ScaffoldMessenger.of(context).showSnackBar(
-                 const SnackBar(content: Text('Saldo insuficiente!'), backgroundColor: BitpayTheme.danger),
+                 const SnackBar(content: Text('Saldo insuficiente!'), backgroundColor: IrisTheme.danger),
                );
                return;
             }
@@ -46,7 +46,7 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
             showDialog(
               context: context,
               barrierDismissible: false,
-              builder: (context) => const Center(child: CircularProgressIndicator(color: BitpayTheme.primary)),
+              builder: (context) => const Center(child: CircularProgressIndicator(color: IrisTheme.primary)),
             );
             
             await wallet.payInvoice(widget.destination, widget.satsAmount);
@@ -70,19 +70,19 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
   Widget build(BuildContext context) {
     final exchangeRate = context.watch<ExchangeRateService>();
     return Scaffold(
-      backgroundColor: BitpayTheme.bg,
+      backgroundColor: IrisTheme.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: BitpayTheme.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: IrisTheme.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Confirmar pagamento', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: BitpayTheme.textPrimary)),
-            Text('Verifique antes de pagar', style: TextStyle(fontSize: 11, color: BitpayTheme.textSecondary)),
+            Text('Confirmar pagamento', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: IrisTheme.textPrimary)),
+            Text('Verifique antes de pagar', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
           ],
         ),
       ),
@@ -95,13 +95,13 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: BitpayTheme.s1,
+                  color: IrisTheme.s1,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: BitpayTheme.bdr),
+                  border: Border.all(color: IrisTheme.bdr),
                 ),
                 child: Column(
                   children: [
-                    const Text('Valor', style: TextStyle(fontSize: 11, color: BitpayTheme.textSecondary)),
+                    const Text('Valor', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
                     const SizedBox(height: 4),
                     Text(
                       '${CurrencyFormatter.formatSats(widget.satsAmount)} sats',
@@ -109,20 +109,20 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                         fontFamily: 'JetBrains Mono',
                         fontSize: 38,
                         fontWeight: FontWeight.w600,
-                        color: BitpayTheme.textPrimary,
+                        color: IrisTheme.textPrimary,
                         height: 1.1,
                       ),
                     ),
                     Text(
                       '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(widget.satsAmount))}',
-                      style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 12, color: BitpayTheme.primary),
+                      style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 12, color: IrisTheme.primary),
                     ),
                     const SizedBox(height: 12),
-                    const Divider(color: BitpayTheme.bdr),
+                    const Divider(color: IrisTheme.bdr),
                     const SizedBox(height: 12),
                     _buildRow('Para', widget.destination, isBold: true),
                     const SizedBox(height: 8),
-                    _buildRow('Taxa', '0 sats (grátis)', valueColor: BitpayTheme.success, isBold: true),
+                    _buildRow('Taxa', '0 sats (grátis)', valueColor: IrisTheme.success, isBold: true),
                     const SizedBox(height: 8),
                     _buildRow('Confirmação', 'menos de 2 segundos'),
                   ],
@@ -132,13 +132,13 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: BitpayTheme.primary.withOpacity(0.08),
+                  color: IrisTheme.primary.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: BitpayTheme.primary.withOpacity(0.2)),
+                  border: Border.all(color: IrisTheme.primary.withOpacity(0.2)),
                 ),
                 child: const Text(
                   'Depois de confirmar não é possível cancelar. Verifique o destino.',
-                  style: TextStyle(fontSize: 12, color: BitpayTheme.primary, height: 1.5),
+                  style: TextStyle(fontSize: 12, color: IrisTheme.primary, height: 1.5),
                 ),
               ),
               const Spacer(),
@@ -162,11 +162,11 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
     );
   }
 
-  Widget _buildRow(String label, String value, {Color valueColor = BitpayTheme.textPrimary, bool isBold = false}) {
+  Widget _buildRow(String label, String value, {Color valueColor = IrisTheme.textPrimary, bool isBold = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: BitpayTheme.textSecondary)),
+        Text(label, style: const TextStyle(fontSize: 12, color: IrisTheme.textSecondary)),
         Text(value, style: TextStyle(fontSize: 12, color: valueColor, fontWeight: isBold ? FontWeight.w600 : FontWeight.normal)),
       ],
     );

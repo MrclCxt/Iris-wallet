@@ -14,7 +14,7 @@ class _ConsumerPaySuccessScreenState extends State<ConsumerPaySuccessScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: BitpayTheme.bg,
+      backgroundColor: IrisTheme.bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -27,7 +27,7 @@ class _ConsumerPaySuccessScreenState extends State<ConsumerPaySuccessScreen> {
                 children: [
                   const Spacer(),
                   
-                  const Icon(Icons.check_circle, color: BitpayTheme.success, size: 80),
+                  const Icon(Icons.check_circle, color: IrisTheme.success, size: 80),
                   const SizedBox(height: 24),
                   const Text(
                     'Pago com sucesso!',
@@ -35,7 +35,7 @@ class _ConsumerPaySuccessScreenState extends State<ConsumerPaySuccessScreen> {
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
-                      color: BitpayTheme.success,
+                      color: IrisTheme.success,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -44,7 +44,7 @@ class _ConsumerPaySuccessScreenState extends State<ConsumerPaySuccessScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
-                      color: BitpayTheme.textSecondary,
+                      color: IrisTheme.textSecondary,
                     ),
                   ),
                   
@@ -56,7 +56,7 @@ class _ConsumerPaySuccessScreenState extends State<ConsumerPaySuccessScreen> {
                       decoration: BoxDecoration(
                         color: Colors.black,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: BitpayTheme.bdr),
+                        border: Border.all(color: IrisTheme.bdr),
                       ),
                       child: const Text(
                         'ROUTING LOG:\n'
@@ -68,7 +68,7 @@ class _ConsumerPaySuccessScreenState extends State<ConsumerPaySuccessScreen> {
                         style: TextStyle(
                           fontFamily: 'JetBrains Mono',
                           fontSize: 11,
-                          color: BitpayTheme.success,
+                          color: IrisTheme.success,
                           height: 1.5,
                         ),
                       ),
@@ -82,10 +82,10 @@ class _ConsumerPaySuccessScreenState extends State<ConsumerPaySuccessScreen> {
                         _showNerdData = !_showNerdData;
                       });
                     },
-                    icon: const Icon(Icons.terminal, color: BitpayTheme.textSecondary, size: 16),
+                    icon: const Icon(Icons.terminal, color: IrisTheme.textSecondary, size: 16),
                     label: Text(
                       _showNerdData ? 'Esconder Dados Nerd' : 'Ver Dados Nerd',
-                      style: const TextStyle(color: BitpayTheme.textSecondary),
+                      style: const TextStyle(color: IrisTheme.textSecondary),
                     ),
                   ),
                   

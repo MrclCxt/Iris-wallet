@@ -1,6 +1,6 @@
-# bitpay_flutter
+# Iris Wallet
 
-A new Flutter project.
+A real non-custodial Bitcoin & Lightning wallet with PIX integrations via DEPIX/Liquid.
 
 ## Getting Started
 

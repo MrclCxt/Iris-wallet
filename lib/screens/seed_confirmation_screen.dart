@@ -129,7 +129,7 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          color: BitpayTheme.success.withOpacity(0.12),
+                          color: IrisTheme.success.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Center(child: Text('✅', style: TextStyle(fontSize: 17))),
@@ -141,7 +141,7 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
                           children: [
                             Text(context.read<WalletService>().consumerAccounts.isNotEmpty ? 'Confirme a Semente (Secundária)' : 'Confirme sua semente', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 2),
-                            Text(context.read<WalletService>().consumerAccounts.isNotEmpty ? 'Para garantir que anotou a nova semente.' : 'Para garantir que anotou corretamente.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: BitpayTheme.textSecondary)),
+                            Text(context.read<WalletService>().consumerAccounts.isNotEmpty ? 'Para garantir que anotou a nova semente.' : 'Para garantir que anotou corretamente.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: IrisTheme.textSecondary)),
                           ],
                         ),
                       ),
@@ -162,7 +162,7 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
                           Padding(
                             padding: const EdgeInsets.only(top: 16),
                             child: Center(
-                              child: Text(_error!, style: const TextStyle(color: BitpayTheme.danger, fontSize: 12), textAlign: TextAlign.center),
+                              child: Text(_error!, style: const TextStyle(color: IrisTheme.danger, fontSize: 12), textAlign: TextAlign.center),
                             ),
                           ),
                       ],
@@ -181,8 +181,8 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
                       const SizedBox(height: 8),
                       OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: BitpayTheme.textSecondary,
-                          side: const BorderSide(color: BitpayTheme.bdr),
+                          foregroundColor: IrisTheme.textSecondary,
+                          side: const BorderSide(color: IrisTheme.bdr),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, fontFamily: 'Outfit'),
@@ -200,7 +200,7 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
                             Navigator.of(context).popUntil((route) => route.settings.name == '/consumer_home' || route.settings.name == '/welcome' || route.isFirst);
                           },
                           style: TextButton.styleFrom(
-                            foregroundColor: BitpayTheme.danger,
+                            foregroundColor: IrisTheme.danger,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
                           child: const Text('Cancelar e Voltar', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -223,7 +223,7 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
       children: [
         Text(
           'Qual é a ${idx + 1}ª palavra?',
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: BitpayTheme.textPrimary),
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: IrisTheme.textPrimary),
         ),
         const SizedBox(height: 8),
         Row(
@@ -236,8 +236,8 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
-                    color: isSelected ? BitpayTheme.primary : BitpayTheme.s2,
-                    border: Border.all(color: isSelected ? BitpayTheme.primary : BitpayTheme.bdr2, width: 1.5),
+                    color: isSelected ? IrisTheme.primary : IrisTheme.s2,
+                    border: Border.all(color: isSelected ? IrisTheme.primary : IrisTheme.bdr2, width: 1.5),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   alignment: Alignment.center,
@@ -247,7 +247,7 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
                       fontFamily: 'JetBrains Mono',
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: isSelected ? Colors.black : BitpayTheme.textPrimary,
+                      color: isSelected ? Colors.black : IrisTheme.textPrimary,
                     ),
                   ),
                 ),

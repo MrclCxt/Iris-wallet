@@ -35,20 +35,20 @@ void main() {
         ),
         ChangeNotifierProvider(create: (_) => ExchangeRateService()..fetchRate()),
       ],
-      child: const BitpayApp(),
+      child: const IrisApp(),
     ),
   );
 }
 
-class BitpayApp extends StatelessWidget {
-  const BitpayApp({super.key});
+class IrisApp extends StatelessWidget {
+  const IrisApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'IRIS',
       debugShowCheckedModeBanner: false,
-      theme: BitpayTheme.darkTheme,
+      theme: IrisTheme.darkTheme,
       home: const SplashScreen(),
       routes: {
         '/unlock': (context) => const PinScreen(mode: PinMode.unlock),

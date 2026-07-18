@@ -49,7 +49,7 @@ class _PinScreenState extends State<PinScreen> {
                 }
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Os PINs não coincidem. Tente novamente.'), backgroundColor: BitpayTheme.danger),
+                  const SnackBar(content: Text('Os PINs não coincidem. Tente novamente.'), backgroundColor: IrisTheme.danger),
                 );
                 setState(() {
                   _pin = '';
@@ -70,7 +70,7 @@ class _PinScreenState extends State<PinScreen> {
               }
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('PIN incorreto'), backgroundColor: BitpayTheme.danger),
+                const SnackBar(content: Text('PIN incorreto'), backgroundColor: IrisTheme.danger),
               );
               setState(() => _pin = '');
             }
@@ -87,12 +87,12 @@ class _PinScreenState extends State<PinScreen> {
     return PopScope(
       canPop: canPop,
       child: Scaffold(
-        backgroundColor: BitpayTheme.bg,
+        backgroundColor: IrisTheme.bg,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: canPop ? IconButton(
-            icon: const Icon(Icons.arrow_back, color: BitpayTheme.textPrimary),
+            icon: const Icon(Icons.arrow_back, color: IrisTheme.textPrimary),
             onPressed: () => Navigator.pop(context),
           ) : null,
         ),
@@ -162,10 +162,10 @@ class _PinScreenState extends State<PinScreen> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: isFilled ? BitpayTheme.primary : BitpayTheme.textTertiary,
+              color: isFilled ? IrisTheme.primary : IrisTheme.textTertiary,
               width: 2,
             ),
-            color: isFilled ? BitpayTheme.primary : Colors.transparent,
+            color: isFilled ? IrisTheme.primary : Colors.transparent,
           ),
         );
       }),
@@ -208,7 +208,7 @@ class _PinScreenState extends State<PinScreen> {
         Navigator.of(context).popUntil((route) => route.settings.name == '/consumer_home' || route.settings.name == '/welcome' || route.isFirst);
       },
       style: TextButton.styleFrom(
-        foregroundColor: BitpayTheme.danger,
+        foregroundColor: IrisTheme.danger,
         padding: const EdgeInsets.symmetric(vertical: 16),
       ),
       child: const Text('Cancelar e Voltar', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -217,15 +217,15 @@ class _PinScreenState extends State<PinScreen> {
 
   Widget _keyBtn(String val, {String? icon}) {
     return Material(
-      color: BitpayTheme.s2,
+      color: IrisTheme.s2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: BitpayTheme.bdr),
+        side: const BorderSide(color: IrisTheme.bdr),
       ),
       child: InkWell(
         onTap: () => _onKeyPress(val),
         borderRadius: BorderRadius.circular(12),
-        highlightColor: BitpayTheme.s3,
+        highlightColor: IrisTheme.s3,
         child: Center(
           child: Text(
             icon ?? val,
@@ -233,7 +233,7 @@ class _PinScreenState extends State<PinScreen> {
               fontSize: icon != null ? 16 : 20,
               fontFamily: 'JetBrains Mono',
               fontWeight: FontWeight.w600,
-              color: BitpayTheme.textPrimary,
+              color: IrisTheme.textPrimary,
             ),
           ),
         ),

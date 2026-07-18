@@ -111,7 +111,7 @@ class _MerchantProductEditScreenState extends State<MerchantProductEditScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: BitpayTheme.bg,
+      backgroundColor: IrisTheme.bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -123,7 +123,7 @@ class _MerchantProductEditScreenState extends State<MerchantProductEditScreen> {
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: BitpayTheme.primary.withOpacity(0.12),
+                      color: IrisTheme.primary.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Center(child: Text('✏️', style: TextStyle(fontSize: 17))),
@@ -138,11 +138,11 @@ class _MerchantProductEditScreenState extends State<MerchantProductEditScreen> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, color: BitpayTheme.danger),
+                    icon: const Icon(Icons.delete_outline, color: IrisTheme.danger),
                     onPressed: _delete,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: BitpayTheme.textPrimary),
+                    icon: const Icon(Icons.close, color: IrisTheme.textPrimary),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -155,7 +155,7 @@ class _MerchantProductEditScreenState extends State<MerchantProductEditScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Nome', style: TextStyle(fontSize: 12, color: BitpayTheme.textSecondary, fontWeight: FontWeight.w500)),
+                    const Text('Nome', style: TextStyle(fontSize: 12, color: IrisTheme.textSecondary, fontWeight: FontWeight.w500)),
                     const SizedBox(height: 4),
                     TextField(
                       controller: _nameCtrl,
@@ -163,25 +163,25 @@ class _MerchantProductEditScreenState extends State<MerchantProductEditScreen> {
                       decoration: InputDecoration(
                         hintText: 'Ex: Café, Corte de cabelo...',
                         filled: true,
-                        fillColor: BitpayTheme.s1,
+                        fillColor: IrisTheme.s1,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                       ),
                     ),
                     const SizedBox(height: 16),
                     
-                    const Text('Ícone', style: TextStyle(fontSize: 12, color: BitpayTheme.textSecondary, fontWeight: FontWeight.w500)),
+                    const Text('Ícone', style: TextStyle(fontSize: 12, color: IrisTheme.textSecondary, fontWeight: FontWeight.w500)),
                     const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: BitpayTheme.s1,
+                        color: IrisTheme.s1,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _selectedEmoji,
                           isExpanded: true,
-                          dropdownColor: BitpayTheme.s2,
+                          dropdownColor: IrisTheme.s2,
                           items: _emojis.map((e) => DropdownMenuItem(value: e, child: Text('$e Ícone', style: const TextStyle(fontSize: 14)))).toList(),
                           onChanged: (val) {
                             if (val != null) setState(() => _selectedEmoji = val);
@@ -198,7 +198,7 @@ class _MerchantProductEditScreenState extends State<MerchantProductEditScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Valor R\$', style: TextStyle(fontSize: 12, color: BitpayTheme.textSecondary, fontWeight: FontWeight.w500)),
+                              const Text('Valor R\$', style: TextStyle(fontSize: 12, color: IrisTheme.textSecondary, fontWeight: FontWeight.w500)),
                               const SizedBox(height: 4),
                               TextField(
                                 controller: _brlCtrl,
@@ -208,7 +208,7 @@ class _MerchantProductEditScreenState extends State<MerchantProductEditScreen> {
                                 decoration: InputDecoration(
                                   hintText: '0,00',
                                   filled: true,
-                                  fillColor: BitpayTheme.s1,
+                                  fillColor: IrisTheme.s1,
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                                 ),
                               ),
@@ -217,13 +217,13 @@ class _MerchantProductEditScreenState extends State<MerchantProductEditScreen> {
                         ),
                         Padding(
                           padding: const EdgeInsets.only(top: 34, left: 10, right: 10),
-                          child: Text('ou', style: TextStyle(color: BitpayTheme.textSecondary.withOpacity(0.5), fontSize: 12)),
+                          child: Text('ou', style: TextStyle(color: IrisTheme.textSecondary.withOpacity(0.5), fontSize: 12)),
                         ),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Valor sats', style: TextStyle(fontSize: 12, color: BitpayTheme.textSecondary, fontWeight: FontWeight.w500)),
+                              const Text('Valor sats', style: TextStyle(fontSize: 12, color: IrisTheme.textSecondary, fontWeight: FontWeight.w500)),
                               const SizedBox(height: 4),
                               TextField(
                                 controller: _satsCtrl,
@@ -233,7 +233,7 @@ class _MerchantProductEditScreenState extends State<MerchantProductEditScreen> {
                                 decoration: InputDecoration(
                                   hintText: '0',
                                   filled: true,
-                                  fillColor: BitpayTheme.s1,
+                                  fillColor: IrisTheme.s1,
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                                 ),
                               ),
@@ -250,7 +250,7 @@ class _MerchantProductEditScreenState extends State<MerchantProductEditScreen> {
                         const Text('Produto Ativo?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                         Switch(
                           value: _isActive,
-                          activeColor: BitpayTheme.primary,
+                          activeColor: IrisTheme.primary,
                           onChanged: (val) {
                             setState(() => _isActive = val);
                           },
@@ -259,13 +259,13 @@ class _MerchantProductEditScreenState extends State<MerchantProductEditScreen> {
                     ),
                     Text(
                       'Produtos inativos não podem gerar cobranças no PDV.',
-                      style: TextStyle(fontSize: 11, color: BitpayTheme.textSecondary),
+                      style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary),
                     ),
                     
                     if (_error != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 12),
-                        child: Text(_error!, style: const TextStyle(color: BitpayTheme.danger, fontSize: 12)),
+                        child: Text(_error!, style: const TextStyle(color: IrisTheme.danger, fontSize: 12)),
                       ),
                   ],
                 ),
@@ -282,13 +282,13 @@ class _MerchantProductEditScreenState extends State<MerchantProductEditScreen> {
                     children: [
                       ElevatedButton(
                         onPressed: _saveProduct,
-                        style: ElevatedButton.styleFrom(backgroundColor: BitpayTheme.primary, padding: const EdgeInsets.symmetric(vertical: 16)),
+                        style: ElevatedButton.styleFrom(backgroundColor: IrisTheme.primary, padding: const EdgeInsets.symmetric(vertical: 16)),
                         child: const Text('Salvar alterações', style: TextStyle(color: Colors.white)),
                       ),
                       const SizedBox(height: 8),
                       TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('← Voltar', style: TextStyle(color: BitpayTheme.textSecondary)),
+                        child: const Text('← Voltar', style: TextStyle(color: IrisTheme.textSecondary)),
                       ),
                     ],
                   ),

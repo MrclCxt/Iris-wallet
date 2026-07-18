@@ -14,14 +14,14 @@ class WelcomeScreen extends StatelessWidget {
     final chroma = context.watch<ChromaService>();
 
     return Scaffold(
-      backgroundColor: BitpayTheme.bg,
+      backgroundColor: IrisTheme.bg,
       appBar: canPop
           ? AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back,
-                    color: BitpayTheme.textPrimary),
+                    color: IrisTheme.textPrimary),
                 onPressed: () => Navigator.pop(context),
               ),
             )
@@ -71,7 +71,7 @@ class WelcomeScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 14,
                         height: 1.65,
-                        color: BitpayTheme.textSecondary,
+                        color: IrisTheme.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -79,7 +79,7 @@ class WelcomeScreen extends StatelessWidget {
                     Container(
                       height: 2,
                       decoration: const BoxDecoration(
-                        gradient: BitpayTheme.rainbowGradient,
+                        gradient: IrisTheme.rainbowGradient,
                         borderRadius: BorderRadius.all(Radius.circular(2)),
                       ),
                     ),
@@ -124,7 +124,7 @@ class WelcomeScreen extends StatelessWidget {
                       const SizedBox(height: 10),
                       OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: BitpayTheme.textSecondary,
+                          foregroundColor: IrisTheme.textSecondary,
                           side: BorderSide(
                               color: chroma.primary.withOpacity(0.3)),
                           shape: RoundedRectangleBorder(

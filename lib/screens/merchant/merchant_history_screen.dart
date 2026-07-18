@@ -24,7 +24,7 @@ class MerchantHistoryScreen extends StatelessWidget {
           
           Expanded(
             child: wallet.merchantTransactions.isEmpty
-                ? const Center(child: Text('Nenhuma venda registrada ainda.', style: TextStyle(color: BitpayTheme.textSecondary)))
+                ? const Center(child: Text('Nenhuma venda registrada ainda.', style: TextStyle(color: IrisTheme.textSecondary)))
                 : MediaQuery.of(context).size.width >= 850
                     ? _buildDesktopDataTable(wallet, exchangeRate)
                     : ListView.builder(
@@ -51,43 +51,43 @@ class MerchantHistoryScreen extends StatelessWidget {
       width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 24),
       decoration: BoxDecoration(
-        color: BitpayTheme.s1,
-        border: Border.all(color: BitpayTheme.bdr),
+        color: IrisTheme.s1,
+        border: Border.all(color: IrisTheme.bdr),
         borderRadius: BorderRadius.circular(16),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: SingleChildScrollView(
           child: DataTable(
-            headingRowColor: MaterialStateProperty.all(BitpayTheme.s2),
+            headingRowColor: MaterialStateProperty.all(IrisTheme.s2),
             dataRowMinHeight: 60,
             dataRowMaxHeight: 60,
             columnSpacing: 24,
             horizontalMargin: 24,
             columns: const [
-              DataColumn(label: Text('Data', style: TextStyle(fontWeight: FontWeight.bold, color: BitpayTheme.textSecondary))),
-              DataColumn(label: Text('Descrição', style: TextStyle(fontWeight: FontWeight.bold, color: BitpayTheme.textSecondary))),
-              DataColumn(label: Text('Tipo', style: TextStyle(fontWeight: FontWeight.bold, color: BitpayTheme.textSecondary))),
-              DataColumn(label: Text('Valor (BRL)', style: TextStyle(fontWeight: FontWeight.bold, color: BitpayTheme.textSecondary)), numeric: true),
-              DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, color: BitpayTheme.textSecondary))),
+              DataColumn(label: Text('Data', style: TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textSecondary))),
+              DataColumn(label: Text('Descrição', style: TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textSecondary))),
+              DataColumn(label: Text('Tipo', style: TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textSecondary))),
+              DataColumn(label: Text('Valor (BRL)', style: TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textSecondary)), numeric: true),
+              DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textSecondary))),
             ],
             rows: wallet.merchantTransactions.map((tx) {
               final brl = exchangeRate.satsToBrl(tx.amountSats);
               
               return DataRow(
                 cells: [
-                  DataCell(Text('${tx.date.day.toString().padLeft(2, '0')}/${tx.date.month.toString().padLeft(2, '0')} ${tx.date.hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')}', style: const TextStyle(color: BitpayTheme.textSecondary))),
+                  DataCell(Text('${tx.date.day.toString().padLeft(2, '0')}/${tx.date.month.toString().padLeft(2, '0')} ${tx.date.hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')}', style: const TextStyle(color: IrisTheme.textSecondary))),
                   DataCell(Text(tx.title, style: const TextStyle(fontWeight: FontWeight.w600))),
-                  DataCell(const Text('Venda', style: TextStyle(color: BitpayTheme.textSecondary))),
-                  DataCell(Text('+R\$ ${CurrencyFormatter.formatBrl(brl)}', style: const TextStyle(color: BitpayTheme.success, fontFamily: 'JetBrains Mono', fontWeight: FontWeight.bold))),
+                  DataCell(const Text('Venda', style: TextStyle(color: IrisTheme.textSecondary))),
+                  DataCell(Text('+R\$ ${CurrencyFormatter.formatBrl(brl)}', style: const TextStyle(color: IrisTheme.success, fontFamily: 'JetBrains Mono', fontWeight: FontWeight.bold))),
                   DataCell(Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: BitpayTheme.success.withOpacity(0.1),
+                      color: IrisTheme.success.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: BitpayTheme.success.withOpacity(0.3)),
+                      border: Border.all(color: IrisTheme.success.withOpacity(0.3)),
                     ),
-                    child: const Text('Concluído', style: TextStyle(color: BitpayTheme.success, fontSize: 12, fontWeight: FontWeight.bold)),
+                    child: const Text('Concluído', style: TextStyle(color: IrisTheme.success, fontSize: 12, fontWeight: FontWeight.bold)),
                   )),
                 ],
               );
@@ -105,16 +105,16 @@ class MerchantHistoryScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: BitpayTheme.s1,
+        color: IrisTheme.s1,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: BitpayTheme.bdr),
+        border: Border.all(color: IrisTheme.bdr),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: BitpayTheme.s2, borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.receipt_long, color: BitpayTheme.primary, size: 20),
+            decoration: BoxDecoration(color: IrisTheme.s2, borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.receipt_long, color: IrisTheme.primary, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -123,7 +123,7 @@ class MerchantHistoryScreen extends StatelessWidget {
               children: [
                 Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
-                Text(time, style: const TextStyle(fontSize: 11, color: BitpayTheme.textSecondary)),
+                Text(time, style: const TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
               ],
             ),
           ),
@@ -132,12 +132,12 @@ class MerchantHistoryScreen extends StatelessWidget {
             children: [
               Text(
                 '+ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(sats))}',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: BitpayTheme.success),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: IrisTheme.success),
               ),
               const SizedBox(height: 2),
               Text(
                 '+ ${CurrencyFormatter.formatSats(sats)} sats',
-                style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 10, color: BitpayTheme.textTertiary),
+                style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 10, color: IrisTheme.textTertiary),
               ),
             ],
           ),

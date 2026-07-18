@@ -32,7 +32,7 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                 const SizedBox(width: 40),
                 const Text('Produtos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 IconButton(
-                  icon: const Icon(Icons.add, color: BitpayTheme.primary),
+                  icon: const Icon(Icons.add, color: IrisTheme.primary),
                   onPressed: () {
                     showDialog(
                       context: context,
@@ -108,9 +108,9 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: BitpayTheme.s1,
+          color: IrisTheme.s1,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: BitpayTheme.bdr),
+          border: Border.all(color: IrisTheme.bdr),
         ),
         child: Row(
           children: [
@@ -132,7 +132,7 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                     exchangeRate.isSatsDisplay
                         ? '${CurrencyFormatter.formatSats(exchangeRate.brlToSats(p.price))} SATS'
                         : 'R\$ ${CurrencyFormatter.formatBrl(p.price)}',
-                    style: const TextStyle(fontFamily: 'JetBrains Mono', color: BitpayTheme.success),
+                    style: const TextStyle(fontFamily: 'JetBrains Mono', color: IrisTheme.success),
                   ),
                 ],
               ),
@@ -141,7 +141,7 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
               children: [
                 Switch(
                   value: p.isActive,
-                  activeColor: BitpayTheme.primary,
+                  activeColor: IrisTheme.primary,
                   onChanged: (val) {
                     p.isActive = val;
                     context.read<WalletService>().updateMerchantProduct(p);
@@ -151,13 +151,13 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: p.isActive ? BitpayTheme.primary.withOpacity(0.14) : BitpayTheme.s3,
+                    color: p.isActive ? IrisTheme.primary.withOpacity(0.14) : IrisTheme.s3,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text('⚡', style: TextStyle(fontSize: 16, color: p.isActive ? BitpayTheme.primary : BitpayTheme.textTertiary)),
+                  child: Text('⚡', style: TextStyle(fontSize: 16, color: p.isActive ? IrisTheme.primary : IrisTheme.textTertiary)),
                 ),
                 const SizedBox(width: 10),
-                const Icon(Icons.qr_code, color: BitpayTheme.textTertiary, size: 20),
+                const Icon(Icons.qr_code, color: IrisTheme.textTertiary, size: 20),
               ],
             ),
           ],

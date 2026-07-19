@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme.dart';
+import '../../services/wallet_service.dart';
 
 class ConsumerPaySuccessScreen extends StatefulWidget {
   const ConsumerPaySuccessScreen({super.key});
@@ -9,8 +11,6 @@ class ConsumerPaySuccessScreen extends StatefulWidget {
 }
 
 class _ConsumerPaySuccessScreenState extends State<ConsumerPaySuccessScreen> {
-  bool _showNerdData = false;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -50,50 +50,26 @@ class _ConsumerPaySuccessScreenState extends State<ConsumerPaySuccessScreen> {
                   
                   const SizedBox(height: 48),
                   
-                  if (_showNerdData)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: IrisTheme.bdr),
-                      ),
-                      child: const Text(
-                        'ROUTING LOG:\n'
-                        '[+] Swap SATS -> BRL concluído\n'
-                        '[+] DEPIX AUTOSWAP ativado\n'
-                        '[+] Chave PIX destino: 123.456.789-00\n'
-                        '[+] Hash da tx: 4a5e1e...88f2\n'
-                        '[+] Fee: 0 sats',
-                        style: TextStyle(
-                          fontFamily: 'JetBrains Mono',
-                          fontSize: 11,
-                          color: IrisTheme.success,
-                          height: 1.5,
-                        ),
-                      ),
-                    ),
-                    
-                  const Spacer(),
-                  
-                  TextButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _showNerdData = !_showNerdData;
-                      });
-                    },
-                    icon: const Icon(Icons.terminal, color: IrisTheme.textSecondary, size: 16),
-                    label: Text(
-                      _showNerdData ? 'Esconder Dados Nerd' : 'Ver Dados Nerd',
-                      style: const TextStyle(color: IrisTheme.textSecondary),
-                    ),
+                  const Text(
+                    'Os detalhes reais (hash, valor e status) ficam no histórico da carteira.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: IrisTheme.textTertiary),
                   ),
-                  
-                  const SizedBox(height: 16),
+
+                  const Spacer(),
                   
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.pop(context); // Voltar para Home (porque usamos pushReplacement)
+                      // Vai direto para a home do perfil ativo, limpando
+                      // qualquer resíduo da pilha de navegação — nunca cai
+                      // no PIN ou em telas do fluxo de criação.
+                      final isMerchant =
+                          context.read<WalletService>().lastSessionType == 'merchant';
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        isMerchant ? '/merchant_home' : '/consumer_home',
+                        (route) => false,
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),

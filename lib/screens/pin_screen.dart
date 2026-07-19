@@ -76,19 +76,32 @@ class _PinScreenState extends State<PinScreen> {
           } else {
             // Unlock mode
             final wallet = context.read<WalletService>();
-            final success = widget.isMerchant ? await wallet.unlockMerchant(_pin) : await wallet.unlock(_pin);
-            if (success) {
-              _initLiquidInBackground();
-              if (widget.onSuccess != null) {
+            if (widget.onSuccess != null) {
+              // Confirmação (ex.: pagamento): apenas VERIFICA o PIN, sem
+              // mexer na sessão — evita qualquer efeito de "deslogar".
+              final ok = widget.isMerchant
+                  ? wallet.verifyMerchantPin(_pin)
+                  : wallet.verifyConsumerPin(_pin);
+              if (ok) {
                 widget.onSuccess!();
               } else {
-                Navigator.pushNamedAndRemoveUntil(context, widget.isMerchant ? '/merchant_home' : '/consumer_home', (route) => false);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('PIN incorreto'), backgroundColor: IrisTheme.danger),
+                );
+                setState(() => _pin = '');
               }
             } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('PIN incorreto'), backgroundColor: IrisTheme.danger),
-              );
-              setState(() => _pin = '');
+              // Desbloqueio de sessão de verdade
+              final success = widget.isMerchant ? await wallet.unlockMerchant(_pin) : await wallet.unlock(_pin);
+              if (success) {
+                _initLiquidInBackground();
+                Navigator.pushNamedAndRemoveUntil(context, widget.isMerchant ? '/merchant_home' : '/consumer_home', (route) => false);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('PIN incorreto'), backgroundColor: IrisTheme.danger),
+                );
+                setState(() => _pin = '');
+              }
             }
           }
         }

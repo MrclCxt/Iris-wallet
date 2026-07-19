@@ -470,7 +470,11 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text('Posso Enviar', style: TextStyle(fontSize: 10, color: IrisTheme.textSecondary)),
-                            Text('$outbound sats', style: const TextStyle(color: IrisTheme.primaryLight, fontWeight: FontWeight.bold)),
+                            Text(
+                                context.watch<ExchangeRateService>().isSatsDisplay
+                                    ? '${CurrencyFormatter.formatSats(outbound)} sats'
+                                    : 'R\$ ${CurrencyFormatter.formatBrl(context.watch<ExchangeRateService>().satsToBrl(outbound))}',
+                                style: const TextStyle(color: IrisTheme.primaryLight, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -479,7 +483,11 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             const Text('Capacidade', style: TextStyle(fontSize: 10, color: IrisTheme.textSecondary)),
-                            Text('$capacity sats', style: const TextStyle(color: IrisTheme.textPrimary, fontWeight: FontWeight.bold)),
+                            Text(
+                                context.watch<ExchangeRateService>().isSatsDisplay
+                                    ? '${CurrencyFormatter.formatSats(capacity)} sats'
+                                    : 'R\$ ${CurrencyFormatter.formatBrl(context.watch<ExchangeRateService>().satsToBrl(capacity))}',
+                                style: const TextStyle(color: IrisTheme.textPrimary, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -488,7 +496,11 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             const Text('Posso Receber', style: TextStyle(fontSize: 10, color: IrisTheme.textSecondary)),
-                            Text('$inbound sats', style: const TextStyle(color: IrisTheme.success, fontWeight: FontWeight.bold)),
+                            Text(
+                                context.watch<ExchangeRateService>().isSatsDisplay
+                                    ? '${CurrencyFormatter.formatSats(inbound)} sats'
+                                    : 'R\$ ${CurrencyFormatter.formatBrl(context.watch<ExchangeRateService>().satsToBrl(inbound))}',
+                                style: const TextStyle(color: IrisTheme.success, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),

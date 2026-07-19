@@ -410,6 +410,18 @@ class WalletService extends ChangeNotifier {
   // Desbloqueio / criação de contas
   // ---------------------------------------------------------------------
 
+  /// Verificação pura do PIN (confirmação de pagamento etc.) — sem nenhum
+  /// efeito colateral de sessão: não navega, não notifica, não mexe no nó.
+  bool verifyConsumerPin(String pin) {
+    final active = activeConsumer;
+    return active != null && verifyPin(pin, active.pinHash);
+  }
+
+  bool verifyMerchantPin(String pin) {
+    final active = activeMerchant;
+    return active != null && verifyPin(pin, active.pinHash);
+  }
+
   Future<bool> unlock(String pin) async {
     // Fluxo de criação de nova conta
     if (_tempConsumerSeed != null) {

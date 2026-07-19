@@ -5,6 +5,7 @@ import '../../core/currency_format.dart';
 import 'package:provider/provider.dart';
 import '../../services/wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
+import '../../widgets/currency_toggle_btn.dart';
 
 class MerchantHistoryScreen extends StatelessWidget {
   const MerchantHistoryScreen({super.key});
@@ -19,7 +20,14 @@ class MerchantHistoryScreen extends StatelessWidget {
         children: [
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Text('Histórico', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                SizedBox(width: 48),
+                Text('Histórico', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                CurrencyToggleBtn(),
+              ],
+            ),
           ),
           
           Expanded(
@@ -79,7 +87,11 @@ class MerchantHistoryScreen extends StatelessWidget {
                   DataCell(Text('${tx.date.day.toString().padLeft(2, '0')}/${tx.date.month.toString().padLeft(2, '0')} ${tx.date.hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')}', style: const TextStyle(color: IrisTheme.textSecondary))),
                   DataCell(Text(tx.title, style: const TextStyle(fontWeight: FontWeight.w600))),
                   DataCell(const Text('Venda', style: TextStyle(color: IrisTheme.textSecondary))),
-                  DataCell(Text('+R\$ ${CurrencyFormatter.formatBrl(brl)}', style: const TextStyle(color: IrisTheme.success, fontFamily: 'JetBrains Mono', fontWeight: FontWeight.bold))),
+                  DataCell(Text(
+                      exchangeRate.isSatsDisplay
+                          ? '+${CurrencyFormatter.formatSats(tx.amountSats)} sats'
+                          : '+R\$ ${CurrencyFormatter.formatBrl(brl)}',
+                      style: const TextStyle(color: IrisTheme.success, fontFamily: 'JetBrains Mono', fontWeight: FontWeight.bold))),
                   DataCell(Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
@@ -131,12 +143,16 @@ class MerchantHistoryScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '+ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(sats))}',
+                exchangeRate.isSatsDisplay
+                    ? '+ ${CurrencyFormatter.formatSats(sats)} sats'
+                    : '+ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(sats))}',
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: IrisTheme.success),
               ),
               const SizedBox(height: 2),
               Text(
-                '+ ${CurrencyFormatter.formatSats(sats)} sats',
+                exchangeRate.isSatsDisplay
+                    ? '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(sats))}'
+                    : '≈ ${CurrencyFormatter.formatSats(sats)} sats',
                 style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 10, color: IrisTheme.textTertiary),
               ),
             ],

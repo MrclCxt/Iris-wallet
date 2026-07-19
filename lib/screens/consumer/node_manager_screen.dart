@@ -5,7 +5,10 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/services.dart';
 import '../../services/wallet_service.dart';
 import '../../services/node_backend.dart';
+import '../../services/exchange_rate_service.dart';
+import '../../widgets/currency_toggle_btn.dart';
 import '../../core/theme.dart';
+import '../../core/currency_format.dart';
 
 class NodeManagerScreen extends StatefulWidget {
   const NodeManagerScreen({super.key});
@@ -259,6 +262,10 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
         title: const Text('Gestão do Nó Nativo ⚡', style: TextStyle(color: IrisTheme.textPrimary, fontSize: 18)),
         iconTheme: const IconThemeData(color: IrisTheme.textPrimary),
         actions: [
+          const Padding(
+            padding: EdgeInsets.only(right: 4.0),
+            child: Center(child: CurrencyToggleBtn()),
+          ),
           IconButton(
             icon: const Icon(Icons.dns_outlined),
             tooltip: 'Backend do nó (embarcado ou daemon local)',
@@ -309,7 +316,26 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          Text('$_onChainBalance sats', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: IrisTheme.textPrimary)),
+          Builder(builder: (context) {
+            final rate = context.watch<ExchangeRateService>();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  rate.isSatsDisplay
+                      ? '${CurrencyFormatter.formatSats(_onChainBalance)} sats'
+                      : 'R\$ ${CurrencyFormatter.formatBrl(rate.satsToBrl(_onChainBalance))}',
+                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: IrisTheme.textPrimary),
+                ),
+                Text(
+                  rate.isSatsDisplay
+                      ? '≈ R\$ ${CurrencyFormatter.formatBrl(rate.satsToBrl(_onChainBalance))}'
+                      : '≈ ${CurrencyFormatter.formatSats(_onChainBalance)} sats',
+                  style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 12, color: IrisTheme.textTertiary),
+                ),
+              ],
+            );
+          }),
           const Text('Disponível para abrir novos canais', style: TextStyle(fontSize: 12, color: IrisTheme.textSecondary)),
           const SizedBox(height: 24),
           

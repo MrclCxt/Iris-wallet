@@ -9,6 +9,7 @@ import '../../services/wallet_service.dart';
 import '../../services/liquid_wallet_service.dart';
 import '../../services/pix_service.dart';
 import '../../services/exchange_rate_service.dart';
+import '../../widgets/currency_toggle_btn.dart';
 import 'consumer_pay_success_screen.dart';
 import '../pin_screen.dart';
 
@@ -270,6 +271,12 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
             Text('Verifique antes de pagar', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
           ],
         ),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 16.0),
+            child: CurrencyToggleBtn(),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Padding(
@@ -367,7 +374,9 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                       )
                     else
                       Text(
-                        '${CurrencyFormatter.formatSats(_satsAmount)} sats',
+                        exchangeRate.isSatsDisplay
+                            ? '${CurrencyFormatter.formatSats(_satsAmount)} sats'
+                            : 'R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(_satsAmount))}',
                         style: const TextStyle(
                           fontFamily: 'JetBrains Mono',
                           fontSize: 38,
@@ -377,10 +386,17 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                         ),
                       ),
                     if (!_isPix)
-                      Text(
-                        '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(widget.editableAmount ? (int.tryParse(_amountCtrl.text) ?? 0) : _satsAmount))}',
-                        style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 12, color: IrisTheme.primary),
-                      ),
+                      Builder(builder: (context) {
+                        final sats = widget.editableAmount
+                            ? (int.tryParse(_amountCtrl.text) ?? 0)
+                            : _satsAmount;
+                        return Text(
+                          exchangeRate.isSatsDisplay || widget.editableAmount
+                              ? '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(sats))}'
+                              : '≈ ${CurrencyFormatter.formatSats(sats)} sats',
+                          style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 12, color: IrisTheme.primary),
+                        );
+                      }),
                     const SizedBox(height: 12),
                     const Divider(color: IrisTheme.bdr),
                     const SizedBox(height: 12),

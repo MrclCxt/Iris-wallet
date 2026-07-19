@@ -467,7 +467,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                   children: [
                     _buildMethodBtn('⚡ Lightning', ReceiveMethod.lightning),
                     _buildMethodBtn('₿ On-chain', ReceiveMethod.onchain),
-                    if (!widget.isMerchant) _buildMethodBtn('🇧🇷 PIX', ReceiveMethod.pix),
+                    _buildMethodBtn('🇧🇷 PIX', ReceiveMethod.pix),
                   ],
                 ),
               ),

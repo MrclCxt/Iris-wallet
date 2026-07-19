@@ -7,6 +7,7 @@ import '../../core/bolt11.dart';
 import '../../services/wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
 import '../../widgets/max_width_container.dart';
+import '../../widgets/currency_toggle_btn.dart';
 import '../../core/currency_format.dart';
 import 'merchant_product_edit_screen.dart';
 import 'package:share_plus/share_plus.dart';
@@ -142,6 +143,7 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                       ],
                     ),
                   ),
+                  const CurrencyToggleBtn(),
                   if (_invoiceData != null)
                     IconButton(
                       icon: const Icon(Icons.share, color: IrisTheme.primary),
@@ -182,12 +184,16 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'R\$ ${CurrencyFormatter.formatBrl(product.price)}',
+                      exchangeRate.isSatsDisplay
+                          ? '${CurrencyFormatter.formatSats(satsAmount)} sats'
+                          : 'R\$ ${CurrencyFormatter.formatBrl(product.price)}',
                       style: Theme.of(context).textTheme.displayLarge?.copyWith(color: IrisTheme.success, fontSize: 42),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${CurrencyFormatter.formatSats(satsAmount)} sats',
+                      exchangeRate.isSatsDisplay
+                          ? '≈ R\$ ${CurrencyFormatter.formatBrl(product.price)}'
+                          : '≈ ${CurrencyFormatter.formatSats(satsAmount)} sats',
                       style: const TextStyle(fontSize: 15, color: IrisTheme.textSecondary, fontFamily: 'JetBrains Mono'),
                     ),
                     const SizedBox(height: 32),

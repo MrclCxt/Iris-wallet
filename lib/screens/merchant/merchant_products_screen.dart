@@ -4,6 +4,7 @@ import '../../core/theme.dart';
 import '../../core/currency_format.dart';
 import '../../services/wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
+import '../../widgets/currency_toggle_btn.dart';
 import 'merchant_product_new_screen.dart';
 import 'merchant_product_qr_screen.dart';
 
@@ -29,7 +30,7 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const SizedBox(width: 40),
+                const CurrencyToggleBtn(),
                 const Text('Produtos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 IconButton(
                   icon: const Icon(Icons.add, color: IrisTheme.primary),

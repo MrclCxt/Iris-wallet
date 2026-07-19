@@ -10,13 +10,14 @@ import '../../core/bolt11.dart';
 import '../../core/tx_policy.dart';
 import '../../services/wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
+import '../../services/pix_service.dart';
 import '../../widgets/currency_toggle_btn.dart';
 import 'custom_charge_screen.dart';
-import 'pix_deposit_screen.dart';
 
-/// Método de recebimento. A moeda do app é sempre o satoshi — o toggle
-/// SATS/R$ muda apenas a exibição, nunca o trilho da transação.
-enum ReceiveMethod { lightning, onchain }
+/// Trilho de recebimento. A moeda do app é sempre o satoshi — o toggle
+/// SATS/R$ muda apenas a exibição. PIX é o trilho de entrada de Reais:
+/// PIX (BRL) -> DEPIX (Liquid) -> L-BTC -> saldo em sats.
+enum ReceiveMethod { lightning, onchain, pix }
 
 class ReceiveQrScreen extends StatefulWidget {
   final int satsAmount;
@@ -43,6 +44,8 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   int _paidAmountSats = 0;
   String? _watchingPaymentHash;
   StreamSubscription<ReceivedPayment>? _paymentSub;
+  final TextEditingController _pixBrlCtrl = TextEditingController();
+  bool _pixBusy = false;
 
   ReceiveMethod _method = ReceiveMethod.lightning;
 
@@ -81,6 +84,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   }
 
   Future<void> _generatePayload() async {
+    if (_method == ReceiveMethod.pix) return; // painel PIX cuida do próprio QR
     setState(() => _isLoading = true);
     try {
       String payload = '';
@@ -141,8 +145,130 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
     setState(() {
       _method = method;
       _invoiceData = null;
+      _isLoading = method != ReceiveMethod.pix;
     });
-    _generatePayload();
+    if (method == ReceiveMethod.pix) {
+      _maybeAutoCreatePixCharge();
+    } else {
+      _generatePayload();
+    }
+  }
+
+  /// Com valor definido, gera a cobrança PIX automaticamente no equivalente
+  /// em Reais (câmbio em tempo real).
+  Future<void> _maybeAutoCreatePixCharge() async {
+    if (widget.satsAmount <= 0) return;
+    final pix = context.read<PixService>();
+    final rate = context.read<ExchangeRateService>();
+    if (!rate.hasRate) {
+      rate.fetchRate();
+      return;
+    }
+    final brl = rate.satsToBrl(widget.satsAmount);
+    if (pix.activeCharge != null &&
+        pix.activeCharge!.status == PixChargeStatus.pending &&
+        (pix.activeCharge!.amountBrl - brl).abs() < 0.01) {
+      return; // cobrança equivalente já ativa
+    }
+    setState(() => _pixBusy = true);
+    try {
+      await pix.startDeposit(double.parse(brl.toStringAsFixed(2)));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao gerar cobrança PIX: $e'), backgroundColor: IrisTheme.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _pixBusy = false);
+    }
+  }
+
+  Future<void> _createPixChargeFromInput() async {
+    final raw = _pixBrlCtrl.text.replaceAll('.', '').replaceAll(',', '.');
+    final brl = double.tryParse(raw) ?? 0;
+    if (brl <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Informe o valor em Reais.'), backgroundColor: IrisTheme.danger),
+      );
+      return;
+    }
+    final rate = context.read<ExchangeRateService>();
+    if (!rate.hasRate) {
+      rate.fetchRate();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Cotação BTC/BRL indisponível. Tente em instantes.'),
+            backgroundColor: IrisTheme.danger),
+      );
+      return;
+    }
+    setState(() => _pixBusy = true);
+    try {
+      await context.read<PixService>().startDeposit(brl);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao gerar cobrança PIX: $e'), backgroundColor: IrisTheme.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _pixBusy = false);
+    }
+  }
+
+  void _showPixProviderConfig() {
+    final pix = context.read<PixService>();
+    final urlCtrl = TextEditingController();
+    final keyCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: IrisTheme.s1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: IrisTheme.bdr),
+        ),
+        title: const Text('Provedor PIX/DEPIX',
+            style: TextStyle(color: IrisTheme.textPrimary, fontSize: 16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Atual: ${pix.provider.name}',
+                style: const TextStyle(color: IrisTheme.textSecondary, fontSize: 12)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: urlCtrl,
+              style: const TextStyle(color: IrisTheme.textPrimary, fontSize: 13),
+              decoration: const InputDecoration(
+                labelText: 'URL base da API (vazio = simulado)',
+                hintText: 'https://api.provedor.com/v1',
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: keyCtrl,
+              obscureText: true,
+              style: const TextStyle(color: IrisTheme.textPrimary, fontSize: 13),
+              decoration: const InputDecoration(labelText: 'Chave de API'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar', style: TextStyle(color: IrisTheme.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await pix.configureProvider(baseUrl: urlCtrl.text, apiKey: keyCtrl.text);
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _startTimer() {
@@ -161,11 +287,12 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   void dispose() {
     _timer?.cancel();
     _paymentSub?.cancel();
+    _pixBrlCtrl.dispose();
     super.dispose();
   }
 
   String get _formattedTime {
-    if (_method == ReceiveMethod.onchain || widget.satsAmount == 0) {
+    if (_method != ReceiveMethod.lightning || widget.satsAmount == 0) {
       return '∞ (Sem expiração)';
     }
     final minutes = (_secondsRemaining / 60).floor();
@@ -176,8 +303,15 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   @override
   Widget build(BuildContext context) {
     final exchangeRate = context.watch<ExchangeRateService>();
+    final pix = context.watch<PixService>();
     final showSats = exchangeRate.isSatsDisplay;
     final brlAmount = exchangeRate.satsToBrl(widget.satsAmount);
+    final isPix = _method == ReceiveMethod.pix;
+    final pixCharge = pix.activeCharge;
+    final displayPayload = isPix ? pixCharge?.qrCopiaECola : _invoiceData;
+    final pixPaid = isPix &&
+        pixCharge != null &&
+        (pixCharge.status == PixChargeStatus.paid || pixCharge.status == PixChargeStatus.settled);
 
     return Scaffold(
       backgroundColor: IrisTheme.bg,
@@ -190,7 +324,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
           onPressed: () => Navigator.pop(context),
         ) : null,
         title: const Text(
-          'Receber Bitcoin',
+          'Receber',
           style: TextStyle(
             color: IrisTheme.textPrimary,
             fontSize: 16,
@@ -212,7 +346,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
             child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Seletor do trilho de recebimento (sempre em sats)
+              // Seletor do trilho de recebimento (sempre liquida em sats)
               Container(
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
@@ -225,12 +359,40 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                   children: [
                     _buildMethodBtn('⚡ Lightning', ReceiveMethod.lightning),
                     _buildMethodBtn('₿ On-chain', ReceiveMethod.onchain),
+                    if (!widget.isMerchant) _buildMethodBtn('🇧🇷 PIX', ReceiveMethod.pix),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
 
-              if (_method == ReceiveMethod.onchain)
+              // Chip de contexto do trilho
+              if (isPix)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: IrisTheme.success.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'PIX → DEPIX (Liquid) → sats · ${pix.provider.name}',
+                          style: const TextStyle(
+                              color: IrisTheme.success, fontSize: 11, fontWeight: FontWeight.w600),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.settings_outlined, size: 18, color: IrisTheme.textTertiary),
+                      tooltip: 'Provedor PIX/DEPIX',
+                      onPressed: _showPixProviderConfig,
+                    ),
+                  ],
+                )
+              else if (_method == ReceiveMethod.onchain)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
@@ -261,7 +423,61 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                 ),
               const SizedBox(height: 24),
 
-              if (_invoiceData != null)
+              // Painel PIX sem cobrança ativa: campo de valor em Reais
+              if (isPix && pixCharge == null && widget.satsAmount == 0) ...[
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: IrisTheme.s1,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: IrisTheme.bdr),
+                  ),
+                  child: Column(
+                    children: [
+                      const Text('Valor do depósito',
+                          style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
+                      TextField(
+                        controller: _pixBrlCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))],
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            fontFamily: 'JetBrains Mono',
+                            fontSize: 32,
+                            fontWeight: FontWeight.w600,
+                            color: IrisTheme.textPrimary),
+                        decoration: const InputDecoration(
+                          prefixText: 'R\$ ',
+                          prefixStyle: TextStyle(fontSize: 22, color: IrisTheme.textSecondary),
+                          hintText: '0,00',
+                          border: InputBorder.none,
+                        ),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      Text(
+                        '≈ ${CurrencyFormatter.formatSats(exchangeRate.brlToSats(double.tryParse(_pixBrlCtrl.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0))} sats',
+                        style: const TextStyle(
+                            fontFamily: 'JetBrains Mono', fontSize: 12, color: IrisTheme.primary),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _pixBusy ? null : _createPixChargeFromInput,
+                    style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                    child: _pixBusy
+                        ? const SizedBox(
+                            height: 18, width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                        : const Text('Gerar cobrança PIX'),
+                  ),
+                ),
+              ],
+
+              if (displayPayload != null)
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -271,7 +487,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                   child: Column(
                     children: [
                       QrImageView(
-                        data: _invoiceData!,
+                        data: displayPayload,
                         version: QrVersions.auto,
                         size: 240.0,
                         backgroundColor: Colors.white,
@@ -287,7 +503,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                           border: Border.all(color: IrisTheme.bdr),
                         ),
                         child: Text(
-                          _invoiceData!,
+                          displayPayload,
                           style: const TextStyle(
                             fontFamily: 'JetBrains Mono',
                             fontSize: 12,
@@ -304,7 +520,23 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
 
               const SizedBox(height: 24),
 
-              if (widget.satsAmount > 0) ...[
+              // Valor exibido
+              if (isPix && pixCharge != null) ...[
+                Text(
+                  'R\$ ${CurrencyFormatter.formatBrl(pixCharge.amountBrl)}',
+                  style: const TextStyle(
+                    fontFamily: 'JetBrains Mono',
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: IrisTheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '≈ ${CurrencyFormatter.formatSats(exchangeRate.brlToSats(pixCharge.amountBrl))} sats no seu saldo',
+                  style: const TextStyle(fontSize: 14, color: IrisTheme.textSecondary),
+                ),
+              ] else if (!isPix && widget.satsAmount > 0) ...[
                 Text(
                   showSats
                       ? '${CurrencyFormatter.formatSats(widget.satsAmount)} SATS'
@@ -326,7 +558,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                     color: IrisTheme.textSecondary,
                   ),
                 ),
-              ] else ...[
+              ] else if (!isPix) ...[
                 const Text(
                   'VALOR ABERTO',
                   style: TextStyle(
@@ -362,7 +594,8 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                 ),
               ],
 
-              if (_isPaid)
+              // Estado: pago / carregando / aguardando
+              if (_isPaid || pixPaid)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Center(
@@ -372,19 +605,22 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                         const Icon(Icons.check_circle, color: IrisTheme.success, size: 48),
                         const SizedBox(height: 12),
                         Text(
-                          'Pagamento recebido! ⚡ ${CurrencyFormatter.formatSats(_paidAmountSats)} sats',
+                          pixPaid
+                              ? 'PIX pago! Convertendo para sats...'
+                              : 'Pagamento recebido! ⚡ ${CurrencyFormatter.formatSats(_paidAmountSats)} sats',
                           style: const TextStyle(color: IrisTheme.success, fontSize: 16, fontWeight: FontWeight.w700),
+                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),
                   ),
                 )
-              else if (_isLoading)
+              else if (_isLoading || _pixBusy)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: Center(child: CircularProgressIndicator(color: IrisTheme.primary)),
                 )
-              else if (_invoiceData != null)
+              else if (displayPayload != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Center(
@@ -401,7 +637,23 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
               else
                 const SizedBox(height: 24),
 
-              if (!_isPaid)
+              // Botão de simulação (apenas provedor simulado, cobrança pendente)
+              if (isPix &&
+                  pixCharge != null &&
+                  pixCharge.status == PixChargeStatus.pending &&
+                  pix.provider.isSimulated) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => pix.simulatePaymentReceived(),
+                    style: ElevatedButton.styleFrom(backgroundColor: IrisTheme.success),
+                    child: const Text('Simular pagamento do PIX (testnet)'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              if (!_isPaid && !pixPaid && !isPix)
               Text(
                 'Expira em $_formattedTime',
                 style: TextStyle(
@@ -414,18 +666,16 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
 
               const SizedBox(height: 24),
 
+              if (displayPayload != null)
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        final invToCopy = _invoiceData;
-                        if (invToCopy != null) {
-                          Clipboard.setData(ClipboardData(text: invToCopy));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Código copiado!')),
-                          );
-                        }
+                        Clipboard.setData(ClipboardData(text: displayPayload));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Código copiado!')),
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: IrisTheme.s1,
@@ -442,11 +692,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                     child: SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () {
-                          if (_invoiceData != null) {
-                            Share.share(_invoiceData!);
-                          }
-                        },
+                        onPressed: () => Share.share(displayPayload),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
@@ -457,30 +703,6 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                   ),
                 ],
               ),
-
-              if (!widget.isMerchant) ...[
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const PixDepositScreen()),
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: IrisTheme.success),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    icon: const Text('🇧🇷', style: TextStyle(fontSize: 16)),
-                    label: const Text(
-                      'PIX — receber ou enviar Reais',
-                      style: TextStyle(color: IrisTheme.success, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-              ],
               const SizedBox(height: 10),
             ],
           ),
@@ -496,7 +718,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
       onTap: () => _switchMethod(method),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           gradient: isOn ? IrisTheme.brandGradient : null,
           borderRadius: BorderRadius.circular(18),

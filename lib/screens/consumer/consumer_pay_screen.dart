@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/theme.dart';
 import '../../core/bolt11.dart';
+import '../../core/brcode.dart';
 import '../../core/lnurl.dart';
 import '../../core/tx_policy.dart';
 import '../../services/wallet_service.dart';
@@ -63,6 +64,19 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
     return s.trim();
   }
 
+  /// Chave PIX avulsa: CPF (11 dígitos), telefone (+55...) ou chave aleatória
+  /// (UUID). E-mails são tratados como Lightning Address (LUD-16).
+  bool _looksLikePixKey(String input) {
+    final s = input.trim();
+    if (RegExp(r'^\d{11}$').hasMatch(s)) return true; // CPF
+    if (RegExp(r'^\+\d{12,14}$').hasMatch(s)) return true; // telefone E.164
+    if (RegExp(
+            r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+            caseSensitive: false)
+        .hasMatch(s)) return true; // chave aleatória
+    return false;
+  }
+
   /// Endereço Bitcoin (testnet: tb1/m/n/2; mainnet: bc1/1/3) ou URI BIP21.
   bool _looksLikeBitcoin(String input) {
     final s = input.toLowerCase();
@@ -118,7 +132,25 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
 
     setState(() => _isResolving = true);
     try {
-      if (Bolt11.looksLikeInvoice(input)) {
+      if (BrCode.looksLikeBrCode(input)) {
+        // QR PIX (BR Code EMV): decodifica chave, nome e valor reais
+        final decoded = BrCode.decode(input);
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PayConfirmScreen(
+              satsAmount: 0,
+              destination: decoded.merchantName.isNotEmpty
+                  ? decoded.merchantName
+                  : decoded.pixKey,
+              pixTarget: decoded.raw,
+              pixAmountBrl: decoded.amountBrl,
+              editableAmount: decoded.amountBrl == null,
+            ),
+          ),
+        );
+      } else if (Bolt11.looksLikeInvoice(input)) {
         final parsed = Bolt11.decode(input);
         if (!parsed.isTestnet) {
           _showError('Fatura da mainnet detectada — este protótipo opera apenas na testnet.');
@@ -191,6 +223,19 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
             ),
           );
         }
+      } else if (_looksLikePixKey(input)) {
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PayConfirmScreen(
+              satsAmount: 0,
+              destination: input,
+              pixTarget: input,
+              editableAmount: true,
+            ),
+          ),
+        );
       } else if (_looksLikeLiquid(input)) {
         final address = _extractLiquidAddress(input);
         if (!mounted) return;
@@ -206,10 +251,12 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
           ),
         );
       } else {
-        _showError('Código não reconhecido. Use fatura Lightning, LNURL, endereço Bitcoin ou Liquid.');
+        _showError('Código não reconhecido. Use fatura Lightning, LNURL, QR PIX, endereço Bitcoin ou Liquid.');
       }
     } on Bolt11ParseException catch (e) {
       _showError('Fatura inválida: ${e.message}');
+    } on BrCodeException catch (e) {
+      _showError('QR PIX inválido: ${e.message}');
     } on LnurlException catch (e) {
       _showError('LNURL: ${e.message}');
     } catch (e) {
@@ -299,7 +346,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
             TextField(
               controller: _invoiceCtrl,
               decoration: InputDecoration(
-                hintText: 'Fatura Lightning, LNURL ou endereço',
+                hintText: 'Lightning, PIX, LNURL ou endereço',
                 hintStyle: const TextStyle(color: IrisTheme.textTertiary),
                 filled: true,
                 fillColor: IrisTheme.s1,

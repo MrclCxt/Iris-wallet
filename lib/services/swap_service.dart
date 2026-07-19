@@ -99,10 +99,17 @@ class SwapService extends ChangeNotifier {
         _addLog('[BOLTZ] Aguardando a Boltz liquidar a fatura Lightning...');
         _addLog('[ℹ️] O saldo será creditado automaticamente quando o pagamento chegar no nó.');
       } else {
-        _addLog('[ERRO] Boltz API falhou: ${response.body}');
+        _addLog('[AVISO] Boltz testnet indisponível (HTTP ${response.statusCode}).');
+        _addLog('[ℹ️] Sem problema: os fundos permanecem como L-BTC na Liquid e '
+            'já contam no seu saldo total em sats. O rebalanceamento para '
+            'Lightning pode ser refeito depois.');
       }
     } catch (e) {
-      _addLog('[ERRO] Falha no roteamento Boltz: $e');
+      final msg = e.toString();
+      _addLog('[AVISO] Falha ao contatar a Boltz: '
+          '${msg.length > 120 ? '${msg.substring(0, 120)}…' : msg}');
+      _addLog('[ℹ️] Os fundos permanecem como L-BTC na Liquid e seguem '
+          'contando no seu saldo total em sats.');
     }
   }
 }

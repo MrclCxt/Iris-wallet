@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:iris_wallet/core/bolt11.dart';
+import 'package:iris_wallet/core/brcode.dart';
 import 'package:iris_wallet/core/lnurl.dart';
 import 'package:iris_wallet/core/tx_policy.dart';
 import 'package:iris_wallet/services/exchange_rate_service.dart';
@@ -165,6 +166,51 @@ void main() {
       expect(params.minSendableSats, 1);
       expect(params.maxSendableSats, 5000);
       expect(params.isFixedAmount, false);
+    });
+  });
+
+  group('BR Code PIX (EMV + CRC16 reais)', () {
+    test('build gera código válido e decode extrai os campos', () {
+      final code = BrCode.build(
+        pixKey: 'maria@exemplo.com',
+        amountBrl: 42.5,
+        merchantName: 'MARIA SILVA',
+        merchantCity: 'SAO PAULO',
+        txid: 'TX123',
+      );
+      expect(BrCode.looksLikeBrCode(code), true);
+
+      final decoded = BrCode.decode(code);
+      expect(decoded.pixKey, 'maria@exemplo.com');
+      expect(decoded.amountBrl, 42.5);
+      expect(decoded.merchantName, 'MARIA SILVA');
+      expect(decoded.merchantCity, 'SAO PAULO');
+      expect(decoded.txid, 'TX123');
+    });
+
+    test('código sem valor definido retorna amountBrl null', () {
+      final code = BrCode.build(
+        pixKey: '11122233344',
+        merchantName: 'LOJA',
+        merchantCity: 'ITAPETININGA',
+      );
+      expect(BrCode.decode(code).amountBrl, isNull);
+    });
+
+    test('rejeita CRC corrompido', () {
+      final code = BrCode.build(
+        pixKey: 'x@y.com',
+        amountBrl: 10,
+        merchantName: 'X',
+        merchantCity: 'Y',
+      );
+      final corrupted = '${code.substring(0, code.length - 4)}0000';
+      expect(() => BrCode.decode(corrupted), throwsA(isA<BrCodeException>()));
+    });
+
+    test('não confunde com fatura Lightning ou endereço', () {
+      expect(BrCode.looksLikeBrCode('lntb10u1abc'), false);
+      expect(BrCode.looksLikeBrCode('tb1qxyz'), false);
     });
   });
 

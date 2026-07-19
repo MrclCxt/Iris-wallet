@@ -7,6 +7,7 @@ import '../../core/bolt11.dart';
 import '../../core/lnurl.dart';
 import '../../services/wallet_service.dart';
 import '../../services/liquid_wallet_service.dart';
+import '../../services/pix_service.dart';
 import '../../services/exchange_rate_service.dart';
 import 'consumer_pay_success_screen.dart';
 import '../pin_screen.dart';
@@ -16,6 +17,7 @@ import '../pin_screen.dart';
 /// - LNURL: busca a fatura final no callback e paga via LDK
 /// - Bitcoin on-chain: grandes valores, direto pela rede base
 /// - Liquid: envia L-BTC assinado localmente via LWK
+/// - PIX: sats -> DEPIX -> provedor paga o destino em Reais
 class PayConfirmScreen extends StatefulWidget {
   final int satsAmount;
   final String destination;
@@ -23,6 +25,8 @@ class PayConfirmScreen extends StatefulWidget {
   final LnurlPayParams? lnurlParams;
   final String? liquidAddress;
   final String? btcAddress;
+  final String? pixTarget; // chave PIX ou BR Code completo
+  final double? pixAmountBrl;
   final bool editableAmount;
 
   const PayConfirmScreen({
@@ -33,6 +37,8 @@ class PayConfirmScreen extends StatefulWidget {
     this.lnurlParams,
     this.liquidAddress,
     this.btcAddress,
+    this.pixTarget,
+    this.pixAmountBrl,
     this.editableAmount = false,
   });
 
@@ -46,13 +52,28 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
 
   bool get _isLiquid => widget.liquidAddress != null;
   bool get _isOnchain => widget.btcAddress != null;
+  bool get _isPix => widget.pixTarget != null;
 
   @override
   void initState() {
     super.initState();
     _satsAmount = widget.satsAmount;
-    _amountCtrl = TextEditingController(
-        text: _satsAmount > 0 ? _satsAmount.toString() : '');
+    if (_isPix) {
+      // No PIX o valor é em Reais (o custo em sats é derivado do câmbio)
+      _amountCtrl = TextEditingController(
+          text: widget.pixAmountBrl != null && widget.pixAmountBrl! > 0
+              ? widget.pixAmountBrl!.toStringAsFixed(2).replaceAll('.', ',')
+              : '');
+    } else {
+      _amountCtrl = TextEditingController(
+          text: _satsAmount > 0 ? _satsAmount.toString() : '');
+    }
+  }
+
+  double get _pixBrl {
+    if (widget.pixAmountBrl != null && !widget.editableAmount) return widget.pixAmountBrl!;
+    final raw = _amountCtrl.text.replaceAll('.', '').replaceAll(',', '.');
+    return double.tryParse(raw) ?? 0;
   }
 
   @override
@@ -71,6 +92,50 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
   Future<void> _executePayment() async {
     final wallet = context.read<WalletService>();
     final liquid = context.read<LiquidWalletService>();
+
+    if (_isPix) {
+      final brl = _pixBrl;
+      if (brl <= 0) {
+        _showError('Informe o valor em Reais.');
+        return;
+      }
+      final rate = context.read<ExchangeRateService>();
+      final satsCost = rate.brlToSats(brl);
+      if (satsCost <= 0) {
+        rate.fetchRate();
+        _showError('Cotação BTC/BRL indisponível. Tente em instantes.');
+        return;
+      }
+      if (wallet.consumerBalance + liquid.balanceSats < satsCost) {
+        _showError('Saldo insuficiente (custa ≈ $satsCost sats).');
+        return;
+      }
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) =>
+            const Center(child: CircularProgressIndicator(color: IrisTheme.primary)),
+      );
+      try {
+        await context
+            .read<PixService>()
+            .startWithdrawal(amountBrl: brl, pixTarget: widget.pixTarget!);
+        if (mounted) {
+          Navigator.pop(context);
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const ConsumerPaySuccessScreen()),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.pop(context);
+          _showError('Falha no envio PIX: $e');
+        }
+      }
+      return;
+    }
 
     if (widget.editableAmount) {
       _satsAmount = int.tryParse(_amountCtrl.text.replaceAll('.', '')) ?? 0;
@@ -147,7 +212,12 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
   }
 
   void _confirmWithPin() {
-    if (widget.editableAmount) {
+    if (_isPix) {
+      if (_pixBrl <= 0) {
+        _showError('Informe o valor em Reais antes de confirmar.');
+        return;
+      }
+    } else if (widget.editableAmount) {
       final v = int.tryParse(_amountCtrl.text.replaceAll('.', '')) ?? 0;
       if (v <= 0) {
         _showError('Informe um valor em sats antes de confirmar.');
@@ -172,11 +242,13 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
   @override
   Widget build(BuildContext context) {
     final exchangeRate = context.watch<ExchangeRateService>();
-    final networkLabel = _isLiquid
-        ? 'Liquid (testnet)'
-        : _isOnchain
-            ? 'Bitcoin on-chain (testnet)'
-            : 'Lightning (testnet)';
+    final networkLabel = _isPix
+        ? 'PIX (Reais via DEPIX/Liquid)'
+        : _isLiquid
+            ? 'Liquid (testnet)'
+            : _isOnchain
+                ? 'Bitcoin on-chain (testnet)'
+                : 'Lightning (testnet)';
 
     return Scaffold(
       backgroundColor: IrisTheme.bg,
@@ -212,7 +284,44 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                   children: [
                     const Text('Valor', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
                     const SizedBox(height: 4),
-                    if (widget.editableAmount)
+                    if (_isPix) ...[
+                      if (widget.editableAmount)
+                        TextField(
+                          controller: _amountCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))],
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontFamily: 'JetBrains Mono',
+                            fontSize: 32,
+                            fontWeight: FontWeight.w600,
+                            color: IrisTheme.textPrimary,
+                          ),
+                          decoration: const InputDecoration(
+                            prefixText: 'R\$ ',
+                            prefixStyle: TextStyle(fontSize: 22, color: IrisTheme.textSecondary),
+                            hintText: '0,00',
+                            border: InputBorder.none,
+                          ),
+                          onChanged: (_) => setState(() {}),
+                        )
+                      else
+                        Text(
+                          'R\$ ${CurrencyFormatter.formatBrl(_pixBrl)}',
+                          style: const TextStyle(
+                            fontFamily: 'JetBrains Mono',
+                            fontSize: 38,
+                            fontWeight: FontWeight.w600,
+                            color: IrisTheme.textPrimary,
+                            height: 1.1,
+                          ),
+                        ),
+                      Text(
+                        'custa ≈ ${CurrencyFormatter.formatSats(exchangeRate.brlToSats(_pixBrl))} sats do seu saldo',
+                        style: const TextStyle(
+                            fontFamily: 'JetBrains Mono', fontSize: 12, color: IrisTheme.primary),
+                      ),
+                    ] else if (widget.editableAmount)
                       TextField(
                         controller: _amountCtrl,
                         keyboardType: TextInputType.number,
@@ -242,10 +351,11 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                           height: 1.1,
                         ),
                       ),
-                    Text(
-                      '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(widget.editableAmount ? (int.tryParse(_amountCtrl.text) ?? 0) : _satsAmount))}',
-                      style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 12, color: IrisTheme.primary),
-                    ),
+                    if (!_isPix)
+                      Text(
+                        '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(widget.editableAmount ? (int.tryParse(_amountCtrl.text) ?? 0) : _satsAmount))}',
+                        style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 12, color: IrisTheme.primary),
+                      ),
                     const SizedBox(height: 12),
                     const Divider(color: IrisTheme.bdr),
                     const SizedBox(height: 12),
@@ -260,11 +370,13 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                     ],
                     _buildRow(
                         'Taxa estimada',
-                        _isLiquid
-                            ? '~0,1 sat/vB'
-                            : _isOnchain
-                                ? 'taxa de mineração (on-chain)'
-                                : 'roteamento LN',
+                        _isPix
+                            ? 'taxa do provedor DEPIX'
+                            : _isLiquid
+                                ? '~0,1 sat/vB'
+                                : _isOnchain
+                                    ? 'taxa de mineração (on-chain)'
+                                    : 'roteamento LN',
                         valueColor: IrisTheme.success,
                         isBold: true),
                     if (_isOnchain) ...[

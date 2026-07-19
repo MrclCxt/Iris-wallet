@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
+import '../core/brcode.dart';
 import 'liquid_wallet_service.dart';
 import 'swap_service.dart';
 
@@ -76,15 +77,19 @@ class SimulatedPixProvider implements PixProvider {
 
   final Map<String, PixCharge> _charges = {};
 
-  String _fakeQr(double brl, String id) =>
-      '00020126580014BR.GOV.BCB.PIX0136${id.padRight(36, '0').substring(0, 36)}'
-      '520400005303986540${brl.toStringAsFixed(2)}5802BR5911IRIS TESTNET6009SAO PAULO'
-      '62070503***6304ABCD';
-
   @override
   Future<PixCharge> createDeposit({required double amountBrl, required String depixAddress}) async {
-    final id = 'sim_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(9999)}';
-    final charge = PixCharge(id: id, amountBrl: amountBrl, qrCopiaECola: _fakeQr(amountBrl, id));
+    final id = 'IRIS${DateTime.now().millisecondsSinceEpoch}${Random().nextInt(999)}';
+    // BR Code estruturalmente válido (EMV + CRC16 reais) — bancos conseguem
+    // decodificar; apenas a chave é de demonstração enquanto não há provedor.
+    final qr = BrCode.build(
+      pixKey: 'testnet@iris.wallet',
+      amountBrl: amountBrl,
+      merchantName: 'IRIS WALLET TESTNET',
+      merchantCity: 'ITAPETININGA',
+      txid: id.length > 25 ? id.substring(0, 25) : id,
+    );
+    final charge = PixCharge(id: id, amountBrl: amountBrl, qrCopiaECola: qr);
     _charges[id] = charge;
     return charge;
   }
@@ -292,10 +297,20 @@ class PixService extends ChangeNotifier {
     }
   }
 
-  /// Saque: converte sats em BRL e paga a chave PIX do destinatário.
-  Future<void> startWithdrawal({required double amountBrl, required String pixKey}) async {
+  /// Saque: converte sats em BRL e paga o destino PIX.
+  /// [pixTarget] aceita chave PIX (CPF/e-mail/telefone/aleatória) ou o
+  /// copia-e-cola completo (BR Code) — a chave é extraída do código.
+  Future<void> startWithdrawal({required double amountBrl, required String pixTarget}) async {
     logs.clear();
-    _log('[PIX] Registrando saque de R\$ ${amountBrl.toStringAsFixed(2)} para $pixKey (${_provider.name})');
+
+    String pixKey = pixTarget.trim();
+    if (BrCode.looksLikeBrCode(pixKey)) {
+      final decoded = BrCode.decode(pixKey);
+      pixKey = decoded.pixKey;
+      _log('[PIX] BR Code decodificado: ${decoded.merchantName.isNotEmpty ? decoded.merchantName : pixKey}');
+    }
+
+    _log('[PIX] Registrando envio de R\$ ${amountBrl.toStringAsFixed(2)} para $pixKey (${_provider.name})');
 
     final withdrawal = await _provider.createWithdrawal(amountBrl: amountBrl, pixKey: pixKey);
     _log('[PIX] Saque aceito pelo provedor (id ${withdrawal.id}).');

@@ -832,8 +832,8 @@ class WalletService extends ChangeNotifier {
   Future<String> getOnchainAddress({bool forMerchant = false}) async {
     final handle = forMerchant ? _merchantNode : _consumerNode;
     if (!handle.isRunning || handle.api == null) {
-      if (handle.isMock) return 'tb1q_modo_demonstracao';
-      throw Exception('Nó Lightning não está rodando.');
+      // Nunca exibir endereço falso: sem nó, sem endereço.
+      throw Exception('Nó indisponível — não é possível gerar endereço real.');
     }
     return await handle.api!.newOnchainAddress();
   }

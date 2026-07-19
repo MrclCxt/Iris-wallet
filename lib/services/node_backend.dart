@@ -83,7 +83,9 @@ class EmbeddedNodeApi implements NodeApi {
   EmbeddedNodeApi({
     required this.mnemonic,
     required this.storagePath,
-    this.esploraUrl = 'https://mempool.space/testnet/api',
+    // blockstream.info tolera polling contínuo melhor que o mempool.space
+    // (que aplica rate-limit agressivo e provocava panics na thread de sync)
+    this.esploraUrl = 'https://blockstream.info/testnet/api',
   });
 
   @override

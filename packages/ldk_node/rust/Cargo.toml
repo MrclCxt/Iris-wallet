@@ -20,5 +20,7 @@ ldk-node = { version = "= 0.3.0"  }
 opt-level = 3     # Optimize for size.
 lto = true          # Enable Link Time Optimization
 codegen-units = 1   # Reduce number of codegen units to increase optimizations.
-panic = 'abort'
+# panic = 'unwind' (padrão): um panic em thread de background do nó (ex.:
+# falha de sync com o Esplora) mata só a thread — não derruba o app inteiro.
+# Com 'abort', qualquer panic virava crash 0xc0000409 do processo.
 

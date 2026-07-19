@@ -41,7 +41,7 @@ struct Args {
     port: u16,
 
     /// Servidor Esplora (testnet por padrão)
-    #[arg(long, default_value = "https://mempool.space/testnet/api")]
+    #[arg(long, default_value = "https://blockstream.info/testnet/api")]
     esplora: String,
 }
 

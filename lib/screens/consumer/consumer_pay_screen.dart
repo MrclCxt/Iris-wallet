@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/theme.dart';
@@ -21,10 +22,17 @@ class ConsumerPayScreen extends StatefulWidget {
 
 class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
   final TextEditingController _invoiceCtrl = TextEditingController();
-  final MobileScannerController _scannerController = MobileScannerController();
+
+  // Câmera: sempre inicia desligada; o usuário liga quando quiser escanear.
+  MobileScannerController? _scannerController;
+  bool _cameraOn = false;
   bool _isNfcAvailable = false;
   bool _hasScanned = false;
   bool _isResolving = false;
+
+  /// mobile_scanner não suporta câmera em Windows/Linux — nesses ambientes
+  /// o pagamento entra por colagem/NFC.
+  bool get _cameraSupported => !(Platform.isWindows || Platform.isLinux);
 
   @override
   void initState() {
@@ -41,9 +49,23 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
     if (mounted) setState(() {});
   }
 
+  void _toggleCamera() {
+    if (!_cameraSupported) return;
+    setState(() {
+      if (_cameraOn) {
+        _scannerController?.dispose();
+        _scannerController = null;
+        _cameraOn = false;
+      } else {
+        _scannerController = MobileScannerController();
+        _cameraOn = true;
+      }
+    });
+  }
+
   @override
   void dispose() {
-    _scannerController.dispose();
+    _scannerController?.dispose();
     if (_isNfcAvailable) {
       NfcManager.instance.stopSession();
     }
@@ -291,7 +313,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Scanner Area
+            // Scanner Area — câmera sempre inicia desligada
             Expanded(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
@@ -301,41 +323,121 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
                     border: Border.all(color: IrisTheme.bdr),
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      MobileScanner(
-                        controller: _scannerController,
-                        onDetect: (capture) {
-                          if (_hasScanned) return;
-                          final List<Barcode> barcodes = capture.barcodes;
-                          if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
-                            _hasScanned = true;
-                            setState(() {
-                              _invoiceCtrl.text = barcodes.first.rawValue!;
-                            });
-                            _handlePay();
-
-                            // Reset scan state after a delay
-                            Future.delayed(const Duration(seconds: 3), () {
-                              if (mounted) _hasScanned = false;
-                            });
-                          }
-                        },
-                      ),
-                      const Positioned(
-                        bottom: 16,
-                        child: Text(
-                          'Aponte para o QR Code',
-                          style: TextStyle(
-                            color: Colors.white,
-                            backgroundColor: Colors.black54,
-                            fontSize: 14,
+                  child: !_cameraSupported
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                Icon(Icons.desktop_windows_outlined,
+                                    size: 48, color: IrisTheme.textTertiary),
+                                SizedBox(height: 16),
+                                Text(
+                                  'Leitura por câmera indisponível neste sistema',
+                                  style: TextStyle(
+                                      color: IrisTheme.textPrimary,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600),
+                                  textAlign: TextAlign.center,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Cole a fatura Lightning, o código PIX ou o endereço no campo abaixo — a detecção do tipo é automática.',
+                                  style: TextStyle(
+                                      color: IrisTheme.textSecondary, fontSize: 13, height: 1.5),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
+                        )
+                      : !_cameraOn
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.videocam_off_outlined,
+                                      size: 48, color: IrisTheme.textTertiary),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    'Câmera desligada',
+                                    style: TextStyle(
+                                        color: IrisTheme.textPrimary,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton.icon(
+                                    onPressed: _toggleCamera,
+                                    icon: const Icon(Icons.videocam_outlined, size: 20),
+                                    label: const Text('Ligar câmera'),
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 24, vertical: 12),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                MobileScanner(
+                                  controller: _scannerController!,
+                                  errorBuilder: (context, error, child) => Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(24),
+                                      child: Text(
+                                        'Não foi possível acessar a câmera: ${error.errorCode.name}',
+                                        style: const TextStyle(
+                                            color: IrisTheme.textSecondary, fontSize: 13),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                  onDetect: (capture) {
+                                    if (_hasScanned) return;
+                                    final List<Barcode> barcodes = capture.barcodes;
+                                    if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+                                      _hasScanned = true;
+                                      setState(() {
+                                        _invoiceCtrl.text = barcodes.first.rawValue!;
+                                      });
+                                      _handlePay();
+
+                                      // Reset scan state after a delay
+                                      Future.delayed(const Duration(seconds: 3), () {
+                                        if (mounted) _hasScanned = false;
+                                      });
+                                    }
+                                  },
+                                ),
+                                const Positioned(
+                                  bottom: 16,
+                                  child: Text(
+                                    'Aponte para o QR Code',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      backgroundColor: Colors.black54,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 12,
+                                  right: 12,
+                                  child: IconButton(
+                                    onPressed: _toggleCamera,
+                                    tooltip: 'Desligar câmera',
+                                    style: IconButton.styleFrom(
+                                        backgroundColor: Colors.black54),
+                                    icon: const Icon(Icons.videocam_off,
+                                        color: Colors.white, size: 20),
+                                  ),
+                                ),
+                              ],
+                            ),
                 ),
               ),
             ),

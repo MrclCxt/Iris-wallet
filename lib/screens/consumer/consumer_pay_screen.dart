@@ -486,7 +486,20 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
                                   fit: StackFit.expand,
                                   children: [
                                     if (_winCamCtrl != null && _winCamCtrl!.value.isInitialized)
-                                      cam.CameraPreview(_winCamCtrl!),
+                                      // Preserva a proporção real da câmera:
+                                      // preenche a área cortando as bordas
+                                      // (cover), nunca esticando a imagem.
+                                      Positioned.fill(
+                                        child: FittedBox(
+                                          fit: BoxFit.cover,
+                                          clipBehavior: Clip.hardEdge,
+                                          child: SizedBox(
+                                            width: _winCamCtrl!.value.previewSize?.width ?? 1280,
+                                            height: _winCamCtrl!.value.previewSize?.height ?? 720,
+                                            child: cam.CameraPreview(_winCamCtrl!),
+                                          ),
+                                        ),
+                                      ),
                                     const Positioned(
                                       bottom: 16,
                                       left: 0,

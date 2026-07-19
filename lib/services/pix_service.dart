@@ -11,16 +11,16 @@ import 'swap_service.dart';
 
 /// Entrada e saída de Reais via PIX.
 ///
-/// Fluxo de depósito:  PIX (BRL) -> provedor emite DEPIX na Liquid para o
-/// nosso endereço -> swap DEPIX/L-BTC -> Lightning -> saldo em sats.
-/// Fluxo de saque:     sats -> L-BTC -> DEPIX para o provedor -> provedor
-/// paga a chave PIX do destinatário em BRL.
+/// Depósito:  PIX (BRL) -> provedor emite DEPIX na Liquid -> swap -> sats.
+/// Saque:     sats -> L-BTC/DEPIX para o provedor -> provedor paga a chave
+///            PIX do destinatário em BRL.
 ///
-/// O provedor é plugável:
-/// - [SimulatedPixProvider]: testnet/desenvolvimento — não move BRL reais,
-///   mas percorre o fluxo completo de estados.
-/// - [RestPixProvider]: provedores DEPIX reais (ex.: depix.info) via REST,
-///   configurável com URL base + chave de API nas configurações.
+/// Provedores:
+/// - [DepixAppProvider]: DePix App (api.depixapp.com) — provedor DEPIX real.
+///   Chave `sk_test_` = sandbox oficial (QR sintético + simulate-payment);
+///   chave `sk_live_` = dinheiro de verdade.
+/// - [RestPixProvider]: contrato REST genérico para outros provedores DEPIX.
+/// - [SimulatedPixProvider]: offline/testnet, sem provedor configurado.
 
 enum PixChargeStatus { pending, paid, settled, expired, failed }
 
@@ -43,6 +43,8 @@ class PixWithdrawal {
   final double amountBrl;
   final String pixKey;
   final String depixAddress; // endereço Liquid do provedor para receber DEPIX
+  final int feeCents;
+  final String? feeAddress; // saída de taxa exigida pelo provedor (se houver)
   PixChargeStatus status;
 
   PixWithdrawal({
@@ -50,6 +52,8 @@ class PixWithdrawal {
     required this.amountBrl,
     required this.pixKey,
     required this.depixAddress,
+    this.feeCents = 0,
+    this.feeAddress,
     this.status = PixChargeStatus.pending,
   });
 }
@@ -58,34 +62,55 @@ abstract class PixProvider {
   String get name;
   bool get isSimulated;
 
-  /// QR PIX **fixo** da carteira (sem valor — o pagador define). O provedor
-  /// vincula esta chave/QR ao [depixAddress]: todo PIX pago nele emite DEPIX
-  /// direto na carteira Liquid do usuário.
+  /// Sandbox com simulação de pagamento disponível.
+  bool get canSimulate;
+
+  /// Provedor oferece QR fixo (sem valor) via API.
+  bool get supportsStaticQr;
+
+  /// Provedor exige CPF/CNPJ do pagador ao criar a cobrança.
+  bool get requiresPayerTaxNumber;
+
   Future<PixCharge> getStaticDeposit({required String depixAddress});
 
-  /// Cria cobrança PIX com valor definido (link/QR temporário — secundário).
-  Future<PixCharge> createDeposit({required double amountBrl, required String depixAddress});
+  Future<PixCharge> createDeposit({
+    required double amountBrl,
+    required String depixAddress,
+    String? payerTaxNumber,
+  });
+
+  Future<void> simulatePayment(String chargeId);
 
   Future<PixChargeStatus> getDepositStatus(String chargeId);
 
-  /// Registra um saque: o provedor devolve o endereço Liquid que receberá o
-  /// DEPIX e pagará [pixKey] em BRL.
-  Future<PixWithdrawal> createWithdrawal({required double amountBrl, required String pixKey});
+  Future<PixWithdrawal> createWithdrawal({
+    required double amountBrl,
+    required String pixKey,
+    String? taxNumber,
+  });
 }
 
-/// Provedor simulado (testnet): percorre os estados sem mover BRL.
+// ---------------------------------------------------------------------------
+// Provedor simulado (sem credenciais): percorre os estados sem mover BRL
+// ---------------------------------------------------------------------------
+
 class SimulatedPixProvider implements PixProvider {
   @override
-  String get name => 'Simulado (testnet)';
+  String get name => 'Simulado (sem provedor)';
   @override
   bool get isSimulated => true;
+  @override
+  bool get canSimulate => true;
+  @override
+  bool get supportsStaticQr => true;
+  @override
+  bool get requiresPayerTaxNumber => false;
 
   final Map<String, PixCharge> _charges = {};
 
   @override
   Future<PixCharge> getStaticDeposit({required String depixAddress}) async {
-    // BR Code fixo sem valor (tag 54 ausente): o pagador define o quanto
-    // enviar — estrutura EMV e CRC16 reais.
+    // BR Code fixo sem valor (tag 54 ausente): estrutura EMV e CRC16 reais.
     final qr = BrCode.build(
       pixKey: 'testnet@iris.wallet',
       merchantName: 'IRIS WALLET TESTNET',
@@ -96,10 +121,12 @@ class SimulatedPixProvider implements PixProvider {
   }
 
   @override
-  Future<PixCharge> createDeposit({required double amountBrl, required String depixAddress}) async {
+  Future<PixCharge> createDeposit({
+    required double amountBrl,
+    required String depixAddress,
+    String? payerTaxNumber,
+  }) async {
     final id = 'IRIS${DateTime.now().millisecondsSinceEpoch}${Random().nextInt(999)}';
-    // BR Code estruturalmente válido (EMV + CRC16 reais) — bancos conseguem
-    // decodificar; apenas a chave é de demonstração enquanto não há provedor.
     final qr = BrCode.build(
       pixKey: 'testnet@iris.wallet',
       amountBrl: amountBrl,
@@ -112,8 +139,8 @@ class SimulatedPixProvider implements PixProvider {
     return charge;
   }
 
-  /// No modo simulado o pagamento é confirmado manualmente pela UI.
-  void simulatePayment(String chargeId) {
+  @override
+  Future<void> simulatePayment(String chargeId) async {
     _charges[chargeId]?.status = PixChargeStatus.paid;
   }
 
@@ -123,7 +150,11 @@ class SimulatedPixProvider implements PixProvider {
   }
 
   @override
-  Future<PixWithdrawal> createWithdrawal({required double amountBrl, required String pixKey}) async {
+  Future<PixWithdrawal> createWithdrawal({
+    required double amountBrl,
+    required String pixKey,
+    String? taxNumber,
+  }) async {
     return PixWithdrawal(
       id: 'simw_${DateTime.now().millisecondsSinceEpoch}',
       amountBrl: amountBrl,
@@ -133,15 +164,160 @@ class SimulatedPixProvider implements PixProvider {
   }
 }
 
-/// Provedor DEPIX real via REST. Contrato esperado (adaptável por provedor):
-///   POST {base}/static    {"depix_address":".."}
-///     -> {"id":"..","qr_copia_e_cola":".."}   (QR fixo, sem valor)
-///   POST {base}/deposit   {"amount_brl":.., "depix_address":".."}
-///     -> {"id":"..","qr_copia_e_cola":".."}
-///   GET  {base}/deposit/{id}  -> {"status":"pending|paid|settled|expired"}
-///   POST {base}/withdraw  {"amount_brl":.., "pix_key":".."}
-///     -> {"id":"..","depix_address":".."}
-/// Autenticação: header Authorization: Bearer {apiKey}.
+// ---------------------------------------------------------------------------
+// DePix App (api.depixapp.com) — provedor DEPIX real
+// Docs: https://depixapp.com/docs/
+// ---------------------------------------------------------------------------
+
+class DepixAppProvider implements PixProvider {
+  static const String baseUrl = 'https://api.depixapp.com';
+  final String apiKey;
+  final http.Client _client;
+
+  DepixAppProvider({required this.apiKey, http.Client? client})
+      : _client = client ?? http.Client();
+
+  bool get isTestKey => apiKey.startsWith('sk_test_');
+
+  @override
+  String get name => 'DePix App ${isTestKey ? '(sandbox)' : '(LIVE)'}';
+  @override
+  bool get isSimulated => false;
+  @override
+  bool get canSimulate => isTestKey;
+  @override
+  bool get supportsStaticQr => false; // emite QR por cobrança (checkout)
+  @override
+  bool get requiresPayerTaxNumber => true;
+
+  Map<String, String> get _headers => {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $apiKey',
+      };
+
+  Never _fail(http.Response r) {
+    String message = 'HTTP ${r.statusCode}';
+    try {
+      final data = jsonDecode(r.body);
+      message = data['response']?['errorMessage']?.toString() ??
+          data['error']?['message']?.toString() ??
+          message;
+    } catch (_) {}
+    throw Exception('DePix App: $message');
+  }
+
+  @override
+  Future<PixCharge> getStaticDeposit({required String depixAddress}) {
+    throw UnsupportedError(
+        'O DePix App emite QR por cobrança — defina um valor para gerar o PIX.');
+  }
+
+  @override
+  Future<PixCharge> createDeposit({
+    required double amountBrl,
+    required String depixAddress,
+    String? payerTaxNumber,
+  }) async {
+    if (payerTaxNumber == null || payerTaxNumber.trim().isEmpty) {
+      throw Exception('Informe o CPF/CNPJ do pagador (exigência do provedor).');
+    }
+    final cents = (amountBrl * 100).round();
+    if (cents < 500) {
+      throw Exception('O DePix App exige valor mínimo de R\$ 5,00.');
+    }
+    final r = await _client.post(
+      Uri.parse('$baseUrl/api/checkouts'),
+      headers: _headers,
+      body: jsonEncode({
+        'amount': cents,
+        'payer_tax_number': payerTaxNumber.trim(),
+        'description': 'Deposito Iris Wallet',
+      }),
+    );
+    if (r.statusCode != 200 && r.statusCode != 201) _fail(r);
+    final data = jsonDecode(r.body);
+    final checkout = data['checkout'] ?? data;
+    return PixCharge(
+      id: checkout['id'].toString(),
+      amountBrl: amountBrl,
+      qrCopiaECola: checkout['pix']?['qr_code']?.toString() ?? '',
+    );
+  }
+
+  @override
+  Future<void> simulatePayment(String chargeId) async {
+    final r = await _client.post(
+      Uri.parse('$baseUrl/api/checkouts/$chargeId/simulate-payment'),
+      headers: _headers,
+    );
+    if (r.statusCode != 200) _fail(r);
+  }
+
+  @override
+  Future<PixChargeStatus> getDepositStatus(String chargeId) async {
+    final r = await _client.get(
+      Uri.parse('$baseUrl/api/checkouts/$chargeId'),
+      headers: _headers,
+    );
+    if (r.statusCode != 200) return PixChargeStatus.pending;
+    final status =
+        jsonDecode(r.body)['checkout']?['status']?.toString() ?? 'pending';
+    switch (status) {
+      case 'processing':
+      case 'approved':
+        return PixChargeStatus.paid;
+      case 'completed':
+        return PixChargeStatus.settled;
+      case 'expired':
+        return PixChargeStatus.expired;
+      case 'cancelled':
+        return PixChargeStatus.failed;
+      default:
+        return PixChargeStatus.pending;
+    }
+  }
+
+  @override
+  Future<PixWithdrawal> createWithdrawal({
+    required double amountBrl,
+    required String pixKey,
+    String? taxNumber,
+  }) async {
+    if (taxNumber == null || taxNumber.trim().isEmpty) {
+      throw Exception('Informe o CPF/CNPJ do favorecido (exigência do provedor).');
+    }
+    final r = await _client.post(
+      Uri.parse('$baseUrl/api/withdraw'),
+      headers: _headers,
+      body: jsonEncode({
+        'pixKey': pixKey,
+        'payoutAmountInCents': (amountBrl * 100).round(),
+        'taxNumber': taxNumber.trim(),
+      }),
+    );
+    if (r.statusCode != 200 && r.statusCode != 201) _fail(r);
+    final resp = jsonDecode(r.body)['response'] ?? jsonDecode(r.body);
+    return PixWithdrawal(
+      id: resp['withdrawalId'].toString(),
+      amountBrl: amountBrl,
+      pixKey: pixKey,
+      depixAddress: resp['depositAddress']?.toString() ?? '',
+      feeCents: (resp['fee_cents'] as num?)?.toInt() ?? 0,
+      feeAddress: resp['fee_address']?.toString(),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Provedor REST genérico (outros emissores DEPIX)
+// ---------------------------------------------------------------------------
+
+/// Contrato esperado (adaptável por provedor):
+///   POST {base}/static    {"depix_address":".."} -> {"id","qr_copia_e_cola"}
+///   POST {base}/deposit   {"amount_brl","depix_address"} -> {"id","qr_copia_e_cola"}
+///   GET  {base}/deposit/{id} -> {"status":"pending|paid|settled|expired"}
+///   POST {base}/withdraw  {"amount_brl","pix_key"} -> {"id","depix_address"}
+/// Autenticação: Authorization: Bearer {apiKey}.
 class RestPixProvider implements PixProvider {
   final String baseUrl;
   final String apiKey;
@@ -154,6 +330,12 @@ class RestPixProvider implements PixProvider {
   String get name => Uri.parse(baseUrl).host;
   @override
   bool get isSimulated => false;
+  @override
+  bool get canSimulate => false;
+  @override
+  bool get supportsStaticQr => true;
+  @override
+  bool get requiresPayerTaxNumber => false;
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -179,7 +361,11 @@ class RestPixProvider implements PixProvider {
   }
 
   @override
-  Future<PixCharge> createDeposit({required double amountBrl, required String depixAddress}) async {
+  Future<PixCharge> createDeposit({
+    required double amountBrl,
+    required String depixAddress,
+    String? payerTaxNumber,
+  }) async {
     final r = await _client.post(
       Uri.parse('$baseUrl/deposit'),
       headers: _headers,
@@ -194,6 +380,11 @@ class RestPixProvider implements PixProvider {
       amountBrl: amountBrl,
       qrCopiaECola: data['qr_copia_e_cola']?.toString() ?? data['qrCopiaECola']?.toString() ?? '',
     );
+  }
+
+  @override
+  Future<void> simulatePayment(String chargeId) async {
+    throw UnsupportedError('Este provedor não possui sandbox de simulação.');
   }
 
   @override
@@ -216,7 +407,11 @@ class RestPixProvider implements PixProvider {
   }
 
   @override
-  Future<PixWithdrawal> createWithdrawal({required double amountBrl, required String pixKey}) async {
+  Future<PixWithdrawal> createWithdrawal({
+    required double amountBrl,
+    required String pixKey,
+    String? taxNumber,
+  }) async {
     final r = await _client.post(
       Uri.parse('$baseUrl/withdraw'),
       headers: _headers,
@@ -235,7 +430,10 @@ class RestPixProvider implements PixProvider {
   }
 }
 
-/// Orquestra depósitos e saques PIX ponta a ponta.
+// ---------------------------------------------------------------------------
+// Orquestração
+// ---------------------------------------------------------------------------
+
 class PixService extends ChangeNotifier {
   final LiquidWalletService liquidWalletService;
   final SwapService swapService;
@@ -249,6 +447,9 @@ class PixService extends ChangeNotifier {
   Timer? _pollTimer;
   final List<String> logs = [];
 
+  String? _payerTaxNumber; // CPF/CNPJ do usuário para depósitos
+  String? get payerTaxNumber => _payerTaxNumber;
+
   PixService({required this.liquidWalletService, required this.swapService}) {
     _loadProviderConfig();
   }
@@ -259,33 +460,68 @@ class PixService extends ChangeNotifier {
   }
 
   Future<void> _loadProviderConfig() async {
+    final type = await _storage.read(key: 'pix_provider_type');
     final url = await _storage.read(key: 'pix_provider_url');
     final key = await _storage.read(key: 'pix_provider_key');
-    if (url != null && url.isNotEmpty && key != null && key.isNotEmpty) {
-      _provider = RestPixProvider(baseUrl: url, apiKey: key);
-      notifyListeners();
-    }
-  }
+    _payerTaxNumber = await _storage.read(key: 'pix_payer_taxnumber');
 
-  /// Configura provedor DEPIX real (URL + chave). Vazio volta ao simulado.
-  Future<void> configureProvider({String? baseUrl, String? apiKey}) async {
-    staticCharge = null; // será regenerado pelo novo provedor
-    activeCharge = null;
-    if (baseUrl == null || baseUrl.trim().isEmpty) {
-      await _storage.delete(key: 'pix_provider_url');
-      await _storage.delete(key: 'pix_provider_key');
-      _provider = SimulatedPixProvider();
-    } else {
-      await _storage.write(key: 'pix_provider_url', value: baseUrl.trim());
-      await _storage.write(key: 'pix_provider_key', value: (apiKey ?? '').trim());
-      _provider = RestPixProvider(baseUrl: baseUrl.trim(), apiKey: (apiKey ?? '').trim());
+    if (type == 'depixapp' && key != null && key.isNotEmpty) {
+      _provider = DepixAppProvider(apiKey: key);
+    } else if (type == 'rest' && url != null && url.isNotEmpty && key != null) {
+      _provider = RestPixProvider(baseUrl: url, apiKey: key);
     }
     notifyListeners();
   }
 
-  /// Garante o QR PIX fixo da carteira (padrão da aba PIX).
+  /// Configura o provedor. type: 'sim' | 'depixapp' | 'rest'.
+  Future<void> configureProvider({
+    required String type,
+    String? baseUrl,
+    String? apiKey,
+  }) async {
+    staticCharge = null;
+    activeCharge = null;
+    _pollTimer?.cancel();
+
+    switch (type) {
+      case 'depixapp':
+        final key = (apiKey ?? '').trim();
+        if (key.isEmpty) throw Exception('Informe a chave sk_test_/sk_live_ do DePix App.');
+        await _storage.write(key: 'pix_provider_type', value: 'depixapp');
+        await _storage.write(key: 'pix_provider_key', value: key);
+        await _storage.delete(key: 'pix_provider_url');
+        _provider = DepixAppProvider(apiKey: key);
+        break;
+      case 'rest':
+        final url = (baseUrl ?? '').trim();
+        if (url.isEmpty) throw Exception('Informe a URL base do provedor.');
+        await _storage.write(key: 'pix_provider_type', value: 'rest');
+        await _storage.write(key: 'pix_provider_url', value: url);
+        await _storage.write(key: 'pix_provider_key', value: (apiKey ?? '').trim());
+        _provider = RestPixProvider(baseUrl: url, apiKey: (apiKey ?? '').trim());
+        break;
+      default:
+        await _storage.delete(key: 'pix_provider_type');
+        await _storage.delete(key: 'pix_provider_url');
+        await _storage.delete(key: 'pix_provider_key');
+        _provider = SimulatedPixProvider();
+    }
+    notifyListeners();
+  }
+
+  Future<void> setPayerTaxNumber(String value) async {
+    _payerTaxNumber = value.trim();
+    await _storage.write(key: 'pix_payer_taxnumber', value: _payerTaxNumber!);
+    notifyListeners();
+  }
+
+  /// Garante o QR PIX fixo da carteira (quando o provedor suporta).
   Future<PixCharge> ensureStaticDeposit() async {
     if (staticCharge != null) return staticCharge!;
+    if (!_provider.supportsStaticQr) {
+      throw UnsupportedError(
+          '${_provider.name} emite QR por cobrança — defina um valor.');
+    }
     String depixAddress;
     try {
       depixAddress = await liquidWalletService.getReceiveAddress();
@@ -305,9 +541,14 @@ class PixService extends ChangeNotifier {
   }
 
   /// Inicia um depósito: gera a cobrança PIX e acompanha até liquidar.
-  Future<PixCharge> startDeposit(double amountBrl) async {
+  Future<PixCharge> startDeposit(double amountBrl, {String? payerTaxNumber}) async {
     logs.clear();
     _log('[PIX] Gerando cobrança de R\$ ${amountBrl.toStringAsFixed(2)} (${_provider.name})');
+
+    final taxNumber = (payerTaxNumber ?? _payerTaxNumber)?.trim();
+    if (taxNumber != null && taxNumber.isNotEmpty) {
+      await setPayerTaxNumber(taxNumber);
+    }
 
     String depixAddress;
     try {
@@ -319,6 +560,7 @@ class PixService extends ChangeNotifier {
     final charge = await _provider.createDeposit(
       amountBrl: amountBrl,
       depixAddress: depixAddress,
+      payerTaxNumber: taxNumber,
     );
     activeCharge = charge;
     _log('[PIX] Cobrança criada. Pague o QR/copia-e-cola no seu banco.');
@@ -339,30 +581,41 @@ class PixService extends ChangeNotifier {
 
     if (status == PixChargeStatus.paid || status == PixChargeStatus.settled) {
       _pollTimer?.cancel();
-      _log('[PIX] Pagamento confirmado! DEPIX emitido na Liquid.');
-      _log('[SWAP] Roteando DEPIX -> L-BTC -> Lightning -> saldo em sats...');
-      await swapService.executeFullRouting(charge.amountBrl);
-      _log('[✅] Depósito concluído. O saldo será creditado pelo evento do nó.');
+      _log('[PIX] Pagamento confirmado! DEPIX ${status == PixChargeStatus.settled ? 'entregue' : 'a caminho'} na Liquid.');
+      if (_provider.isSimulated) {
+        _log('[SWAP] Roteando DEPIX -> L-BTC -> Lightning -> saldo em sats...');
+        await swapService.executeFullRouting(charge.amountBrl);
+      } else {
+        _log('[LIQUID] Aguardando o DEPIX no seu endereço — o saldo em sats '
+            'atualiza automaticamente quando chegar.');
+        await liquidWalletService.syncWallet();
+      }
+      _log('[✅] Depósito concluído.');
     } else if (status == PixChargeStatus.expired || status == PixChargeStatus.failed) {
       _pollTimer?.cancel();
       _log('[PIX] Cobrança ${status == PixChargeStatus.expired ? 'expirou' : 'falhou'}.');
     }
   }
 
-  /// Modo simulado: confirma o pagamento do PIX manualmente.
-  void simulatePaymentReceived() {
-    final p = _provider;
+  /// Sandbox: confirma o pagamento (local ou via API oficial do provedor).
+  Future<void> simulatePaymentReceived() async {
     final charge = activeCharge;
-    if (p is SimulatedPixProvider && charge != null) {
-      p.simulatePayment(charge.id);
-      _checkDeposit();
+    if (charge == null || !_provider.canSimulate) return;
+    try {
+      await _provider.simulatePayment(charge.id);
+      await _checkDeposit();
+    } catch (e) {
+      _log('[ERRO] Simulação falhou: $e');
     }
   }
 
   /// Saque: converte sats em BRL e paga o destino PIX.
-  /// [pixTarget] aceita chave PIX (CPF/e-mail/telefone/aleatória) ou o
-  /// copia-e-cola completo (BR Code) — a chave é extraída do código.
-  Future<void> startWithdrawal({required double amountBrl, required String pixTarget}) async {
+  /// [pixTarget] aceita chave PIX ou BR Code completo (a chave é extraída).
+  Future<void> startWithdrawal({
+    required double amountBrl,
+    required String pixTarget,
+    String? taxNumber,
+  }) async {
     logs.clear();
 
     String pixKey = pixTarget.trim();
@@ -374,18 +627,22 @@ class PixService extends ChangeNotifier {
 
     _log('[PIX] Registrando envio de R\$ ${amountBrl.toStringAsFixed(2)} para $pixKey (${_provider.name})');
 
-    final withdrawal = await _provider.createWithdrawal(amountBrl: amountBrl, pixKey: pixKey);
+    final withdrawal = await _provider.createWithdrawal(
+      amountBrl: amountBrl,
+      pixKey: pixKey,
+      taxNumber: taxNumber,
+    );
     _log('[PIX] Saque aceito pelo provedor (id ${withdrawal.id}).');
 
     if (_provider.isSimulated) {
       _log('[SWAP] (simulado) Lightning -> L-BTC -> DEPIX para o provedor.');
       await Future.delayed(const Duration(seconds: 2));
       _log('[PIX] (simulado) Provedor pagou R\$ ${amountBrl.toStringAsFixed(2)} na chave $pixKey.');
-      _log('[✅] Saque concluído (testnet: nenhum BRL real movido).');
+      _log('[✅] Saque concluído (nenhum BRL real movido).');
       return;
     }
 
-    // Provedor real: envia L-BTC/DEPIX para o endereço do provedor.
+    // Provedor real: envia L-BTC/DEPIX para o endereço indicado.
     _log('[LIQUID] Enviando fundos para o endereço do provedor...');
     final sats = swapService.exchangeRateService.brlToSats(amountBrl);
     if (sats <= 0) throw Exception('Cotação indisponível.');
@@ -393,8 +650,23 @@ class PixService extends ChangeNotifier {
       toAddress: withdrawal.depixAddress,
       sats: sats,
     );
-    _log('[LIQUID] Enviado (txid $txid). O provedor liquidará o PIX em BRL.');
-    _log('[✅] Aguarde a confirmação do provedor.');
+    _log('[LIQUID] Enviado (txid $txid).');
+
+    if (withdrawal.feeAddress != null && withdrawal.feeCents > 0) {
+      // O DePix App exige a taxa como saída separada na MESMA transação —
+      // o LWK 0.1.7 não constrói multi-saída, então enviamos em transação
+      // própria e registramos a limitação para conferência com o provedor.
+      final feeSats = swapService.exchangeRateService.brlToSats(withdrawal.feeCents / 100);
+      _log('[LIQUID] Enviando taxa do provedor (${withdrawal.feeCents} centavos)...');
+      final feeTxid = await liquidWalletService.sendLbtc(
+        toAddress: withdrawal.feeAddress!,
+        sats: feeSats,
+      );
+      _log('[LIQUID] Taxa enviada (txid $feeTxid). Obs.: o provedor recomenda '
+          'a taxa na mesma transação — confirme a liquidação no dashboard.');
+    }
+
+    _log('[✅] Aguarde o provedor liquidar o PIX em BRL.');
   }
 
   @override

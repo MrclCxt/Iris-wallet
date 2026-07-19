@@ -46,6 +46,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   String? _watchingPaymentHash;
   StreamSubscription<ReceivedPayment>? _paymentSub;
   final TextEditingController _pixBrlCtrl = TextEditingController();
+  final TextEditingController _pixCpfCtrl = TextEditingController();
   bool _pixBusy = false;
   bool _pixShowAmountForm = false;
   bool _pixStaticReceived = false;
@@ -166,16 +167,18 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
         // Cobrança com valor definido (fluxo vindo do "definir valor")
         _maybeAutoCreatePixCharge();
       } else {
-        // Padrão: QR PIX fixo da carteira (pagador define o valor)
-        _pixShowAmountForm = false;
-        context.read<PixService>().ensureStaticDeposit().catchError((e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Erro ao obter QR fixo: $e'), backgroundColor: IrisTheme.danger),
-            );
-          }
-          return PixCharge(id: 'erro', amountBrl: 0, qrCopiaECola: '');
-        });
+        // Padrão: QR PIX fixo da carteira (pagador define o valor).
+        // Provedores só-cobrança (ex.: DePix App) caem direto no formulário.
+        final pix = context.read<PixService>();
+        if (!pix.provider.supportsStaticQr) {
+          _pixShowAmountForm = true;
+        } else {
+          _pixShowAmountForm = false;
+          pix.ensureStaticDeposit().catchError((e) {
+            if (mounted) setState(() => _pixShowAmountForm = true);
+            return PixCharge(id: 'erro', amountBrl: 0, qrCopiaECola: '');
+          });
+        }
       }
     } else {
       _generatePayload();
@@ -231,9 +234,18 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
       );
       return;
     }
+    final pix = context.read<PixService>();
+    if (pix.provider.requiresPayerTaxNumber && _pixCpfCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Informe o CPF/CNPJ do pagador (exigência do provedor).'),
+            backgroundColor: IrisTheme.danger),
+      );
+      return;
+    }
     setState(() => _pixBusy = true);
     try {
-      await context.read<PixService>().startDeposit(brl);
+      await pix.startDeposit(brl, payerTaxNumber: _pixCpfCtrl.text);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -249,54 +261,114 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
     final pix = context.read<PixService>();
     final urlCtrl = TextEditingController();
     final keyCtrl = TextEditingController();
+    String selectedType = pix.provider is DepixAppProvider
+        ? 'depixapp'
+        : pix.provider is RestPixProvider
+            ? 'rest'
+            : 'sim';
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: IrisTheme.s1,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: IrisTheme.bdr),
-        ),
-        title: const Text('Provedor PIX/DEPIX',
-            style: TextStyle(color: IrisTheme.textPrimary, fontSize: 16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Atual: ${pix.provider.name}',
-                style: const TextStyle(color: IrisTheme.textSecondary, fontSize: 12)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: urlCtrl,
-              style: const TextStyle(color: IrisTheme.textPrimary, fontSize: 13),
-              decoration: const InputDecoration(
-                labelText: 'URL base da API (vazio = simulado)',
-                hintText: 'https://api.provedor.com/v1',
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setStateDialog) => AlertDialog(
+          backgroundColor: IrisTheme.s1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: IrisTheme.bdr),
+          ),
+          title: const Text('Provedor PIX/DEPIX',
+              style: TextStyle(color: IrisTheme.textPrimary, fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Atual: ${pix.provider.name}',
+                  style: const TextStyle(color: IrisTheme.textSecondary, fontSize: 12)),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: selectedType,
+                dropdownColor: IrisTheme.s2,
+                style: const TextStyle(color: IrisTheme.textPrimary, fontSize: 13),
+                decoration: const InputDecoration(labelText: 'Provedor'),
+                items: const [
+                  DropdownMenuItem(value: 'depixapp', child: Text('DePix App (recomendado)')),
+                  DropdownMenuItem(value: 'rest', child: Text('REST genérico')),
+                  DropdownMenuItem(value: 'sim', child: Text('Simulado (sem provedor)')),
+                ],
+                onChanged: (v) => setStateDialog(() => selectedType = v ?? 'sim'),
               ),
+              const SizedBox(height: 8),
+              if (selectedType == 'rest')
+                TextField(
+                  controller: urlCtrl,
+                  style: const TextStyle(color: IrisTheme.textPrimary, fontSize: 13),
+                  decoration: const InputDecoration(
+                    labelText: 'URL base da API',
+                    hintText: 'https://api.provedor.com/v1',
+                  ),
+                ),
+              if (selectedType != 'sim')
+                TextField(
+                  controller: keyCtrl,
+                  obscureText: true,
+                  style: const TextStyle(color: IrisTheme.textPrimary, fontSize: 13),
+                  decoration: InputDecoration(
+                    labelText: selectedType == 'depixapp'
+                        ? 'Chave de API (sk_test_... ou sk_live_...)'
+                        : 'Chave de API',
+                  ),
+                ),
+              if (selectedType == 'depixapp') ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'Crie a conta em depixapp.com → Dashboard → API Keys. A chave sk_test_ (sandbox) sai na hora; a sk_live_ move Reais de verdade e exige aprovação. Configure seu endereço Liquid no dashboard.',
+                  style: TextStyle(color: IrisTheme.textTertiary, fontSize: 11, height: 1.4),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar', style: TextStyle(color: IrisTheme.textSecondary)),
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: keyCtrl,
-              obscureText: true,
-              style: const TextStyle(color: IrisTheme.textPrimary, fontSize: 13),
-              decoration: const InputDecoration(labelText: 'Chave de API'),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  await pix.configureProvider(
+                    type: selectedType,
+                    baseUrl: urlCtrl.text,
+                    apiKey: keyCtrl.text,
+                  );
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (mounted) _switchMethodRefresh();
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('$e'), backgroundColor: IrisTheme.danger),
+                  );
+                }
+              },
+              child: const Text('Salvar'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar', style: TextStyle(color: IrisTheme.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await pix.configureProvider(baseUrl: urlCtrl.text, apiKey: keyCtrl.text);
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Salvar'),
-          ),
-        ],
       ),
     );
+  }
+
+  /// Reaplica o estado do trilho PIX após troca de provedor.
+  void _switchMethodRefresh() {
+    if (_method != ReceiveMethod.pix) return;
+    final pix = context.read<PixService>();
+    setState(() {
+      _pixShowAmountForm = !pix.provider.supportsStaticQr;
+    });
+    if (pix.provider.supportsStaticQr) {
+      pix.ensureStaticDeposit().catchError((e) {
+        if (mounted) setState(() => _pixShowAmountForm = true);
+        return PixCharge(id: 'erro', amountBrl: 0, qrCopiaECola: '');
+      });
+    }
   }
 
   void _startTimer() {
@@ -317,6 +389,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
     _paymentSub?.cancel();
     _lbtcSub?.cancel();
     _pixBrlCtrl.dispose();
+    _pixCpfCtrl.dispose();
     super.dispose();
   }
 
@@ -494,6 +567,28 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                         style: const TextStyle(
                             fontFamily: 'JetBrains Mono', fontSize: 12, color: IrisTheme.primary),
                       ),
+                      if (pix.provider.requiresPayerTaxNumber) ...[
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _pixCpfCtrl
+                            ..text = _pixCpfCtrl.text.isEmpty
+                                ? (pix.payerTaxNumber ?? '')
+                                : _pixCpfCtrl.text,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(color: IrisTheme.textPrimary, fontSize: 14),
+                          decoration: InputDecoration(
+                            labelText: 'CPF/CNPJ do pagador',
+                            hintText: 'Somente números',
+                            labelStyle: const TextStyle(color: IrisTheme.textSecondary),
+                            hintStyle: const TextStyle(color: IrisTheme.textTertiary),
+                            filled: true,
+                            fillColor: IrisTheme.bg,
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -718,17 +813,17 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
               else
                 const SizedBox(height: 24),
 
-              // Botão de simulação (apenas provedor simulado, cobrança pendente)
+              // Botão de simulação (sandbox: local ou API oficial do provedor)
               if (isPix &&
                   pixCharge != null &&
                   pixCharge.status == PixChargeStatus.pending &&
-                  pix.provider.isSimulated) ...[
+                  pix.provider.canSimulate) ...[
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () => pix.simulatePaymentReceived(),
                     style: ElevatedButton.styleFrom(backgroundColor: IrisTheme.success),
-                    child: const Text('Simular pagamento do PIX (testnet)'),
+                    child: const Text('Simular pagamento do PIX (sandbox)'),
                   ),
                 ),
                 const SizedBox(height: 12),

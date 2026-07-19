@@ -48,6 +48,7 @@ class PayConfirmScreen extends StatefulWidget {
 
 class _PayConfirmScreenState extends State<PayConfirmScreen> {
   late final TextEditingController _amountCtrl;
+  final TextEditingController _pixTaxCtrl = TextEditingController();
   late int _satsAmount;
 
   bool get _isLiquid => widget.liquidAddress != null;
@@ -79,6 +80,7 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
   @override
   void dispose() {
     _amountCtrl.dispose();
+    _pixTaxCtrl.dispose();
     super.dispose();
   }
 
@@ -118,9 +120,11 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
             const Center(child: CircularProgressIndicator(color: IrisTheme.primary)),
       );
       try {
-        await context
-            .read<PixService>()
-            .startWithdrawal(amountBrl: brl, pixTarget: widget.pixTarget!);
+        await context.read<PixService>().startWithdrawal(
+              amountBrl: brl,
+              pixTarget: widget.pixTarget!,
+              taxNumber: _pixTaxCtrl.text.trim().isEmpty ? null : _pixTaxCtrl.text.trim(),
+            );
         if (mounted) {
           Navigator.pop(context);
           Navigator.pushReplacement(
@@ -321,6 +325,25 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                         style: const TextStyle(
                             fontFamily: 'JetBrains Mono', fontSize: 12, color: IrisTheme.primary),
                       ),
+                      if (context.watch<PixService>().provider.requiresPayerTaxNumber) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _pixTaxCtrl,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(color: IrisTheme.textPrimary, fontSize: 14),
+                          decoration: InputDecoration(
+                            labelText: 'CPF/CNPJ do favorecido',
+                            hintText: 'Somente números',
+                            labelStyle: const TextStyle(color: IrisTheme.textSecondary),
+                            hintStyle: const TextStyle(color: IrisTheme.textTertiary),
+                            filled: true,
+                            fillColor: IrisTheme.bg,
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none),
+                          ),
+                        ),
+                      ],
                     ] else if (widget.editableAmount)
                       TextField(
                         controller: _amountCtrl,

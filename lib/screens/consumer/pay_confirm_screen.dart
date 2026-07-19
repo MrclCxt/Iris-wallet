@@ -292,6 +292,7 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                       if (widget.editableAmount)
                         TextField(
                           controller: _amountCtrl,
+                          autofocus: true,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))],
                           textAlign: TextAlign.center,
@@ -347,6 +348,7 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                     ] else if (widget.editableAmount)
                       TextField(
                         controller: _amountCtrl,
+                        autofocus: true,
                         keyboardType: TextInputType.number,
                         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         textAlign: TextAlign.center,

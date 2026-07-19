@@ -10,6 +10,7 @@ import '../../services/wallet_service.dart';
 import 'package:provider/provider.dart';
 import '../../widgets/currency_toggle_btn.dart';
 import 'pay_confirm_screen.dart';
+import 'package:camera/camera.dart' as cam;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 
@@ -26,18 +27,44 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
   // Câmera: sempre inicia desligada; o usuário liga quando quiser escanear.
   MobileScannerController? _scannerController;
   bool _cameraOn = false;
+  bool _cameraDetected = false; // existe câmera conectada no dispositivo?
+  bool _cameraProbeDone = false;
   bool _isNfcAvailable = false;
   bool _hasScanned = false;
   bool _isResolving = false;
 
   /// mobile_scanner não suporta câmera em Windows/Linux — nesses ambientes
-  /// o pagamento entra por colagem/NFC.
+  /// o pagamento entra por colagem.
   bool get _cameraSupported => !(Platform.isWindows || Platform.isLinux);
 
   @override
   void initState() {
     super.initState();
     _initNfc();
+    _detectCamera();
+  }
+
+  /// Enumera as câmeras do dispositivo SEM abri-las: o botão "Ligar câmera"
+  /// só aparece habilitado se existir hardware de verdade.
+  Future<void> _detectCamera() async {
+    if (!_cameraSupported) {
+      _cameraDetected = false;
+      _cameraProbeDone = true;
+      if (mounted) setState(() {});
+      return;
+    }
+    try {
+      final cameras = await cam.availableCameras();
+      _cameraDetected = cameras.isNotEmpty;
+    } on cam.CameraException {
+      _cameraDetected = false;
+    } catch (_) {
+      // Plataforma sem enumeração (ex.: macOS): o scanner tem suporte,
+      // então deixamos o usuário tentar ligar.
+      _cameraDetected = true;
+    }
+    _cameraProbeDone = true;
+    if (mounted) setState(() {});
   }
 
   Future<void> _initNfc() async {
@@ -50,7 +77,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
   }
 
   void _toggleCamera() {
-    if (!_cameraSupported) return;
+    if (!_cameraSupported || !_cameraDetected) return;
     setState(() {
       if (_cameraOn) {
         _scannerController?.dispose();
@@ -357,26 +384,47 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.videocam_off_outlined,
-                                      size: 48, color: IrisTheme.textTertiary),
+                                  Icon(
+                                      _cameraDetected
+                                          ? Icons.videocam_off_outlined
+                                          : Icons.no_photography_outlined,
+                                      size: 48,
+                                      color: IrisTheme.textTertiary),
                                   const SizedBox(height: 16),
-                                  const Text(
-                                    'Câmera desligada',
-                                    style: TextStyle(
+                                  Text(
+                                    !_cameraProbeDone
+                                        ? 'Procurando câmera...'
+                                        : _cameraDetected
+                                            ? 'Câmera desligada'
+                                            : 'Nenhuma câmera encontrada',
+                                    style: const TextStyle(
                                         color: IrisTheme.textPrimary,
                                         fontSize: 15,
                                         fontWeight: FontWeight.w600),
                                   ),
                                   const SizedBox(height: 16),
-                                  ElevatedButton.icon(
-                                    onPressed: _toggleCamera,
-                                    icon: const Icon(Icons.videocam_outlined, size: 20),
-                                    label: const Text('Ligar câmera'),
-                                    style: ElevatedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 24, vertical: 12),
+                                  if (_cameraDetected)
+                                    ElevatedButton.icon(
+                                      onPressed: _toggleCamera,
+                                      icon: const Icon(Icons.videocam_outlined, size: 20),
+                                      label: const Text('Ligar câmera'),
+                                      style: ElevatedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 24, vertical: 12),
+                                      ),
+                                    )
+                                  else if (_cameraProbeDone)
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 32),
+                                      child: Text(
+                                        'Cole o código no campo abaixo — a detecção do tipo é automática.',
+                                        style: TextStyle(
+                                            color: IrisTheme.textSecondary,
+                                            fontSize: 13,
+                                            height: 1.5),
+                                        textAlign: TextAlign.center,
+                                      ),
                                     ),
-                                  ),
                                 ],
                               ),
                             )
@@ -474,9 +522,10 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
               ),
             ),
 
+            // NFC: só aparece quando o dispositivo realmente tem o hardware
+            if (_isNfcAvailable) ...[
             const SizedBox(height: 16),
 
-            // NFC Toggle
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
@@ -535,6 +584,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
                 ],
               ),
             ),
+            ],
 
             const SizedBox(height: 24),
 

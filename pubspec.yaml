@@ -25,6 +25,8 @@ dependencies:
   # QR Codes
   qr_flutter: ^4.1.0
   mobile_scanner: ^3.5.5
+  # Enumeração de câmeras (detecção sem abrir a câmera)
+  camera: ^0.10.6
   intl: ^0.20.2
   lwk: ^0.1.7
   share_plus: ^10.0.0

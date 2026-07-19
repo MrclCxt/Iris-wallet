@@ -58,7 +58,12 @@ abstract class PixProvider {
   String get name;
   bool get isSimulated;
 
-  /// Cria cobrança PIX; o provedor emitirá DEPIX em [depixAddress] ao pagar.
+  /// QR PIX **fixo** da carteira (sem valor — o pagador define). O provedor
+  /// vincula esta chave/QR ao [depixAddress]: todo PIX pago nele emite DEPIX
+  /// direto na carteira Liquid do usuário.
+  Future<PixCharge> getStaticDeposit({required String depixAddress});
+
+  /// Cria cobrança PIX com valor definido (link/QR temporário — secundário).
   Future<PixCharge> createDeposit({required double amountBrl, required String depixAddress});
 
   Future<PixChargeStatus> getDepositStatus(String chargeId);
@@ -76,6 +81,19 @@ class SimulatedPixProvider implements PixProvider {
   bool get isSimulated => true;
 
   final Map<String, PixCharge> _charges = {};
+
+  @override
+  Future<PixCharge> getStaticDeposit({required String depixAddress}) async {
+    // BR Code fixo sem valor (tag 54 ausente): o pagador define o quanto
+    // enviar — estrutura EMV e CRC16 reais.
+    final qr = BrCode.build(
+      pixKey: 'testnet@iris.wallet',
+      merchantName: 'IRIS WALLET TESTNET',
+      merchantCity: 'ITAPETININGA',
+      txid: 'STATIC',
+    );
+    return PixCharge(id: 'static', amountBrl: 0, qrCopiaECola: qr);
+  }
 
   @override
   Future<PixCharge> createDeposit({required double amountBrl, required String depixAddress}) async {
@@ -116,6 +134,8 @@ class SimulatedPixProvider implements PixProvider {
 }
 
 /// Provedor DEPIX real via REST. Contrato esperado (adaptável por provedor):
+///   POST {base}/static    {"depix_address":".."}
+///     -> {"id":"..","qr_copia_e_cola":".."}   (QR fixo, sem valor)
 ///   POST {base}/deposit   {"amount_brl":.., "depix_address":".."}
 ///     -> {"id":"..","qr_copia_e_cola":".."}
 ///   GET  {base}/deposit/{id}  -> {"status":"pending|paid|settled|expired"}
@@ -139,6 +159,24 @@ class RestPixProvider implements PixProvider {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $apiKey',
       };
+
+  @override
+  Future<PixCharge> getStaticDeposit({required String depixAddress}) async {
+    final r = await _client.post(
+      Uri.parse('$baseUrl/static'),
+      headers: _headers,
+      body: jsonEncode({'depix_address': depixAddress}),
+    );
+    if (r.statusCode != 200 && r.statusCode != 201) {
+      throw Exception('Provedor PIX respondeu ${r.statusCode}: ${r.body}');
+    }
+    final data = jsonDecode(r.body);
+    return PixCharge(
+      id: data['id'].toString(),
+      amountBrl: 0,
+      qrCopiaECola: data['qr_copia_e_cola']?.toString() ?? '',
+    );
+  }
 
   @override
   Future<PixCharge> createDeposit({required double amountBrl, required String depixAddress}) async {
@@ -207,6 +245,7 @@ class PixService extends ChangeNotifier {
   PixProvider get provider => _provider;
 
   PixCharge? activeCharge;
+  PixCharge? staticCharge; // QR fixo da carteira (sem valor)
   Timer? _pollTimer;
   final List<String> logs = [];
 
@@ -230,6 +269,8 @@ class PixService extends ChangeNotifier {
 
   /// Configura provedor DEPIX real (URL + chave). Vazio volta ao simulado.
   Future<void> configureProvider({String? baseUrl, String? apiKey}) async {
+    staticCharge = null; // será regenerado pelo novo provedor
+    activeCharge = null;
     if (baseUrl == null || baseUrl.trim().isEmpty) {
       await _storage.delete(key: 'pix_provider_url');
       await _storage.delete(key: 'pix_provider_key');
@@ -239,6 +280,27 @@ class PixService extends ChangeNotifier {
       await _storage.write(key: 'pix_provider_key', value: (apiKey ?? '').trim());
       _provider = RestPixProvider(baseUrl: baseUrl.trim(), apiKey: (apiKey ?? '').trim());
     }
+    notifyListeners();
+  }
+
+  /// Garante o QR PIX fixo da carteira (padrão da aba PIX).
+  Future<PixCharge> ensureStaticDeposit() async {
+    if (staticCharge != null) return staticCharge!;
+    String depixAddress;
+    try {
+      depixAddress = await liquidWalletService.getReceiveAddress();
+    } catch (_) {
+      depixAddress = 'indisponivel';
+    }
+    staticCharge = await _provider.getStaticDeposit(depixAddress: depixAddress);
+    notifyListeners();
+    return staticCharge!;
+  }
+
+  /// Volta ao QR fixo, descartando a cobrança temporária de valor definido.
+  void clearActiveCharge() {
+    _pollTimer?.cancel();
+    activeCharge = null;
     notifyListeners();
   }
 

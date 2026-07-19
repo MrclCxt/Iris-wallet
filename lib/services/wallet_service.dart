@@ -623,6 +623,17 @@ class WalletService extends ChangeNotifier {
                 paymentHashHex: event.paymentHashHex,
                 amountSats: sats,
               ));
+              // Fatura BOLT11 é de uso único: regenera o QR fixo para que
+              // ele continue funcional após cada recebimento.
+              try {
+                handle.fixedInvoice = await handle.api!.createInvoice(
+                  amountMsat: null,
+                  description: isMerchant ? 'Loja' : 'Carteira Principal',
+                  expirySecs: 31536000,
+                );
+              } catch (e) {
+                debugPrint('Falha ao regenerar fatura fixa: $e');
+              }
               break;
             case 'payment_successful':
               final txs = isMerchant ? _merchantTransactions : _consumerTransactions;

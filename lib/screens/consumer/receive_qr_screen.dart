@@ -9,6 +9,7 @@ import '../../core/currency_format.dart';
 import '../../core/bolt11.dart';
 import '../../core/tx_policy.dart';
 import '../../services/wallet_service.dart';
+import '../../services/liquid_wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
 import '../../services/pix_service.dart';
 import '../../widgets/currency_toggle_btn.dart';
@@ -46,6 +47,10 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   StreamSubscription<ReceivedPayment>? _paymentSub;
   final TextEditingController _pixBrlCtrl = TextEditingController();
   bool _pixBusy = false;
+  bool _pixShowAmountForm = false;
+  bool _pixStaticReceived = false;
+  int _pixReceivedSats = 0;
+  StreamSubscription<int>? _lbtcSub;
 
   ReceiveMethod _method = ReceiveMethod.lightning;
 
@@ -80,6 +85,15 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
         });
         _timer?.cancel();
       }
+    });
+
+    // Detecção de DEPIX/L-BTC chegando na Liquid (QR PIX fixo pago)
+    _lbtcSub = context.read<LiquidWalletService>().lbtcReceived.listen((sats) {
+      if (!mounted || _method != ReceiveMethod.pix) return;
+      setState(() {
+        _pixStaticReceived = true;
+        _pixReceivedSats = sats;
+      });
     });
   }
 
@@ -148,7 +162,21 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
       _isLoading = method != ReceiveMethod.pix;
     });
     if (method == ReceiveMethod.pix) {
-      _maybeAutoCreatePixCharge();
+      if (widget.satsAmount > 0) {
+        // Cobrança com valor definido (fluxo vindo do "definir valor")
+        _maybeAutoCreatePixCharge();
+      } else {
+        // Padrão: QR PIX fixo da carteira (pagador define o valor)
+        _pixShowAmountForm = false;
+        context.read<PixService>().ensureStaticDeposit().catchError((e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Erro ao obter QR fixo: $e'), backgroundColor: IrisTheme.danger),
+            );
+          }
+          return PixCharge(id: 'erro', amountBrl: 0, qrCopiaECola: '');
+        });
+      }
     } else {
       _generatePayload();
     }
@@ -287,6 +315,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   void dispose() {
     _timer?.cancel();
     _paymentSub?.cancel();
+    _lbtcSub?.cancel();
     _pixBrlCtrl.dispose();
     super.dispose();
   }
@@ -308,10 +337,16 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
     final brlAmount = exchangeRate.satsToBrl(widget.satsAmount);
     final isPix = _method == ReceiveMethod.pix;
     final pixCharge = pix.activeCharge;
-    final displayPayload = isPix ? pixCharge?.qrCopiaECola : _invoiceData;
+    final pixStatic = pix.staticCharge;
+    final showPixForm = isPix && _pixShowAmountForm && pixCharge == null && widget.satsAmount == 0;
+    final displayPayload = isPix
+        ? (showPixForm ? null : (pixCharge ?? pixStatic)?.qrCopiaECola)
+        : _invoiceData;
     final pixPaid = isPix &&
-        pixCharge != null &&
-        (pixCharge.status == PixChargeStatus.paid || pixCharge.status == PixChargeStatus.settled);
+        (_pixStaticReceived ||
+            (pixCharge != null &&
+                (pixCharge.status == PixChargeStatus.paid ||
+                    pixCharge.status == PixChargeStatus.settled)));
 
     return Scaffold(
       backgroundColor: IrisTheme.bg,
@@ -423,8 +458,8 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                 ),
               const SizedBox(height: 24),
 
-              // Painel PIX sem cobrança ativa: campo de valor em Reais
-              if (isPix && pixCharge == null && widget.satsAmount == 0) ...[
+              // Painel PIX: campo de valor em Reais (ação secundária)
+              if (showPixForm) ...[
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -536,6 +571,50 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                   '≈ ${CurrencyFormatter.formatSats(exchangeRate.brlToSats(pixCharge.amountBrl))} sats no seu saldo',
                   style: const TextStyle(fontSize: 14, color: IrisTheme.textSecondary),
                 ),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: () {
+                    pix.clearActiveCharge();
+                    setState(() => _pixShowAmountForm = false);
+                  },
+                  style: OutlinedButton.styleFrom(side: const BorderSide(color: IrisTheme.bdr)),
+                  child: const Text('← Voltar ao QR fixo',
+                      style: TextStyle(color: IrisTheme.textSecondary)),
+                ),
+              ] else if (isPix && !showPixForm) ...[
+                // QR PIX fixo: as chaves de recebimento permanentes da carteira
+                const Text(
+                  'QR PIX FIXO',
+                  style: TextStyle(
+                    fontFamily: 'JetBrains Mono',
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: IrisTheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'O pagador define o valor — cai como sats no seu saldo',
+                  style: TextStyle(fontSize: 14, color: IrisTheme.textSecondary),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton(
+                  onPressed: () => setState(() => _pixShowAmountForm = true),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: IrisTheme.primary),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                  child: const Text('Ou cobre um valor específico',
+                      style: TextStyle(color: IrisTheme.primary)),
+                ),
+              ] else if (showPixForm) ...[
+                OutlinedButton(
+                  onPressed: () => setState(() => _pixShowAmountForm = false),
+                  style: OutlinedButton.styleFrom(side: const BorderSide(color: IrisTheme.bdr)),
+                  child: const Text('← Voltar ao QR fixo',
+                      style: TextStyle(color: IrisTheme.textSecondary)),
+                ),
               ] else if (!isPix && widget.satsAmount > 0) ...[
                 Text(
                   showSats
@@ -605,9 +684,11 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                         const Icon(Icons.check_circle, color: IrisTheme.success, size: 48),
                         const SizedBox(height: 12),
                         Text(
-                          pixPaid
-                              ? 'PIX pago! Convertendo para sats...'
-                              : 'Pagamento recebido! ⚡ ${CurrencyFormatter.formatSats(_paidAmountSats)} sats',
+                          _pixStaticReceived
+                              ? 'PIX recebido! +${CurrencyFormatter.formatSats(_pixReceivedSats)} sats no saldo'
+                              : pixPaid
+                                  ? 'PIX pago! Convertendo para sats...'
+                                  : 'Pagamento recebido! ⚡ ${CurrencyFormatter.formatSats(_paidAmountSats)} sats',
                           style: const TextStyle(color: IrisTheme.success, fontSize: 16, fontWeight: FontWeight.w700),
                           textAlign: TextAlign.center,
                         ),

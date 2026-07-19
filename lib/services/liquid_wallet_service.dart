@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:lwk/lwk.dart' as lwk;
 import 'package:path_provider/path_provider.dart';
@@ -18,12 +19,17 @@ class LiquidWalletService extends ChangeNotifier {
   String? _mnemonic; // mantida em memória apenas para assinar (não-custodial)
   bool _isRunning = false;
   bool _isMock = false;
+  Timer? _syncTimer;
 
   bool get isRunning => _isRunning;
   bool get isMock => _isMock;
 
   int _balanceSats = 0;
   int get balanceSats => _balanceSats;
+
+  /// Notifica quando L-BTC/DEPIX chega na carteira (detectado por sync).
+  final StreamController<int> _receivedCtrl = StreamController<int>.broadcast();
+  Stream<int> get lbtcReceived => _receivedCtrl.stream;
 
   String? _receiveAddress;
   String? get receiveAddress => _receiveAddress;
@@ -64,6 +70,17 @@ class LiquidWalletService extends ChangeNotifier {
 
       _isRunning = true;
       _isMock = false;
+
+      // Sync periódico: detecta DEPIX/L-BTC chegando (ex.: QR PIX fixo pago)
+      _syncTimer?.cancel();
+      _syncTimer = Timer.periodic(const Duration(seconds: 45), (_) async {
+        final before = _balanceSats;
+        await syncWallet();
+        if (_balanceSats > before) {
+          _receivedCtrl.add(_balanceSats - before);
+        }
+      });
+
       notifyListeners();
       debugPrint('Liquid Wallet iniciada (testnet). Saldo: $_balanceSats sats L-BTC');
     } catch (e) {
@@ -144,5 +161,12 @@ class LiquidWalletService extends ChangeNotifier {
     await syncWallet();
     debugPrint('L-BTC enviado. txid: $txid');
     return txid;
+  }
+
+  @override
+  void dispose() {
+    _syncTimer?.cancel();
+    _receivedCtrl.close();
+    super.dispose();
   }
 }

@@ -25,8 +25,12 @@ dependencies:
   # QR Codes
   qr_flutter: ^4.1.0
   mobile_scanner: ^3.5.5
-  # Enumeração de câmeras (detecção sem abrir a câmera)
+  # Câmera: enumeração + preview/captura no desktop Windows
   camera: ^0.10.6
+  camera_windows: ^0.2.1
+  # Decodificação de QR em Dart puro (pipeline de scan no Windows)
+  zxing2: ^0.2.3
+  image: ^4.1.7
   intl: ^0.20.2
   lwk: ^0.1.7
   share_plus: ^10.0.0

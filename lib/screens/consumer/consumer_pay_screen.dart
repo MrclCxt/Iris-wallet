@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
+import 'package:zxing2/qrcode.dart' as zx;
 import '../../core/theme.dart';
 import '../../core/bolt11.dart';
 import '../../core/brcode.dart';
@@ -33,9 +37,16 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
   bool _hasScanned = false;
   bool _isResolving = false;
 
-  /// mobile_scanner não suporta câmera em Windows/Linux — nesses ambientes
-  /// o pagamento entra por colagem.
-  bool get _cameraSupported => !(Platform.isWindows || Platform.isLinux);
+  // Pipeline Windows: preview via camera_windows + captura periódica +
+  // decodificação QR com ZXing (o mobile_scanner não tem backend Windows).
+  cam.CameraController? _winCamCtrl;
+  Timer? _winScanTimer;
+  bool _winDecoding = false;
+
+  bool get _useWindowsPipeline => Platform.isWindows;
+
+  /// Linux não tem backend de câmera em nenhum dos plugins.
+  bool get _cameraSupported => !Platform.isLinux;
 
   @override
   void initState() {
@@ -44,8 +55,8 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
     _detectCamera();
   }
 
-  /// Enumera as câmeras do dispositivo SEM abri-las: o botão "Ligar câmera"
-  /// só aparece habilitado se existir hardware de verdade.
+  /// Enumera as câmeras do dispositivo SEM abri-las: a opção de ligar só
+  /// aparece se existir hardware de verdade; sem câmera, a área some.
   Future<void> _detectCamera() async {
     if (!_cameraSupported) {
       _cameraDetected = false;
@@ -61,10 +72,83 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
     } catch (_) {
       // Plataforma sem enumeração (ex.: macOS): o scanner tem suporte,
       // então deixamos o usuário tentar ligar.
-      _cameraDetected = true;
+      _cameraDetected = !Platform.isWindows;
     }
     _cameraProbeDone = true;
     if (mounted) setState(() {});
+  }
+
+  // ---- Pipeline de scan do Windows (captura + ZXing) ----
+
+  Future<void> _startWindowsCamera() async {
+    final cameras = await cam.availableCameras();
+    if (cameras.isEmpty) throw Exception('Nenhuma câmera encontrada.');
+    final ctrl = cam.CameraController(
+      cameras.first,
+      cam.ResolutionPreset.medium,
+      enableAudio: false,
+    );
+    await ctrl.initialize();
+    _winCamCtrl = ctrl;
+    // Captura um quadro por segundo e tenta decodificar o QR
+    _winScanTimer = Timer.periodic(const Duration(seconds: 1), (_) => _winCaptureAndDecode());
+  }
+
+  Future<void> _stopWindowsCamera() async {
+    _winScanTimer?.cancel();
+    _winScanTimer = null;
+    final ctrl = _winCamCtrl;
+    _winCamCtrl = null;
+    try {
+      await ctrl?.dispose();
+    } catch (_) {}
+  }
+
+  Future<void> _winCaptureAndDecode() async {
+    final ctrl = _winCamCtrl;
+    if (ctrl == null || _winDecoding || _hasScanned || _isResolving) return;
+    _winDecoding = true;
+    try {
+      final shot = await ctrl.takePicture();
+      final bytes = await shot.readAsBytes();
+      try {
+        await File(shot.path).delete();
+      } catch (_) {}
+
+      final text = await _decodeQrFromImage(bytes);
+      if (text != null && mounted && !_hasScanned) {
+        _hasScanned = true;
+        setState(() => _invoiceCtrl.text = text);
+        _toggleCamera(); // desliga após a leitura
+        await _handlePay();
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) _hasScanned = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Scan Windows: $e');
+    } finally {
+      _winDecoding = false;
+    }
+  }
+
+  /// Decodifica um QR de uma imagem capturada usando ZXing (Dart puro).
+  Future<String?> _decodeQrFromImage(Uint8List bytes) async {
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) return null;
+    final rgba = decoded.convert(numChannels: 4).getBytes(order: img.ChannelOrder.rgba);
+    final pixels = Int32List(decoded.width * decoded.height);
+    for (int i = 0, p = 0; i < pixels.length; i++, p += 4) {
+      pixels[i] = (0xFF << 24) | (rgba[p] << 16) | (rgba[p + 1] << 8) | rgba[p + 2];
+    }
+    final source = zx.RGBLuminanceSource(decoded.width, decoded.height, pixels);
+    try {
+      final result =
+          zx.QRCodeReader().decode(zx.BinaryBitmap(zx.HybridBinarizer(source)));
+      return result.text;
+    } catch (_) {
+      return null; // nenhum QR neste quadro
+    }
   }
 
   Future<void> _initNfc() async {
@@ -78,21 +162,34 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
 
   void _toggleCamera() {
     if (!_cameraSupported || !_cameraDetected) return;
-    setState(() {
-      if (_cameraOn) {
+    if (_cameraOn) {
+      if (_useWindowsPipeline) {
+        _stopWindowsCamera();
+      } else {
         _scannerController?.dispose();
         _scannerController = null;
-        _cameraOn = false;
+      }
+      setState(() => _cameraOn = false);
+    } else {
+      if (_useWindowsPipeline) {
+        _startWindowsCamera().then((_) {
+          if (mounted) setState(() => _cameraOn = true);
+        }).catchError((e) {
+          if (mounted) {
+            _showError('Não foi possível abrir a câmera: $e');
+          }
+        });
       } else {
         _scannerController = MobileScannerController();
-        _cameraOn = true;
+        setState(() => _cameraOn = true);
       }
-    });
+    }
   }
 
   @override
   void dispose() {
     _scannerController?.dispose();
+    _stopWindowsCamera();
     if (_isNfcAvailable) {
       NfcManager.instance.stopSession();
     }
@@ -340,7 +437,11 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Scanner Area — câmera sempre inicia desligada
+            // Scanner Area — câmera sempre inicia desligada.
+            // Sem câmera conectada: a área simplesmente não aparece.
+            if (_cameraProbeDone && !_cameraDetected)
+              const Spacer()
+            else
             Expanded(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
@@ -350,53 +451,16 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
                     border: Border.all(color: IrisTheme.bdr),
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: !_cameraSupported
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(Icons.desktop_windows_outlined,
-                                    size: 48, color: IrisTheme.textTertiary),
-                                SizedBox(height: 16),
-                                Text(
-                                  'Leitura por câmera indisponível neste sistema',
-                                  style: TextStyle(
-                                      color: IrisTheme.textPrimary,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600),
-                                  textAlign: TextAlign.center,
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Cole a fatura Lightning, o código PIX ou o endereço no campo abaixo — a detecção do tipo é automática.',
-                                  style: TextStyle(
-                                      color: IrisTheme.textSecondary, fontSize: 13, height: 1.5),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : !_cameraOn
+                  child: !_cameraOn
                           ? Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(
-                                      _cameraDetected
-                                          ? Icons.videocam_off_outlined
-                                          : Icons.no_photography_outlined,
-                                      size: 48,
-                                      color: IrisTheme.textTertiary),
+                                  const Icon(Icons.videocam_off_outlined,
+                                      size: 48, color: IrisTheme.textTertiary),
                                   const SizedBox(height: 16),
                                   Text(
-                                    !_cameraProbeDone
-                                        ? 'Procurando câmera...'
-                                        : _cameraDetected
-                                            ? 'Câmera desligada'
-                                            : 'Nenhuma câmera encontrada',
+                                    !_cameraProbeDone ? 'Procurando câmera...' : 'Câmera desligada',
                                     style: const TextStyle(
                                         color: IrisTheme.textPrimary,
                                         fontSize: 15,
@@ -412,23 +476,46 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 24, vertical: 12),
                                       ),
-                                    )
-                                  else if (_cameraProbeDone)
-                                    const Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 32),
-                                      child: Text(
-                                        'Cole o código no campo abaixo — a detecção do tipo é automática.',
-                                        style: TextStyle(
-                                            color: IrisTheme.textSecondary,
-                                            fontSize: 13,
-                                            height: 1.5),
-                                        textAlign: TextAlign.center,
-                                      ),
                                     ),
                                 ],
                               ),
                             )
-                          : Stack(
+                          : _useWindowsPipeline
+                              ? Stack(
+                                  alignment: Alignment.center,
+                                  fit: StackFit.expand,
+                                  children: [
+                                    if (_winCamCtrl != null && _winCamCtrl!.value.isInitialized)
+                                      cam.CameraPreview(_winCamCtrl!),
+                                    const Positioned(
+                                      bottom: 16,
+                                      left: 0,
+                                      right: 0,
+                                      child: Text(
+                                        'Aponte para o QR Code',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          backgroundColor: Colors.black54,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 12,
+                                      right: 12,
+                                      child: IconButton(
+                                        onPressed: _toggleCamera,
+                                        tooltip: 'Desligar câmera',
+                                        style: IconButton.styleFrom(
+                                            backgroundColor: Colors.black54),
+                                        icon: const Icon(Icons.videocam_off,
+                                            color: Colors.white, size: 20),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Stack(
                               alignment: Alignment.center,
                               children: [
                                 MobileScanner(

@@ -13,6 +13,8 @@ import '../../services/liquid_wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
 import '../../services/pix_service.dart';
 import '../../widgets/currency_toggle_btn.dart';
+import '../../widgets/max_width_container.dart';
+import '../../widgets/numpad.dart';
 import 'custom_charge_screen.dart';
 
 /// Trilho de recebimento. A moeda do app é sempre o satoshi — o toggle
@@ -53,6 +55,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   bool _pixStaticReceived = false;
   int _pixReceivedSats = 0;
   StreamSubscription<int>? _lbtcSub;
+  Timer? _paidResetTimer; // após mostrar "recebido", limpa o aviso / volta ao fixo
 
   ReceiveMethod _method = ReceiveMethod.lightning;
 
@@ -86,6 +89,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
           _paidAmountSats = payment.amountSats;
         });
         _timer?.cancel();
+        _schedulePaidReset();
       }
     });
 
@@ -96,6 +100,32 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
         _pixStaticReceived = true;
         _pixReceivedSats = sats;
       });
+      _schedulePaidReset();
+    });
+  }
+
+  /// Depois de exibir "recebido" por alguns segundos, o aviso some. Se era um
+  /// valor específico, o QR volta para o fixo (ou a tela dedicada fecha).
+  void _schedulePaidReset() {
+    _paidResetTimer?.cancel();
+    _paidResetTimer = Timer(const Duration(seconds: 4), () {
+      if (!mounted) return;
+      // Tela dedicada de valor específico (Lightning/on-chain): volta ao fixo.
+      if (widget.isStandalone && widget.satsAmount > 0) {
+        Navigator.pop(context);
+        return;
+      }
+      // Cobrança PIX específica: limpa para voltar ao QR PIX fixo.
+      final pix = context.read<PixService>();
+      if (pix.activeCharge != null) pix.clearActiveCharge();
+      setState(() {
+        _isPaid = false;
+        _pixStaticReceived = false;
+        _pixShowAmountForm = false;
+        _invoiceData = null;
+      });
+      // Regenera o QR fixo (BOLT11 é de uso único).
+      if (_method != ReceiveMethod.pix) _generatePayload();
     });
   }
 
@@ -117,16 +147,9 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
             forMerchant: widget.isMerchant,
           );
         } else {
-          // Nunca gerar um QR com o texto "Carregando..." — se a fatura fixa
-          // ainda não existe, o nó está iniciando ou indisponível.
-          final fixed = widget.isMerchant
-              ? wallet.merchantFixedInvoice
-              : wallet.mainWalletFixedInvoice;
-          if (fixed == null || fixed.isEmpty) {
-            throw Exception(
-                'Fatura Lightning ainda indisponível — o nó pode estar iniciando ou offline. Tente novamente em instantes.');
-          }
-          payload = fixed;
+          // Fatura fixa persistida; gerada sob demanda se o nó já subiu mas
+          // ela ainda não existe (evita o erro "indisponível" no boot).
+          payload = await wallet.getFixedInvoice(forMerchant: widget.isMerchant);
         }
         if (Bolt11.looksLikeInvoice(payload)) {
           try {
@@ -169,6 +192,25 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   /// Remove o prefixo "Exception:" das mensagens para exibição.
   String _friendlyError(Object e) =>
       e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+
+  // Teclado numérico do valor do PIX (baseado em centavos, igual à tela de
+  // valor específico de Lightning/on-chain).
+  void _pixNumKey(String k) {
+    if (k == ',') return; // vírgula automática (centavos)
+    final digits = _pixBrlCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length >= 12) return;
+    final cents = int.tryParse(digits + k) ?? 0;
+    _pixBrlCtrl.text = cents > 0 ? CurrencyFormatter.formatBrl(cents / 100.0) : '';
+    setState(() {});
+  }
+
+  void _pixNumBack() {
+    final digits = _pixBrlCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final trimmed = digits.isEmpty ? '' : digits.substring(0, digits.length - 1);
+    final cents = int.tryParse(trimmed) ?? 0;
+    _pixBrlCtrl.text = cents > 0 ? CurrencyFormatter.formatBrl(cents / 100.0) : '';
+    setState(() {});
+  }
 
   /// Erro de geração do QR: mensagem centralizada (horizontal e vertical) no
   /// espaço visível, no lugar onde o QR apareceria — sem alterar a estrutura.
@@ -440,6 +482,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
     _timer?.cancel();
     _paymentSub?.cancel();
     _lbtcSub?.cancel();
+    _paidResetTimer?.cancel();
     _pixBrlCtrl.dispose();
     _pixCpfCtrl.dispose();
     super.dispose();
@@ -503,27 +546,33 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: MaxWidthContainer(
+            maxWidth: 460,
             child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Seletor do trilho de recebimento (sempre liquida em sats)
-              Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color: IrisTheme.s2,
-                  border: Border.all(color: IrisTheme.bdr2),
-                  borderRadius: BorderRadius.circular(22),
+              // Seletor do trilho de recebimento — só aparece no QR fixo/aberto.
+              // Ao definir um valor específico (PIX ou sats), o trilho fica
+              // travado no que foi escolhido antes; sem opções dos outros.
+              if (pixCharge == null && widget.satsAmount == 0 && !showPixForm) ...[
+                Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: IrisTheme.s2,
+                    border: Border.all(color: IrisTheme.bdr2),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildMethodBtn('⚡ Lightning', ReceiveMethod.lightning),
+                      _buildMethodBtn('₿ On-chain', ReceiveMethod.onchain),
+                      _buildMethodBtn('🇧🇷 PIX', ReceiveMethod.pix),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildMethodBtn('⚡ Lightning', ReceiveMethod.lightning),
-                    _buildMethodBtn('₿ On-chain', ReceiveMethod.onchain),
-                    _buildMethodBtn('🇧🇷 PIX', ReceiveMethod.pix),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
+              ],
 
               // Chip de contexto do trilho
               if (isPix)
@@ -596,28 +645,30 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                     children: [
                       const Text('Valor do depósito',
                           style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
-                      TextField(
-                        controller: _pixBrlCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))],
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 32,
-                            fontWeight: FontWeight.w600,
-                            color: IrisTheme.textPrimary),
-                        decoration: const InputDecoration(
-                          prefixText: 'R\$ ',
-                          prefixStyle: TextStyle(fontSize: 22, color: IrisTheme.textSecondary),
-                          hintText: '0,00',
-                          border: InputBorder.none,
+                      const SizedBox(height: 8),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'R\$ ${_pixBrlCtrl.text.isEmpty ? '0,00' : _pixBrlCtrl.text}',
+                          style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 40,
+                              fontWeight: FontWeight.w600,
+                              color: IrisTheme.textPrimary),
                         ),
-                        onChanged: (_) => setState(() {}),
                       ),
+                      const SizedBox(height: 4),
                       Text(
                         '≈ ${CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(double.tryParse(_pixBrlCtrl.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0))}',
                         style: const TextStyle(
                             fontFamily: 'monospace', fontSize: 12, color: IrisTheme.primary),
+                      ),
+                      const SizedBox(height: 16),
+                      // Mesmo teclado numérico da tela de valor específico.
+                      Numpad(
+                        onKeyPress: _pixNumKey,
+                        onBackspace: _pixNumBack,
+                        showDecimal: false,
                       ),
                       if (pix.provider.requiresPayerTaxNumber) ...[
                         const SizedBox(height: 16),
@@ -660,44 +711,58 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
               ],
 
               if (displayPayload != null)
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Column(
-                    children: [
-                      QrImageView(
-                        data: displayPayload,
-                        version: QrVersions.auto,
-                        size: 240.0,
-                        backgroundColor: Colors.white,
-                        eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Colors.black),
-                        dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Colors.black),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    // QR responsivo: ~60% da largura da tela, com meio-termo no
+                    // mobile e limite no desktop. O box acompanha o QR (sem
+                    // espaço vazio nas laterais) e nunca ultrapassa o disponível.
+                    final screenW = MediaQuery.of(context).size.width;
+                    final available = constraints.maxWidth - 32;
+                    double qrSize = (screenW * 0.6).clamp(240.0, 380.0).toDouble();
+                    if (qrSize > available) qrSize = available;
+                    return Container(
+                      width: qrSize + 32,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: IrisTheme.bg,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: IrisTheme.bdr),
-                        ),
-                        child: Text(
-                          displayPayload,
-                          style: const TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 12,
-                            color: IrisTheme.textSecondary,
+                      child: Column(
+                        children: [
+                          QrImageView(
+                            data: displayPayload,
+                            version: QrVersions.auto,
+                            size: qrSize,
+                            backgroundColor: Colors.white,
+                            eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Colors.black),
+                            dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Colors.black),
                           ),
-                          textAlign: TextAlign.center,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: IrisTheme.bg,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: IrisTheme.bdr),
+                            ),
+                            child: Text(
+                              displayPayload,
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 12,
+                                height: 1.4,
+                                color: IrisTheme.textSecondary,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 5,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 )
               else if (_errorMessage != null && !_isLoading)
                 _buildCenteredError(_errorMessage!),
@@ -707,7 +772,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
               // Valor exibido
               if (isPix && pixCharge != null) ...[
                 Text(
-                  'R\$ ${CurrencyFormatter.formatBrl(pixCharge.amountBrl)}',
+                  'R\$ ${CurrencyFormatter.formatBrlCompact(pixCharge.amountBrl)}',
                   style: const TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 28,
@@ -731,32 +796,8 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                       style: TextStyle(color: IrisTheme.textSecondary)),
                 ),
               ] else if (isPix && !showPixForm) ...[
-                // QR PIX fixo: as chaves de recebimento permanentes da carteira
-                const Text(
-                  'QR PIX FIXO',
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: IrisTheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'O pagador define o valor — cai como sats no seu saldo',
-                  style: TextStyle(fontSize: 14, color: IrisTheme.textSecondary),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton(
-                  onPressed: () => setState(() => _pixShowAmountForm = true),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: IrisTheme.primary),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  ),
-                  child: const Text('Ou cobre um valor específico',
-                      style: TextStyle(color: IrisTheme.primary)),
-                ),
+                // Título/subtítulo "QR PIX FIXO" removidos; o botão de valor
+                // específico foi movido para baixo de Copiar/Compartilhar.
               ] else if (showPixForm) ...[
                 OutlinedButton(
                   onPressed: () => setState(() => _pixShowAmountForm = false),
@@ -770,7 +811,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                 Text(
                   showSats
                       ? CurrencyFormatter.formatBtcOrSats(widget.satsAmount)
-                      : 'R\$ ${CurrencyFormatter.formatBrl(brlAmount)}',
+                      : 'R\$ ${CurrencyFormatter.formatBrlCompact(brlAmount)}',
                   style: const TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 28,
@@ -781,7 +822,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                 const SizedBox(height: 4),
                 Text(
                   showSats
-                      ? '≈ R\$ ${CurrencyFormatter.formatBrl(brlAmount)}'
+                      ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(brlAmount)}'
                       : '≈ ${CurrencyFormatter.formatBtcOrSats(widget.satsAmount)}',
                   style: const TextStyle(
                     fontSize: 14,
@@ -789,39 +830,8 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                   ),
                 ),
               ] else if (!isPix) ...[
-                const Text(
-                  'VALOR ABERTO',
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: IrisTheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'O pagador definirá o valor',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: IrisTheme.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CustomChargeScreen(isMerchant: widget.isMerchant),
-                      ),
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: IrisTheme.primary),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  ),
-                  child: const Text('Ou defina um valor específico', style: TextStyle(color: IrisTheme.primary)),
-                ),
+                // Título/subtítulo "VALOR ABERTO" removidos; o botão de valor
+                // específico foi movido para baixo de Copiar/Compartilhar.
               ],
 
               // Estado: pago / carregando / aguardando
@@ -852,22 +862,8 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: Center(child: CircularProgressIndicator(color: IrisTheme.primary)),
                 )
-              else if (displayPayload != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.wifi_tethering, color: IrisTheme.primary, size: 32),
-                        const SizedBox(height: 12),
-                        const Text('Aguardando pagamento...', style: TextStyle(color: IrisTheme.textSecondary, fontSize: 14)),
-                      ],
-                    ),
-                  ),
-                )
               else
-                const SizedBox(height: 24),
+                const SizedBox(height: 12),
 
               // Botão de simulação (sandbox: local ou API oficial do provedor)
               if (isPix &&
@@ -885,18 +881,20 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                 const SizedBox(height: 12),
               ],
 
-              if (!_isPaid && !pixPaid && !isPix)
-              Text(
-                'Expira em $_formattedTime',
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 14,
-                  color: _secondsRemaining < 60 ? IrisTheme.danger : IrisTheme.textTertiary,
-                  fontWeight: FontWeight.w600,
+              // "Expira em" só para faturas com valor definido e prazo real
+              // (fixo/produto usa ∞ e não precisa mostrar).
+              if (!_isPaid && !pixPaid && !isPix && widget.satsAmount > 0)
+                Text(
+                  'Expira em $_formattedTime',
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 14,
+                    color: _secondsRemaining < 60 ? IrisTheme.danger : IrisTheme.textTertiary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
               if (displayPayload != null)
               Row(
@@ -935,8 +933,43 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                   ),
                 ],
               ),
+              // Botão de valor específico ABAIXO de Copiar/Compartilhar.
+              if (!isPix && widget.satsAmount == 0 && displayPayload != null && _errorMessage == null) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CustomChargeScreen(isMerchant: widget.isMerchant),
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: IrisTheme.primary),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('Ou defina um valor específico', style: TextStyle(color: IrisTheme.primary)),
+                  ),
+                ),
+              ],
+              if (isPix && !showPixForm && pixCharge == null) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => setState(() => _pixShowAmountForm = true),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: IrisTheme.primary),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('Ou cobre um valor específico', style: TextStyle(color: IrisTheme.primary)),
+                  ),
+                ),
+              ],
               const SizedBox(height: 10),
             ],
+          ),
           ),
         ),
         ),

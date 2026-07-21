@@ -90,7 +90,7 @@ class MerchantHistoryScreen extends StatelessWidget {
                   DataCell(Text(
                       exchangeRate.isSatsDisplay
                           ? '+${CurrencyFormatter.formatBtcOrSats(tx.amountSats)}'
-                          : '+R\$ ${CurrencyFormatter.formatBrl(brl)}',
+                          : '+R\$ ${CurrencyFormatter.formatBrlCompact(brl)}',
                       style: const TextStyle(color: IrisTheme.success, fontFamily: 'monospace', fontWeight: FontWeight.bold))),
                   DataCell(Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -145,13 +145,13 @@ class MerchantHistoryScreen extends StatelessWidget {
               Text(
                 exchangeRate.isSatsDisplay
                     ? '+ ${CurrencyFormatter.formatBtcOrSats(sats)}'
-                    : '+ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(sats))}',
+                    : '+ R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(sats))}',
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: IrisTheme.success),
               ),
               const SizedBox(height: 2),
               Text(
                 exchangeRate.isSatsDisplay
-                    ? '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(sats))}'
+                    ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(sats))}'
                     : '≈ ${CurrencyFormatter.formatBtcOrSats(sats)}',
                 style: const TextStyle(fontFamily: 'monospace', fontSize: 10, color: IrisTheme.textTertiary),
               ),

@@ -577,15 +577,22 @@ class WalletService extends ChangeNotifier {
 
       if (isMerchant) await _loadMerchantProducts();
 
-      // Fatura fixa de valor aberto (QR estático da carteira)
-      try {
-        handle.fixedInvoice = await api.createInvoice(
-          amountMsat: null,
-          description: isMerchant ? 'Loja' : 'Carteira Principal',
-          expirySecs: 31536000, // 1 ano
-        );
-      } catch (e) {
-        debugPrint('Falha ao gerar fatura fixa: $e');
+      // Fatura fixa de valor aberto (QR estático). Gerada UMA vez e persistida;
+      // em toda abertura seguinte é apenas recarregada do armazenamento (nunca
+      // regenerada no boot) — assim o QR já aparece pronto, sem "indisponível".
+      handle.fixedInvoice = await _loadFixedInvoice(isMerchant);
+      if (handle.fixedInvoice == null || handle.fixedInvoice!.isEmpty) {
+        try {
+          final inv = await api.createInvoice(
+            amountMsat: null,
+            description: isMerchant ? 'Loja' : 'Carteira Principal',
+            expirySecs: 31536000, // 1 ano
+          );
+          handle.fixedInvoice = inv;
+          await _saveFixedInvoice(isMerchant, inv);
+        } catch (e) {
+          debugPrint('Falha ao gerar fatura fixa: $e');
+        }
       }
 
       await _refreshBalances(handle);
@@ -597,10 +604,12 @@ class WalletService extends ChangeNotifier {
           'Nó (${isMerchant ? 'loja' : 'pessoal'}) iniciado na testnet — backend ${handle.isRemote ? 'daemon local' : 'embarcado'}.');
     } catch (e) {
       debugPrint('Falha ao iniciar nó (${isMerchant ? 'loja' : 'pessoal'}): $e');
-      // Fallback de UI: mantém o app utilizável se o motor nativo não carregar
+      // Fallback de UI: mantém o app utilizável se o motor nativo não carregar.
+      // Ainda assim mostra o QR estático persistido (se já existir), para o
+      // lojista não ver "indisponível" enquanto o nó religa.
       handle.isRunning = true;
       handle.isMock = true;
-      handle.fixedInvoice = null;
+      handle.fixedInvoice = await _loadFixedInvoice(isMerchant);
       handle.lastStartError = e.toString();
       notifyListeners();
     }
@@ -643,14 +652,17 @@ class WalletService extends ChangeNotifier {
                 paymentHashHex: event.paymentHashHex,
                 amountSats: sats,
               ));
-              // Fatura BOLT11 é de uso único: regenera o QR fixo para que
-              // ele continue funcional após cada recebimento.
+              // Fatura BOLT11 é de uso único: regenera o QR fixo (e persiste)
+              // SÓ após um recebimento — exigência da Lightning para que o QR
+              // continue válido. Fora isso, ele nunca é recarregado.
               try {
-                handle.fixedInvoice = await handle.api!.createInvoice(
+                final inv = await handle.api!.createInvoice(
                   amountMsat: null,
                   description: isMerchant ? 'Loja' : 'Carteira Principal',
                   expirySecs: 31536000,
                 );
+                handle.fixedInvoice = inv;
+                await _saveFixedInvoice(isMerchant, inv);
               } catch (e) {
                 debugPrint('Falha ao regenerar fatura fixa: $e');
               }
@@ -858,6 +870,67 @@ class WalletService extends ChangeNotifier {
     await prefs.remove('merchant_products_$merchantId');
   }
 
+  // Fatura fixa (QR estático) persistida por perfil: gerada uma vez na criação
+  // da carteira e reutilizada sempre; só troca após um recebimento (uso único).
+  Future<String?> _loadFixedInvoice(bool isMerchant) async {
+    final id = isMerchant ? _activeMerchantId : _activeConsumerId;
+    if (id == null) return null;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('fixed_invoice_$id');
+  }
+
+  Future<void> _saveFixedInvoice(bool isMerchant, String invoice) async {
+    final id = isMerchant ? _activeMerchantId : _activeConsumerId;
+    if (id == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('fixed_invoice_$id', invoice);
+  }
+
+  /// QR estático (fatura Lightning fixa). Retorna a persistida se existir; se o
+  /// nó já está rodando mas a fatura ainda não foi criada (ex.: tela abriu antes
+  /// de o boot terminar), gera sob demanda e persiste. Só falha se o nó estiver
+  /// realmente offline. Evita o erro "indisponível" nas áreas pessoal e loja.
+  /// Reinicia o nó do perfil. Usado pelo "Tentar novamente" e pela geração sob
+  /// demanda quando o nó caiu em mock (ex.: timeout de fee no boot). Recompõe
+  /// os mesmos parâmetros de storage usados na inicialização.
+  Future<void> restartNode({bool forMerchant = false}) async {
+    final handle = forMerchant ? _merchantNode : _consumerNode;
+    await handle.stop();
+    final acc = forMerchant ? activeMerchant : activeConsumer;
+    if (acc == null) return;
+    final dir = forMerchant ? 'ldk_m_${acc.id}' : 'ldk_c_${acc.id}';
+    await _startNode(handle, acc.seed, dir, isMerchant: forMerchant);
+  }
+
+  Future<String> getFixedInvoice({bool forMerchant = false}) async {
+    var handle = forMerchant ? _merchantNode : _consumerNode;
+    if (handle.fixedInvoice != null && handle.fixedInvoice!.isNotEmpty) {
+      return handle.fixedInvoice!;
+    }
+    final persisted = await _loadFixedInvoice(forMerchant);
+    if (persisted != null && persisted.isNotEmpty) {
+      handle.fixedInvoice = persisted;
+      return persisted;
+    }
+    // Nó em mock (ex.: timeout no boot): tenta reiniciar antes de desistir.
+    if (handle.api == null) {
+      await restartNode(forMerchant: forMerchant);
+      handle = forMerchant ? _merchantNode : _consumerNode;
+    }
+    if (handle.isRunning && handle.api != null) {
+      final inv = await handle.api!.createInvoice(
+        amountMsat: null,
+        description: forMerchant ? 'Loja' : 'Carteira Principal',
+        expirySecs: 31536000,
+      );
+      handle.fixedInvoice = inv;
+      await _saveFixedInvoice(forMerchant, inv);
+      return inv;
+    }
+    throw Exception(
+        'Fatura Lightning ainda indisponível — o nó pode estar iniciando ou offline. Tente novamente em instantes.');
+  }
+
   void addMerchantProduct(Product p) {
     _merchantProducts.add(p);
     _saveMerchantProducts();
@@ -892,7 +965,12 @@ class WalletService extends ChangeNotifier {
   /// Endereço Bitcoin on-chain (testnet) do nó — recebimento puro pela
   /// rede Bitcoin, além da Lightning.
   Future<String> getOnchainAddress({bool forMerchant = false}) async {
-    final handle = forMerchant ? _merchantNode : _consumerNode;
+    var handle = forMerchant ? _merchantNode : _consumerNode;
+    // Nó em mock (ex.: timeout no boot): tenta reiniciar antes de falhar.
+    if (handle.api == null) {
+      await restartNode(forMerchant: forMerchant);
+      handle = forMerchant ? _merchantNode : _consumerNode;
+    }
     if (!handle.isRunning || handle.api == null) {
       // Nunca exibir endereço falso: sem nó, sem endereço.
       final reason = handle.lastStartError;
@@ -948,7 +1026,12 @@ class WalletService extends ChangeNotifier {
 
   /// Gera fatura BOLT11 real no nó do perfil correspondente.
   Future<String> createInvoice(int amountSats, String desc, {bool forMerchant = false}) async {
-    final handle = forMerchant ? _merchantNode : _consumerNode;
+    var handle = forMerchant ? _merchantNode : _consumerNode;
+    // Nó em mock (ex.: timeout no boot): tenta reiniciar antes de falhar.
+    if (handle.api == null) {
+      await restartNode(forMerchant: forMerchant);
+      handle = forMerchant ? _merchantNode : _consumerNode;
+    }
     if (!handle.isRunning || handle.api == null) {
       if (handle.isMock) {
         final reason = handle.lastStartError;

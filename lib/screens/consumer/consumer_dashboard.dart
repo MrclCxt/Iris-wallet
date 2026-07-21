@@ -30,6 +30,8 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
     // A moeda do app é o satoshi; o toggle apenas muda a exibição para BRL.
     final balanceSats = wallet.consumerBalance + liquid.balanceSats;
     final balanceBrl = exchangeRate.satsToBrl(balanceSats);
+    // No desktop o saldo aparece bem maior.
+    final balanceFontSize = MediaQuery.of(context).size.width >= 850 ? 68.0 : 44.0;
 
     return SafeArea(
       child: Column(
@@ -95,9 +97,9 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                               _showSats
                                   ? CurrencyFormatter.formatBtcOrSats(balanceSats)
                                   : 'R\$ ${CurrencyFormatter.formatBrlCompact(balanceBrl)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'monospace',
-                                fontSize: 44,
+                                fontSize: balanceFontSize,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
                               ),
@@ -113,7 +115,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          '1 BTC = R\$ ${CurrencyFormatter.formatBrl(exchangeRate.btcToBrlRate)}',
+                          '1 BTC = R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.btcToBrlRate)}',
                           style: const TextStyle(
                             fontFamily: 'monospace',
                             fontSize: 10,
@@ -260,7 +262,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
             final sats = isPos ? tx.amountSats : -tx.amountSats;
             final valStr = exchangeRate.isSatsDisplay
                 ? '${isPos ? '+' : ''}${CurrencyFormatter.formatBtcOrSats(sats)}'
-                : '${isPos ? '+' : '-'}R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(sats.abs()))}';
+                : '${isPos ? '+' : '-'}R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(sats.abs()))}';
 
             return DataRow(
               cells: [
@@ -327,12 +329,12 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
             Text(
               showSats
                   ? '${isPos ? '+' : '-'}${CurrencyFormatter.formatBtcOrSats(sats.abs())}'
-                  : '${isPos ? '+' : '-'}R\$ ${CurrencyFormatter.formatBrl(brl)}',
+                  : '${isPos ? '+' : '-'}R\$ ${CurrencyFormatter.formatBrlCompact(brl)}',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color),
             ),
             Text(
               showSats
-                  ? '≈ R\$ ${CurrencyFormatter.formatBrl(brl)}'
+                  ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(brl)}'
                   : '≈ ${CurrencyFormatter.formatBtcOrSats(sats.abs())}',
               style: const TextStyle(fontSize: 10, color: IrisTheme.textTertiary, fontFamily: 'monospace'),
             ),

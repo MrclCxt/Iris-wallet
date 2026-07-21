@@ -13,6 +13,8 @@ import '../../services/pix_service.dart';
 import '../../services/exchange_rate_service.dart';
 import '../../services/chroma_service.dart';
 import '../../widgets/currency_toggle_btn.dart';
+import '../../widgets/numpad.dart';
+import '../../widgets/max_width_container.dart';
 import 'consumer_pay_success_screen.dart';
 import '../pin_screen.dart';
 
@@ -112,6 +114,52 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
       _idleTimer?.cancel();
       if (mounted) setState(() => _amountEditing = false);
     }
+  }
+
+  /// Reagenda a volta para a forma abreviada 700 ms após a última tecla.
+  void _scheduleIdle() {
+    _idleTimer?.cancel();
+    _idleTimer = Timer(const Duration(milliseconds: 700), () {
+      if (mounted && _amountCtrl.text.isNotEmpty) {
+        setState(() => _amountEditing = false);
+      }
+    });
+  }
+
+  /// Teclado numérico digital: insere um dígito/vírgula no valor.
+  void _numpadKey(String key) {
+    final showSats = _rate?.isSatsDisplay ?? true;
+    if (key == ',' && showSats) return; // sats não tem decimal
+    final fmt = _AmountInputFormatter(decimal: !showSats);
+    final appended = _amountCtrl.text + key;
+    _amountCtrl.value = fmt.formatEditUpdate(
+      _amountCtrl.value,
+      TextEditingValue(
+        text: appended,
+        selection: TextSelection.collapsed(offset: appended.length),
+      ),
+    );
+    _amountEditing = true;
+    _scheduleIdle();
+    setState(() {});
+  }
+
+  /// Teclado numérico digital: apaga o último caractere.
+  void _numpadBackspace() {
+    if (_amountCtrl.text.isEmpty) return;
+    final showSats = _rate?.isSatsDisplay ?? true;
+    final fmt = _AmountInputFormatter(decimal: !showSats);
+    final trimmed = _amountCtrl.text.substring(0, _amountCtrl.text.length - 1);
+    _amountCtrl.value = fmt.formatEditUpdate(
+      _amountCtrl.value,
+      TextEditingValue(
+        text: trimmed,
+        selection: TextSelection.collapsed(offset: trimmed.length),
+      ),
+    );
+    _amountEditing = true;
+    _scheduleIdle();
+    setState(() {});
   }
 
   @override
@@ -379,7 +427,7 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
     final insufficient = amountSats > 0 && amountSats > availableSats;
     final availableLabel = exchangeRate.isSatsDisplay
         ? CurrencyFormatter.formatBtcOrSats(availableSats)
-        : 'R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(availableSats))}';
+        : 'R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(availableSats))}';
 
     return Scaffold(
       backgroundColor: IrisTheme.bg,
@@ -408,6 +456,8 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
         child: SingleChildScrollView(
           child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: MaxWidthContainer(
+          maxWidth: 460,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -490,7 +540,7 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                         child: Text(
                           exchangeRate.isSatsDisplay
                               ? CurrencyFormatter.formatBtcOrSats(_satsAmount)
-                              : 'R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(_satsAmount))}',
+                              : 'R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(_satsAmount))}',
                           style: const TextStyle(
                             fontFamily: 'monospace',
                             fontSize: 38,
@@ -543,6 +593,15 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                   ],
                 ),
               ),
+              // Teclado numérico digital para o valor de envio editável.
+              if (widget.editableAmount && !_isPix) ...[
+                const SizedBox(height: 20),
+                Numpad(
+                  onKeyPress: _numpadKey,
+                  onBackspace: _numpadBackspace,
+                  showDecimal: !exchangeRate.isSatsDisplay,
+                ),
+              ],
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -557,25 +616,22 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      // Bloqueia o envio quando o saldo é insuficiente.
-                      onPressed: insufficient ? null : _confirmWithPin,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        disabledBackgroundColor: IrisTheme.s3,
-                        disabledForegroundColor: IrisTheme.textTertiary,
-                      ),
-                      child: Text(insufficient ? 'Saldo insuficiente' : 'Confirmar com PIN'),
-                    ),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  // Bloqueia o envio quando o saldo é insuficiente.
+                  onPressed: insufficient ? null : _confirmWithPin,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                    disabledBackgroundColor: IrisTheme.s3,
+                    disabledForegroundColor: IrisTheme.textTertiary,
                   ),
+                  child: Text(insufficient ? 'Saldo insuficiente' : 'Confirmar com PIN'),
                 ),
               ),
             ],
+          ),
           ),
         ),
         ),
@@ -689,14 +745,10 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
           child: TextField(
             controller: _amountCtrl,
             focusNode: _amountFocus,
-            autofocus: true,
-            // Cursor só aparece quando há texto: enquanto vazio, mostra apenas
-            // o placeholder ("0"/"0,00") sem o ponteiro piscando por cima dele.
+            // A entrada é pelo teclado numérico digital abaixo (readOnly evita
+            // o teclado do sistema); o cursor continua visível.
+            readOnly: true,
             showCursor: _amountCtrl.text.isNotEmpty,
-            keyboardType: showSats
-                ? TextInputType.number
-                : const TextInputType.numberWithOptions(decimal: true),
-            // Agrupa milhares com "." (ex.: 1.000, 10.000) e limita o tamanho.
             inputFormatters: [_AmountInputFormatter(decimal: !showSats)],
             textAlign: TextAlign.center,
             style: numStyle,

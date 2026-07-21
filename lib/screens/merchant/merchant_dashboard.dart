@@ -167,7 +167,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                         wallet.cartTotal > 0 
                             ? (exchangeRate.isSatsDisplay 
                                 ? '⚡ Cobrar ${CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(wallet.cartTotal))}'
-                                : '⚡ Cobrar R\$ ${CurrencyFormatter.formatBrl(wallet.cartTotal)}')
+                                : '⚡ Cobrar R\$ ${CurrencyFormatter.formatBrlCompact(wallet.cartTotal)}')
                             : '⚡ Cobrar valor específico',
                       ),
                     ),
@@ -243,7 +243,8 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
             backgroundColor: Colors.transparent,
             insetPadding: const EdgeInsets.all(16),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 450, maxHeight: 700),
+              // Alto o suficiente para o conteúdo caber sem scroll.
+              constraints: const BoxConstraints(maxWidth: 450, maxHeight: 780),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: MerchantProductQrScreen(product: p),
@@ -268,12 +269,14 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(p.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  Text(p.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
                   Text(
                     exchangeRate.isSatsDisplay
                         ? CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(p.price))
-                        : 'R\$ ${CurrencyFormatter.formatBrl(p.price)}',
+                        : 'R\$ ${CurrencyFormatter.formatBrlCompact(p.price)}',
                     style: const TextStyle(fontSize: 11, color: IrisTheme.textSecondary),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

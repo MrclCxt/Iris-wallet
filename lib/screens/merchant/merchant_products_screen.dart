@@ -137,7 +137,8 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
             backgroundColor: Colors.transparent,
             insetPadding: const EdgeInsets.all(16),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 450, maxHeight: 700),
+              // Alto o suficiente para o conteúdo caber sem scroll.
+              constraints: const BoxConstraints(maxWidth: 450, maxHeight: 780),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: MerchantProductQrScreen(product: p),
@@ -173,8 +174,10 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                   Text(
                     exchangeRate.isSatsDisplay
                         ? CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(p.price))
-                        : 'R\$ ${CurrencyFormatter.formatBrl(p.price)}',
+                        : 'R\$ ${CurrencyFormatter.formatBrlCompact(p.price)}',
                     style: const TextStyle(fontFamily: 'monospace', color: IrisTheme.success),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

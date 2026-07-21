@@ -6,6 +6,7 @@ import '../consumer/receive_qr_screen.dart';
 import '../../services/exchange_rate_service.dart';
 import 'package:provider/provider.dart';
 import '../../widgets/currency_toggle_btn.dart';
+import '../../widgets/max_width_container.dart';
 
 class CustomChargeScreen extends StatefulWidget {
   final bool isMerchant;
@@ -110,63 +111,61 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
         title: const Text('Cobrar Valor Específico', style: TextStyle(color: IrisTheme.textPrimary, fontSize: 16)),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const SizedBox(width: 40), 
-                  const CurrencyToggleBtn(),
-                  const SizedBox(width: 40),
-                ],
-              ),
-            ),
-            Expanded(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: MaxWidthContainer(
+              maxWidth: 460,
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    mainDisplay,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 48,
-                      fontWeight: FontWeight.w600,
-                      color: IrisTheme.primary,
+                  const Center(child: CurrencyToggleBtn()),
+                  const SizedBox(height: 20),
+                  // Mesmo card do valor específico do PIX: rótulo + valor + numpad.
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: IrisTheme.s1,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: IrisTheme.bdr),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text('Valor da cobrança',
+                            style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
+                        const SizedBox(height: 8),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            mainDisplay,
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 40,
+                              fontWeight: FontWeight.w600,
+                              color: IrisTheme.primary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          convertedDisplay,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            color: IrisTheme.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Numpad(
+                          onKeyPress: _handleKeyPress,
+                          onBackspace: _handleBackspace,
+                          showDecimal: !isSatsMode,
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    convertedDisplay,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 16,
-                      color: IrisTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-                  child: Numpad(
-                    onKeyPress: _handleKeyPress,
-                    onBackspace: _handleBackspace,
-                    showDecimal: !isSatsMode,
-                  ),
-                ),
-              ),
-            ),
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: SizedBox(
+                  const SizedBox(height: 16),
+                  SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: _inputValue > 0 ? _generateQR : null,
@@ -176,10 +175,10 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
                       child: const Text('Gerar QR Code'),
                     ),
                   ),
-                ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

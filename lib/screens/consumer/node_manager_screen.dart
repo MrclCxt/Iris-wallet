@@ -324,12 +324,12 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                 Text(
                   rate.isSatsDisplay
                       ? CurrencyFormatter.formatBtcOrSats(_onChainBalance)
-                      : 'R\$ ${CurrencyFormatter.formatBrl(rate.satsToBrl(_onChainBalance))}',
+                      : 'R\$ ${CurrencyFormatter.formatBrlCompact(rate.satsToBrl(_onChainBalance))}',
                   style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: IrisTheme.textPrimary),
                 ),
                 Text(
                   rate.isSatsDisplay
-                      ? '≈ R\$ ${CurrencyFormatter.formatBrl(rate.satsToBrl(_onChainBalance))}'
+                      ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(rate.satsToBrl(_onChainBalance))}'
                       : '≈ ${CurrencyFormatter.formatBtcOrSats(_onChainBalance)}',
                   style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: IrisTheme.textTertiary),
                 ),
@@ -473,7 +473,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                             Text(
                                 context.watch<ExchangeRateService>().isSatsDisplay
                                     ? CurrencyFormatter.formatBtcOrSats(outbound)
-                                    : 'R\$ ${CurrencyFormatter.formatBrl(context.watch<ExchangeRateService>().satsToBrl(outbound))}',
+                                    : 'R\$ ${CurrencyFormatter.formatBrlCompact(context.watch<ExchangeRateService>().satsToBrl(outbound))}',
                                 style: const TextStyle(color: IrisTheme.primaryLight, fontWeight: FontWeight.bold)),
                           ],
                         ),
@@ -486,7 +486,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                             Text(
                                 context.watch<ExchangeRateService>().isSatsDisplay
                                     ? CurrencyFormatter.formatBtcOrSats(capacity)
-                                    : 'R\$ ${CurrencyFormatter.formatBrl(context.watch<ExchangeRateService>().satsToBrl(capacity))}',
+                                    : 'R\$ ${CurrencyFormatter.formatBrlCompact(context.watch<ExchangeRateService>().satsToBrl(capacity))}',
                                 style: const TextStyle(color: IrisTheme.textPrimary, fontWeight: FontWeight.bold)),
                           ],
                         ),
@@ -499,7 +499,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                             Text(
                                 context.watch<ExchangeRateService>().isSatsDisplay
                                     ? CurrencyFormatter.formatBtcOrSats(inbound)
-                                    : 'R\$ ${CurrencyFormatter.formatBrl(context.watch<ExchangeRateService>().satsToBrl(inbound))}',
+                                    : 'R\$ ${CurrencyFormatter.formatBrlCompact(context.watch<ExchangeRateService>().satsToBrl(inbound))}',
                                 style: const TextStyle(color: IrisTheme.success, fontWeight: FontWeight.bold)),
                           ],
                         ),

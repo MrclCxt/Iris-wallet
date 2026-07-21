@@ -28,9 +28,13 @@ class Numpad extends StatelessWidget {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(right: 12),
-                child: _buildKey(showDecimal ? ',' : '', () {
-                  if (showDecimal) onKeyPress(',');
-                }),
+                // Vírgula sempre visível, abaixo do 7. Fica inativa (cinza)
+                // quando a tela não aceita decimais (ex.: valores em sats).
+                child: _buildKey(
+                  ',',
+                  showDecimal ? () => onKeyPress(',') : null,
+                  enabled: showDecimal,
+                ),
               ),
             ),
             Expanded(
@@ -61,25 +65,27 @@ class Numpad extends StatelessWidget {
     );
   }
 
-  Widget _buildKey(String label, VoidCallback onTap) {
+  Widget _buildKey(String label, VoidCallback? onTap, {bool enabled = true}) {
     if (label.isEmpty) {
-      return SizedBox.shrink();
+      return const SizedBox.shrink();
     }
     return GestureDetector(
-      onTap: onTap,
+      onTap: enabled ? onTap : null,
       child: Container(
-        height: 60,
+        height: 76,
         decoration: BoxDecoration(
           color: IrisTheme.s1,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: IrisTheme.bdr),
         ),
         alignment: Alignment.center,
         child: Text(
           label,
-          style: const TextStyle(
-            fontSize: 24,
+          style: TextStyle(
+            fontSize: 30,
+            fontWeight: FontWeight.w600,
             fontFamily: 'Outfit',
+            color: enabled ? IrisTheme.textPrimary : IrisTheme.textTertiary,
           ),
         ),
       ),

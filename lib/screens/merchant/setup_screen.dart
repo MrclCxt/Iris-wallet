@@ -334,9 +334,9 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                     children: [
                       SizedBox(
                         width: 20,
-                        child: Text('${i + 1}.', style: const TextStyle(fontSize: 10, fontFamily: 'JetBrains Mono', color: IrisTheme.textTertiary)),
+                        child: Text('${i + 1}.', style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: IrisTheme.textTertiary)),
                       ),
-                      Text(words[i], style: const TextStyle(fontSize: 12, fontFamily: 'JetBrains Mono', color: IrisTheme.primary, fontWeight: FontWeight.w600)),
+                      Text(words[i], style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: IrisTheme.primary, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 );
@@ -437,7 +437,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                   TextField(
                     controller: _seedCtrl,
                     maxLines: 4,
-                    style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 13, color: IrisTheme.textPrimary),
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 13, color: IrisTheme.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'palavra1 palavra2 ...',
                       hintStyle: TextStyle(color: IrisTheme.textSecondary.withOpacity(0.5)),
@@ -625,7 +625,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                   child: Text(
                     opt,
                     style: TextStyle(
-                      fontFamily: 'JetBrains Mono',
+                      fontFamily: 'monospace',
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: isSelected ? Colors.black : IrisTheme.textPrimary,
@@ -704,7 +704,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
             icon ?? val,
             style: TextStyle(
               fontSize: icon != null ? 16 : 20,
-              fontFamily: 'JetBrains Mono',
+              fontFamily: 'monospace',
               fontWeight: FontWeight.w600,
               color: IrisTheme.textPrimary,
             ),

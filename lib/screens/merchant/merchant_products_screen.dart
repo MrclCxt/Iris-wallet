@@ -34,29 +34,16 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                 const Text('Produtos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 IconButton(
                   icon: const Icon(Icons.add, color: IrisTheme.primary),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => Dialog(
-                        backgroundColor: Colors.transparent,
-                        insetPadding: const EdgeInsets.all(16),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 450, maxHeight: 700),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: const MerchantProductNewScreen(),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+                  onPressed: () => _openNewProduct(context),
                 ),
               ],
             ),
           ),
           
           Expanded(
-            child: MediaQuery.of(context).size.width >= 850
+            child: products.isEmpty
+                ? _buildEmptyState(context)
+                : MediaQuery.of(context).size.width >= 850
                 ? GridView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                     gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -82,6 +69,60 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _openNewProduct(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 450, maxHeight: 700),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: const MerchantProductNewScreen(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.inventory_2_outlined, size: 48, color: IrisTheme.textTertiary),
+            const SizedBox(height: 16),
+            const Text(
+              'Nenhum produto cadastrado',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Cadastre os itens da sua loja para gerar cobranças com um toque.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: IrisTheme.textTertiary, height: 1.4),
+            ),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: () => _openNewProduct(context),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Adicionar produto'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: IrisTheme.primary,
+                side: const BorderSide(color: IrisTheme.primary),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -131,9 +172,9 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                   const SizedBox(height: 4),
                   Text(
                     exchangeRate.isSatsDisplay
-                        ? '${CurrencyFormatter.formatSats(exchangeRate.brlToSats(p.price))} SATS'
+                        ? CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(p.price))
                         : 'R\$ ${CurrencyFormatter.formatBrl(p.price)}',
-                    style: const TextStyle(fontFamily: 'JetBrains Mono', color: IrisTheme.success),
+                    style: const TextStyle(fontFamily: 'monospace', color: IrisTheme.success),
                   ),
                 ],
               ),

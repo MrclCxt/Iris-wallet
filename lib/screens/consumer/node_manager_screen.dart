@@ -323,15 +323,15 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
               children: [
                 Text(
                   rate.isSatsDisplay
-                      ? '${CurrencyFormatter.formatSats(_onChainBalance)} sats'
+                      ? CurrencyFormatter.formatBtcOrSats(_onChainBalance)
                       : 'R\$ ${CurrencyFormatter.formatBrl(rate.satsToBrl(_onChainBalance))}',
                   style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: IrisTheme.textPrimary),
                 ),
                 Text(
                   rate.isSatsDisplay
                       ? '≈ R\$ ${CurrencyFormatter.formatBrl(rate.satsToBrl(_onChainBalance))}'
-                      : '≈ ${CurrencyFormatter.formatSats(_onChainBalance)} sats',
-                  style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 12, color: IrisTheme.textTertiary),
+                      : '≈ ${CurrencyFormatter.formatBtcOrSats(_onChainBalance)}',
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: IrisTheme.textTertiary),
                 ),
               ],
             );
@@ -472,7 +472,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                             const Text('Posso Enviar', style: TextStyle(fontSize: 10, color: IrisTheme.textSecondary)),
                             Text(
                                 context.watch<ExchangeRateService>().isSatsDisplay
-                                    ? '${CurrencyFormatter.formatSats(outbound)} sats'
+                                    ? CurrencyFormatter.formatBtcOrSats(outbound)
                                     : 'R\$ ${CurrencyFormatter.formatBrl(context.watch<ExchangeRateService>().satsToBrl(outbound))}',
                                 style: const TextStyle(color: IrisTheme.primaryLight, fontWeight: FontWeight.bold)),
                           ],
@@ -485,7 +485,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                             const Text('Capacidade', style: TextStyle(fontSize: 10, color: IrisTheme.textSecondary)),
                             Text(
                                 context.watch<ExchangeRateService>().isSatsDisplay
-                                    ? '${CurrencyFormatter.formatSats(capacity)} sats'
+                                    ? CurrencyFormatter.formatBtcOrSats(capacity)
                                     : 'R\$ ${CurrencyFormatter.formatBrl(context.watch<ExchangeRateService>().satsToBrl(capacity))}',
                                 style: const TextStyle(color: IrisTheme.textPrimary, fontWeight: FontWeight.bold)),
                           ],
@@ -498,7 +498,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                             const Text('Posso Receber', style: TextStyle(fontSize: 10, color: IrisTheme.textSecondary)),
                             Text(
                                 context.watch<ExchangeRateService>().isSatsDisplay
-                                    ? '${CurrencyFormatter.formatSats(inbound)} sats'
+                                    ? CurrencyFormatter.formatBtcOrSats(inbound)
                                     : 'R\$ ${CurrencyFormatter.formatBrl(context.watch<ExchangeRateService>().satsToBrl(inbound))}',
                                 style: const TextStyle(color: IrisTheme.success, fontWeight: FontWeight.bold)),
                           ],

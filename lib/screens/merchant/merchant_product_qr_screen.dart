@@ -185,7 +185,7 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                   children: [
                     Text(
                       exchangeRate.isSatsDisplay
-                          ? '${CurrencyFormatter.formatSats(satsAmount)} sats'
+                          ? CurrencyFormatter.formatBtcOrSats(satsAmount)
                           : 'R\$ ${CurrencyFormatter.formatBrl(product.price)}',
                       style: Theme.of(context).textTheme.displayLarge?.copyWith(color: IrisTheme.success, fontSize: 42),
                     ),
@@ -193,8 +193,8 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                     Text(
                       exchangeRate.isSatsDisplay
                           ? '≈ R\$ ${CurrencyFormatter.formatBrl(product.price)}'
-                          : '≈ ${CurrencyFormatter.formatSats(satsAmount)} sats',
-                      style: const TextStyle(fontSize: 15, color: IrisTheme.textSecondary, fontFamily: 'JetBrains Mono'),
+                          : '≈ ${CurrencyFormatter.formatBtcOrSats(satsAmount)}',
+                      style: const TextStyle(fontSize: 15, color: IrisTheme.textSecondary, fontFamily: 'monospace'),
                     ),
                     const SizedBox(height: 32),
                     
@@ -234,7 +234,7 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                               child: Text(
                                 _invoiceData!,
                                 style: const TextStyle(
-                                  fontFamily: 'JetBrains Mono',
+                                  fontFamily: 'monospace',
                                   fontSize: 12,
                                   color: IrisTheme.textSecondary,
                                 ),

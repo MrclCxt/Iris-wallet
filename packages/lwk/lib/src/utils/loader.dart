@@ -85,6 +85,9 @@ class Dylib {
       return ExternalLibrary.open("$name.so");
     } else if (Platform.isLinux) {
       return ExternalLibrary.open("$name.so");
+    } else if (Platform.isWindows) {
+      // No Windows a cargokit gera "lwk.dll" ao lado do executável.
+      return ExternalLibrary.open("$iosName.dll");
     } else {
       throw Exception("not support platform:${Platform.operatingSystem}");
     }

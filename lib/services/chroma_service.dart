@@ -49,6 +49,18 @@ class ChromaService extends ChangeNotifier with WidgetsBindingObserver {
         colors: [primary, accent],
       );
 
+  /// Espectro horizontal com várias paradas — pensado para o ShaderMask do
+  /// saldo: cobre a largura inteira do texto para que TODO caractere receba
+  /// cor (o gradiente de 2 cores deixava dígitos das pontas quase monocromáticos).
+  LinearGradient get spectrumGradient => LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: List.generate(
+          6,
+          (i) => HSLColor.fromAHSL(1.0, (_hue + i * 30) % 360, 0.85, 0.62).toColor(),
+        ),
+      );
+
   /// Gradient matching the current position in the spectrum for buttons
   LinearGradient get buttonGradient => LinearGradient(
         colors: [

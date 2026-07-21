@@ -115,6 +115,7 @@ class _NodeHandle {
   NodeApi? api;
   bool isRunning = false;
   bool isMock = false; // fallback de UI quando o motor nativo não carrega
+  String? lastStartError; // motivo real da falha de inicialização (diagnóstico)
   bool isMerchant = false;
   bool isRemote = false; // true quando conectado ao daemon local
   int lightningBalanceSats = 0;
@@ -558,7 +559,12 @@ class WalletService extends ChangeNotifier {
         if (!await dir.exists()) {
           await dir.create(recursive: true);
         }
-        api = EmbeddedNodeApi(mnemonic: mnemonic, storagePath: nodePath);
+        api = EmbeddedNodeApi(
+          mnemonic: mnemonic,
+          storagePath: nodePath,
+          // Portas distintas: os dois perfis rodam no mesmo processo.
+          listeningPort: isMerchant ? 9736 : 9735,
+        );
         handle.isRemote = false;
       }
 
@@ -566,14 +572,10 @@ class WalletService extends ChangeNotifier {
       handle.api = api;
       handle.isRunning = true;
       handle.isMock = false;
+      handle.lastStartError = null;
       handle.isMerchant = isMerchant;
 
-      if (!isMerchant) {
-        await _loadMerchantProducts();
-        if (_merchantProducts.isEmpty) {
-          addMerchantProduct(Product(id: 'prod_coffee', emoji: '☕', name: 'Café Expresso', price: 15.0));
-        }
-      }
+      if (isMerchant) await _loadMerchantProducts();
 
       // Fatura fixa de valor aberto (QR estático da carteira)
       try {
@@ -594,14 +596,20 @@ class WalletService extends ChangeNotifier {
       debugPrint(
           'Nó (${isMerchant ? 'loja' : 'pessoal'}) iniciado na testnet — backend ${handle.isRemote ? 'daemon local' : 'embarcado'}.');
     } catch (e) {
-      debugPrint('Falha ao iniciar nó: $e');
+      debugPrint('Falha ao iniciar nó (${isMerchant ? 'loja' : 'pessoal'}): $e');
       // Fallback de UI: mantém o app utilizável se o motor nativo não carregar
       handle.isRunning = true;
       handle.isMock = true;
       handle.fixedInvoice = null;
+      handle.lastStartError = e.toString();
       notifyListeners();
     }
   }
+
+  /// Motivo real da indisponibilidade do nó (perfil pessoal ou loja), para
+  /// exibir na UI em vez de uma mensagem genérica. Null quando o nó está ok.
+  String? nodeStartError({bool forMerchant = false}) =>
+      (forMerchant ? _merchantNode : _consumerNode).lastStartError;
 
   /// Loop de eventos do nó: credita recebimentos, confirma/derruba envios.
   /// Funciona igual para backend embarcado (FFI) e daemon local (RPC).
@@ -737,6 +745,12 @@ class WalletService extends ChangeNotifier {
     await _consumerNode.stop();
     await _merchantNode.stop();
     await _storage.deleteAll();
+    final prefs = await SharedPreferences.getInstance();
+    for (final a in _merchantAccounts) {
+      await prefs.remove('merchant_products_${a.id}');
+    }
+    await prefs.remove('merchant_products');
+    _merchantProducts = [];
     _consumerAccounts.clear();
     _merchantAccounts.clear();
     _activeConsumerId = null;
@@ -766,6 +780,9 @@ class WalletService extends ChangeNotifier {
 
   Future<void> deleteActiveMerchant() async {
     await _merchantNode.stop();
+    final removedId = _activeMerchantId;
+    if (removedId != null) await _deleteMerchantProducts(removedId);
+    _merchantProducts = [];
     _merchantAccounts.removeWhere((a) => a.id == _activeMerchantId);
     if (_merchantAccounts.isNotEmpty) {
       _activeMerchantId = _merchantAccounts.first.id;
@@ -791,6 +808,7 @@ class WalletService extends ChangeNotifier {
   Future<void> switchMerchantAccount(String id) async {
     await _merchantNode.stop();
     _activeMerchantId = id;
+    _merchantProducts = []; // recarregado ao destravar a loja
     await _saveMerchants();
     _isMerchantUnlocked = false; // Requer PIN para a nova loja
     notifyListeners();
@@ -800,23 +818,44 @@ class WalletService extends ChangeNotifier {
   // Produtos do lojista
   // ---------------------------------------------------------------------
 
+  /// Cada loja tem seu próprio catálogo. Uma loja nova nasce sem produtos.
+  String? get _productsKey =>
+      _activeMerchantId == null ? null : 'merchant_products_$_activeMerchantId';
+
   Future<void> _loadMerchantProducts() async {
+    final key = _productsKey;
+    if (key == null) {
+      _merchantProducts = [];
+      return;
+    }
     final prefs = await SharedPreferences.getInstance();
-    final jsonStr = prefs.getString('merchant_products');
-    if (jsonStr != null && jsonStr.isNotEmpty) {
-      try {
-        final List<dynamic> jsonList = jsonDecode(jsonStr);
-        _merchantProducts = jsonList.map((j) => Product.fromJson(j)).toList();
-      } catch (e) {
-        debugPrint('Failed to decode merchant products: $e');
-      }
+    // Catálogo global legado (compartilhado entre lojas): descartado.
+    await prefs.remove('merchant_products');
+    final jsonStr = prefs.getString(key);
+    if (jsonStr == null || jsonStr.isEmpty) {
+      _merchantProducts = [];
+      return;
+    }
+    try {
+      final List<dynamic> jsonList = jsonDecode(jsonStr);
+      _merchantProducts = jsonList.map((j) => Product.fromJson(j)).toList();
+    } catch (e) {
+      debugPrint('Failed to decode merchant products: $e');
+      _merchantProducts = [];
     }
   }
 
   Future<void> _saveMerchantProducts() async {
+    final key = _productsKey;
+    if (key == null) return;
     final prefs = await SharedPreferences.getInstance();
     final jsonStr = jsonEncode(_merchantProducts.map((p) => p.toJson()).toList());
-    await prefs.setString('merchant_products', jsonStr);
+    await prefs.setString(key, jsonStr);
+  }
+
+  Future<void> _deleteMerchantProducts(String merchantId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('merchant_products_$merchantId');
   }
 
   void addMerchantProduct(Product p) {
@@ -856,7 +895,10 @@ class WalletService extends ChangeNotifier {
     final handle = forMerchant ? _merchantNode : _consumerNode;
     if (!handle.isRunning || handle.api == null) {
       // Nunca exibir endereço falso: sem nó, sem endereço.
-      throw Exception('Nó indisponível — não é possível gerar endereço real.');
+      final reason = handle.lastStartError;
+      throw Exception(reason != null
+          ? 'Nó indisponível — não é possível gerar endereço real. Detalhe: $reason'
+          : 'Nó indisponível — não é possível gerar endereço real.');
     }
     return await handle.api!.newOnchainAddress();
   }
@@ -909,8 +951,10 @@ class WalletService extends ChangeNotifier {
     final handle = forMerchant ? _merchantNode : _consumerNode;
     if (!handle.isRunning || handle.api == null) {
       if (handle.isMock) {
-        throw Exception(
-            'Motor do nó indisponível nesta plataforma. Verifique a instalação ou configure um daemon local.');
+        final reason = handle.lastStartError;
+        throw Exception(reason != null
+            ? 'Motor do nó indisponível nesta plataforma. Detalhe: $reason'
+            : 'Motor do nó indisponível nesta plataforma. Verifique a instalação ou configure um daemon local.');
       }
       throw Exception('Nó offline');
     }

@@ -1,0 +1,86 @@
+name: CI Checks - Rust Tests
+
+on: [push, pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform: [
+          ubuntu-latest,
+          macos-latest,
+          windows-latest,
+          ]
+        toolchain: [
+          stable,
+          beta,
+          1.63.0, # Our MSRV
+          ]
+        include:
+          - toolchain: stable
+            check-fmt: true
+            build-uniffi: true
+            platform: ubuntu-latest
+          - toolchain: stable
+            platform: macos-latest
+          - toolchain: stable
+            platform: windows-latest
+          - toolchain: 1.63.0
+            msrv: true
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+      - name: Install Rust ${{ matrix.toolchain }} toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile=minimal --default-toolchain ${{ matrix.toolchain }}
+          rustup override set ${{ matrix.toolchain }}
+      - name: Check formatting on Rust ${{ matrix.toolchain }}
+        if: matrix.check-fmt
+        run: rustup component add rustfmt && cargo fmt --all -- --check
+      - name: Pin packages to allow for MSRV
+        if: matrix.msrv
+        run: |
+          cargo update -p hashlink --precise "0.8.2" --verbose # hashlink 0.8.3 requires hashbrown 0.14, requiring 1.64.0
+          cargo update -p proptest --precise "1.2.0" --verbose # proptest 1.3.0 requires rustc 1.64.0
+          cargo update -p regex --precise "1.9.6" --verbose # regex 1.10.0 requires rustc 1.65.0
+          cargo update -p home --precise "0.5.5" --verbose # home v0.5.9 requires rustc 1.70 or newer
+          cargo update -p url --precise "2.5.0" --verbose # url v2.5.1 requires rustc 1.67 or newer
+      - name: Set RUSTFLAGS to deny warnings
+        if: "matrix.toolchain == 'stable'"
+        run: echo "RUSTFLAGS=-D warnings" >> "$GITHUB_ENV"
+      - name: Download bitcoind/electrs and set environment variables
+        if: "matrix.platform != 'windows-latest'"
+        run: |
+          source ./scripts/download_bitcoind_electrs.sh
+          cp "$BITCOIND_EXE" "$HOME"/bitcoind
+          cp "$ELECTRS_EXE" "$HOME"/electrs
+          echo "BITCOIND_EXE=$HOME/bitcoind" >> "$GITHUB_ENV"
+          echo "ELECTRS_EXE=$HOME/electrs" >> "$GITHUB_ENV"
+      - name: Build on Rust ${{ matrix.toolchain }}
+        run: cargo build --verbose --color always
+      - name: Build with UniFFI support on Rust ${{ matrix.toolchain }}
+        if: matrix.build-uniffi
+        run: cargo build --features uniffi --verbose --color always
+      - name: Build documentation on Rust ${{ matrix.toolchain }}
+        if: "matrix.platform != 'windows-latest' || matrix.toolchain != '1.63.0'"
+        run: |
+          cargo doc --release --verbose --color always
+          cargo doc --document-private-items --verbose --color always
+      - name: Check release build on Rust ${{ matrix.toolchain }}
+        run: cargo check --release --verbose --color always
+      - name: Check release build with UniFFI support on Rust ${{ matrix.toolchain }}
+        if: matrix.build-uniffi
+        run: cargo check --release --features uniffi --verbose --color always
+      - name: Test on Rust ${{ matrix.toolchain }}
+        if: "matrix.platform != 'windows-latest'"
+        run: |
+          RUSTFLAGS="--cfg no_download" cargo test
+      - name: Test with UniFFI support on Rust ${{ matrix.toolchain }}
+        if: "matrix.platform != 'windows-latest' && matrix.build-uniffi"
+        run: |
+          RUSTFLAGS="--cfg no_download" cargo test --features uniffi

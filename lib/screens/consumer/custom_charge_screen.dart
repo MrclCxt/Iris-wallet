@@ -94,7 +94,7 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
       convertedDisplay = '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(_inputValue))}';
     } else {
       mainDisplay = 'R\$ ${CurrencyFormatter.formatBrl(_inputValue / 100.0)}';
-      convertedDisplay = '≈ ${CurrencyFormatter.formatSats(exchangeRate.brlToSats(_inputValue / 100.0))} sats';
+      convertedDisplay = '≈ ${CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(_inputValue / 100.0))}';
     }
 
     return Scaffold(
@@ -130,7 +130,7 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
                   Text(
                     mainDisplay,
                     style: const TextStyle(
-                      fontFamily: 'JetBrains Mono',
+                      fontFamily: 'monospace',
                       fontSize: 48,
                       fontWeight: FontWeight.w600,
                       color: IrisTheme.primary,
@@ -140,7 +140,7 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
                   Text(
                     convertedDisplay,
                     style: const TextStyle(
-                      fontFamily: 'JetBrains Mono',
+                      fontFamily: 'monospace',
                       fontSize: 16,
                       color: IrisTheme.textSecondary,
                     ),

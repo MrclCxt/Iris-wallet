@@ -244,7 +244,7 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
                   child: Text(
                     opt,
                     style: TextStyle(
-                      fontFamily: 'JetBrains Mono',
+                      fontFamily: 'monospace',
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: isSelected ? Colors.black : IrisTheme.textPrimary,

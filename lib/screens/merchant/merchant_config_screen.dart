@@ -50,7 +50,7 @@ class MerchantConfigScreen extends StatelessWidget {
               child: Text(
                 seed,
                 style: const TextStyle(
-                  fontFamily: 'JetBrains Mono',
+                  fontFamily: 'monospace',
                   fontSize: 14,
                   height: 1.5,
                   color: IrisTheme.textPrimary,

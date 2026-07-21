@@ -89,9 +89,9 @@ class MerchantHistoryScreen extends StatelessWidget {
                   DataCell(const Text('Venda', style: TextStyle(color: IrisTheme.textSecondary))),
                   DataCell(Text(
                       exchangeRate.isSatsDisplay
-                          ? '+${CurrencyFormatter.formatSats(tx.amountSats)} sats'
+                          ? '+${CurrencyFormatter.formatBtcOrSats(tx.amountSats)}'
                           : '+R\$ ${CurrencyFormatter.formatBrl(brl)}',
-                      style: const TextStyle(color: IrisTheme.success, fontFamily: 'JetBrains Mono', fontWeight: FontWeight.bold))),
+                      style: const TextStyle(color: IrisTheme.success, fontFamily: 'monospace', fontWeight: FontWeight.bold))),
                   DataCell(Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
@@ -144,7 +144,7 @@ class MerchantHistoryScreen extends StatelessWidget {
             children: [
               Text(
                 exchangeRate.isSatsDisplay
-                    ? '+ ${CurrencyFormatter.formatSats(sats)} sats'
+                    ? '+ ${CurrencyFormatter.formatBtcOrSats(sats)}'
                     : '+ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(sats))}',
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: IrisTheme.success),
               ),
@@ -152,8 +152,8 @@ class MerchantHistoryScreen extends StatelessWidget {
               Text(
                 exchangeRate.isSatsDisplay
                     ? '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(sats))}'
-                    : '≈ ${CurrencyFormatter.formatSats(sats)} sats',
-                style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 10, color: IrisTheme.textTertiary),
+                    : '≈ ${CurrencyFormatter.formatBtcOrSats(sats)}',
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 10, color: IrisTheme.textTertiary),
               ),
             ],
           ),

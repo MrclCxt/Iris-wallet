@@ -260,7 +260,7 @@ class _PinScreenState extends State<PinScreen> {
             icon ?? val,
             style: TextStyle(
               fontSize: icon != null ? 16 : 20,
-              fontFamily: 'JetBrains Mono',
+              fontFamily: 'monospace',
               fontWeight: FontWeight.w600,
               color: IrisTheme.textPrimary,
             ),

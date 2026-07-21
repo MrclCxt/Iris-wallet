@@ -90,7 +90,7 @@ class _SeedRestoreScreenState extends State<SeedRestoreScreen> {
                         TextField(
                           controller: _seedController,
                           maxLines: 4,
-                          style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 13, color: IrisTheme.textPrimary),
+                          style: const TextStyle(fontFamily: 'monospace', fontSize: 13, color: IrisTheme.textPrimary),
                           decoration: InputDecoration(
                             hintText: 'palavra1 palavra2 ...',
                             hintStyle: TextStyle(color: IrisTheme.textSecondary.withOpacity(0.5)),

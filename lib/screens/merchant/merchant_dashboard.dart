@@ -86,12 +86,12 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                       Expanded(
                         child: _buildStatCard(
                           'Hoje',
-                          exchangeRate.isSatsDisplay 
-                              ? '+${CurrencyFormatter.formatSats(todaySats)} SATS'
-                              : '+R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(todaySats))}',
                           exchangeRate.isSatsDisplay
-                              ? '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(todaySats))} · $todaySales vendas'
-                              : '≈ ${CurrencyFormatter.formatSats(todaySats)} sats · $todaySales vendas',
+                              ? '+${CurrencyFormatter.formatBtcOrSats(todaySats)}'
+                              : '+R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(todaySats))}',
+                          exchangeRate.isSatsDisplay
+                              ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(todaySats))} · $todaySales vendas'
+                              : '≈ ${CurrencyFormatter.formatBtcOrSats(todaySats)} · $todaySales vendas',
                           IrisTheme.success,
                         ),
                       ),
@@ -100,11 +100,11 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                         child: _buildStatCard(
                           'Semana',
                           exchangeRate.isSatsDisplay
-                              ? '${CurrencyFormatter.formatSats(weekSats)} SATS'
-                              : 'R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(weekSats))}',
+                              ? CurrencyFormatter.formatBtcOrSats(weekSats)
+                              : 'R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(weekSats))}',
                           exchangeRate.isSatsDisplay
-                              ? '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(weekSats))} · $weekSales vendas'
-                              : '≈ ${CurrencyFormatter.formatSats(weekSats)} sats · $weekSales vendas',
+                              ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(weekSats))} · $weekSales vendas'
+                              : '≈ ${CurrencyFormatter.formatBtcOrSats(weekSats)} · $weekSales vendas',
                           IrisTheme.textPrimary,
                         ),
                       ),
@@ -118,11 +118,11 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                         child: _buildStatCard(
                           'Saldo loja',
                           exchangeRate.isSatsDisplay
-                              ? '${CurrencyFormatter.formatSats(totalSats)} SATS'
-                              : 'R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(totalSats))}',
+                              ? CurrencyFormatter.formatBtcOrSats(totalSats)
+                              : 'R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(totalSats))}',
                           exchangeRate.isSatsDisplay
-                              ? '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(totalSats))}'
-                              : '≈ ${CurrencyFormatter.formatSats(totalSats)} sats',
+                              ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(totalSats))}'
+                              : '≈ ${CurrencyFormatter.formatBtcOrSats(totalSats)}',
                           IrisTheme.primary,
                         ),
                       ),
@@ -166,7 +166,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                       child: Text(
                         wallet.cartTotal > 0 
                             ? (exchangeRate.isSatsDisplay 
-                                ? '⚡ Cobrar ${CurrencyFormatter.formatSats(exchangeRate.brlToSats(wallet.cartTotal))} SATS'
+                                ? '⚡ Cobrar ${CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(wallet.cartTotal))}'
                                 : '⚡ Cobrar R\$ ${CurrencyFormatter.formatBrl(wallet.cartTotal)}')
                             : '⚡ Cobrar valor específico',
                       ),
@@ -225,7 +225,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
         children: [
           Text(label, style: const TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
           const SizedBox(height: 4),
-          Text(value, style: TextStyle(fontFamily: 'JetBrains Mono', fontSize: 13, fontWeight: FontWeight.w700, color: valueColor)),
+          Text(value, style: TextStyle(fontFamily: 'monospace', fontSize: 13, fontWeight: FontWeight.w700, color: valueColor)),
           const SizedBox(height: 2),
           Text(unit, style: const TextStyle(fontSize: 10, color: IrisTheme.textTertiary)),
         ],
@@ -271,7 +271,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                   Text(p.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                   Text(
                     exchangeRate.isSatsDisplay
-                        ? '${CurrencyFormatter.formatSats(exchangeRate.brlToSats(p.price))} SATS'
+                        ? CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(p.price))
                         : 'R\$ ${CurrencyFormatter.formatBrl(p.price)}',
                     style: const TextStyle(fontSize: 11, color: IrisTheme.textSecondary),
                   ),

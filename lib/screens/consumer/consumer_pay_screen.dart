@@ -425,7 +425,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
               children: [
                 const SizedBox(width: 48), // Balance for centering
                 const Text(
-                  'Pagar',
+                  'Enviar',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -702,7 +702,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                       )
-                    : const Text('Confirmar e Pagar'),
+                    : const Text('Confirmar e Enviar'),
               ),
             ),
           ],

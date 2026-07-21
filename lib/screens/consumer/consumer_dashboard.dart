@@ -80,34 +80,42 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        ShaderMask(
-                          shaderCallback: (bounds) =>
-                              chroma.brandGradient.createShader(bounds),
-                          child: Text(
-                            _showSats
-                                ? CurrencyFormatter.formatSats(balanceSats)
-                                : 'R\$ ${CurrencyFormatter.formatBrl(balanceBrl)}',
-                            style: const TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 44,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                              height: 1,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: ShaderMask(
+                            // O shader é criado sobre um retângulo levemente
+                            // inflado para garantir que TODO glifo (inclusive o
+                            // rabo da vírgula e as bordas antialias) caia dentro
+                            // da área do gradiente — senão parte fica branca.
+                            // Sem `height: 1`: a caixa de linha apertada cortava
+                            // a máscara abaixo da vírgula.
+                            shaderCallback: (bounds) =>
+                                chroma.spectrumGradient.createShader(bounds.inflate(2)),
+                            child: Text(
+                              _showSats
+                                  ? CurrencyFormatter.formatBtcOrSats(balanceSats)
+                                  : 'R\$ ${CurrencyFormatter.formatBrlCompact(balanceBrl)}',
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 44,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
                         const SizedBox(height: 5),
                         Text(
                           _showSats
-                              ? 'sats · ≈ R\$ ${CurrencyFormatter.formatBrl(balanceBrl)}'
-                              : '≈ ${CurrencyFormatter.formatSats(balanceSats)} sats',
+                              ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(balanceBrl)}'
+                              : '≈ ${CurrencyFormatter.formatBtcOrSats(balanceSats)}',
                           style: const TextStyle(fontSize: 12, color: IrisTheme.textSecondary),
                         ),
                         const SizedBox(height: 3),
                         Text(
                           '1 BTC = R\$ ${CurrencyFormatter.formatBrl(exchangeRate.btcToBrlRate)}',
                           style: const TextStyle(
-                            fontFamily: 'JetBrains Mono',
+                            fontFamily: 'monospace',
                             fontSize: 10,
                             color: IrisTheme.textTertiary,
                           ),
@@ -125,13 +133,13 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                           child: ElevatedButton(
                             onPressed: () {
                               if (widget.onNavigateTab != null) {
-                                widget.onNavigateTab!(1); // Pagar
+                                widget.onNavigateTab!(1); // Enviar
                               }
                             },
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 13),
                             ),
-                            child: const Text('💸 Pagar', style: TextStyle(fontSize: 14)),
+                            child: const Text('💸 Enviar', style: TextStyle(fontSize: 14)),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -251,7 +259,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
             final color = isPos ? IrisTheme.success : IrisTheme.danger;
             final sats = isPos ? tx.amountSats : -tx.amountSats;
             final valStr = exchangeRate.isSatsDisplay
-                ? '${isPos ? '+' : ''}${CurrencyFormatter.formatSats(sats)} sats'
+                ? '${isPos ? '+' : ''}${CurrencyFormatter.formatBtcOrSats(sats)}'
                 : '${isPos ? '+' : '-'}R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(sats.abs()))}';
 
             return DataRow(
@@ -266,7 +274,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                   ],
                 )),
                 DataCell(Text(isPos ? 'Depósito' : 'Pagamento', style: TextStyle(color: isPos ? IrisTheme.textPrimary : IrisTheme.textSecondary))),
-                DataCell(Text(valStr, style: TextStyle(color: color, fontFamily: 'JetBrains Mono', fontWeight: FontWeight.bold))),
+                DataCell(Text(valStr, style: TextStyle(color: color, fontFamily: 'monospace', fontWeight: FontWeight.bold))),
                 DataCell(Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -309,7 +317,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
             children: [
               Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: 1),
-              Text(time, style: const TextStyle(fontSize: 11, color: IrisTheme.textSecondary, fontFamily: 'JetBrains Mono')),
+              Text(time, style: const TextStyle(fontSize: 11, color: IrisTheme.textSecondary, fontFamily: 'monospace')),
             ],
           ),
         ),
@@ -318,15 +326,15 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
           children: [
             Text(
               showSats
-                  ? '${isPos ? '+' : '-'}${CurrencyFormatter.formatSats(sats.abs())} sats'
+                  ? '${isPos ? '+' : '-'}${CurrencyFormatter.formatBtcOrSats(sats.abs())}'
                   : '${isPos ? '+' : '-'}R\$ ${CurrencyFormatter.formatBrl(brl)}',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color),
             ),
             Text(
               showSats
                   ? '≈ R\$ ${CurrencyFormatter.formatBrl(brl)}'
-                  : '≈ ${CurrencyFormatter.formatSats(sats.abs())} sats',
-              style: const TextStyle(fontSize: 10, color: IrisTheme.textTertiary, fontFamily: 'JetBrains Mono'),
+                  : '≈ ${CurrencyFormatter.formatBtcOrSats(sats.abs())}',
+              style: const TextStyle(fontSize: 10, color: IrisTheme.textTertiary, fontFamily: 'monospace'),
             ),
           ],
         ),

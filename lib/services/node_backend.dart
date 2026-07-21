@@ -78,14 +78,21 @@ class EmbeddedNodeApi implements NodeApi {
   final String storagePath;
   final String esploraUrl;
 
+  /// Porta P2P deste nó. Os perfis pessoal e lojista rodam no MESMO processo,
+  /// então cada um precisa da sua porta — o padrão do ldk_node é 9735 para
+  /// todos, o que fazia o segundo nó falhar ao subir (endereço em uso).
+  final int listeningPort;
+
   ldk.Node? _node;
 
   EmbeddedNodeApi({
     required this.mnemonic,
     required this.storagePath,
-    // blockstream.info tolera polling contínuo melhor que o mempool.space
-    // (que aplica rate-limit agressivo e provocava panics na thread de sync)
-    this.esploraUrl = 'https://blockstream.info/testnet/api',
+    this.listeningPort = 9735,
+    // blockstream.info passou a bloquear uso não autenticado (HTTP 429 desde
+    // jul/2025), o que fazia o start do nó falhar com feerateEstimationUpdateFailed.
+    // mempool.space/testnet responde normalmente e é o backend Esplora ativo.
+    this.esploraUrl = 'https://mempool.space/testnet/api',
   });
 
   @override
@@ -94,6 +101,8 @@ class EmbeddedNodeApi implements NodeApi {
       ..setEntropyBip39Mnemonic(mnemonic: ldk.Mnemonic(seedPhrase: mnemonic))
       ..setNetwork(ldk.Network.testnet)
       ..setStorageDirPath(storagePath)
+      ..setListeningAddresses(
+          [ldk.SocketAddress.hostname(addr: '0.0.0.0', port: listeningPort)])
       ..setEsploraServer(esploraUrl);
     _node = await builder.build();
     await _node!.start();

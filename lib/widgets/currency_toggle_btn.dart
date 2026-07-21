@@ -55,7 +55,7 @@ class CurrencyToggleBtn extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            fontFamily: 'JetBrains Mono',
+            fontFamily: 'monospace',
             fontSize: 11,
             fontWeight: FontWeight.w700,
             color: isOn ? Colors.white : IrisTheme.textSecondary,

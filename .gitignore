@@ -49,3 +49,7 @@ daemon/seed.txt
 
 # Artefatos Rust dos plugins vendorizados
 packages/*/rust/target/
+
+# Artefatos de build Android dos plugins vendorizados
+packages/*/android/.gradle/
+packages/*/android/build/

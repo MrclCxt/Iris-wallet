@@ -37,6 +37,10 @@ class LiquidWalletService extends ChangeNotifier {
   Future<void> initLiquidWallet(String mnemonic) async {
     if (_isRunning) return;
     try {
+      // Inicializa a ponte flutter_rust_bridge do LWK antes de qualquer chamada
+      // nativa (sem isto: "flutter_rust_bridge has not been initialized").
+      await lwk.LibLwk.init();
+
       final directory = await getApplicationDocumentsDirectory();
       final dbPath = '${directory.path}/lwk_data';
       final dir = Directory(dbPath);
@@ -58,9 +62,12 @@ class LiquidWalletService extends ChangeNotifier {
       );
       _mnemonic = mnemonic;
 
+      // validateDomain: true faz o cliente TLS enviar o SNI (blockstream.info
+      // fica atrás de CDN que exige SNI). Com false, o servidor recusava o
+      // handshake com AlertReceived(DecodeError) e a Liquid não sincronizava.
       await _wallet!.sync(
         electrumUrl: _electrumUrl,
-        validateDomain: false,
+        validateDomain: true,
       );
 
       final addr = await _wallet!.addressLastUnused();
@@ -113,7 +120,7 @@ class LiquidWalletService extends ChangeNotifier {
     try {
       await _wallet!.sync(
         electrumUrl: _electrumUrl,
-        validateDomain: false,
+        validateDomain: true,
       );
       await _refreshBalance();
       notifyListeners();

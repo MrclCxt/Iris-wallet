@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// IRIS Theme — Rainbow/Spectrum identity
 class IrisTheme {
@@ -75,17 +74,20 @@ class IrisTheme {
         background: bg,
         error: danger,
       ),
-      textTheme: GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme).copyWith(
-        displayLarge: GoogleFonts.outfit(
+      // Fonte do sistema (Roboto no Android, San Francisco no iOS, Segoe no
+      // Windows): zero download em runtime e disponível em qualquer aparelho.
+      // Números usam a família genérica 'monospace' para manter alinhamento.
+      textTheme: ThemeData.dark().textTheme.copyWith(
+        displayLarge: const TextStyle(
           color: textPrimary, fontWeight: FontWeight.w800,
           fontSize: 34, letterSpacing: -0.5,
         ),
-        displayMedium: GoogleFonts.outfit(
+        displayMedium: const TextStyle(
           color: textPrimary, fontWeight: FontWeight.w700, fontSize: 24,
         ),
-        bodyLarge: GoogleFonts.outfit(color: textPrimary, fontSize: 16),
-        bodyMedium: GoogleFonts.outfit(color: textSecondary, fontSize: 13),
-        labelSmall: GoogleFonts.jetBrainsMono(color: textSecondary, fontSize: 11),
+        bodyLarge: const TextStyle(color: textPrimary, fontSize: 16),
+        bodyMedium: const TextStyle(color: textSecondary, fontSize: 13),
+        labelSmall: const TextStyle(fontFamily: 'monospace', color: textSecondary, fontSize: 11),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -93,7 +95,7 @@ class IrisTheme {
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           padding: const EdgeInsets.symmetric(vertical: 16),
-          textStyle: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
           elevation: 0,
         ),
       ),

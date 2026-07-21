@@ -40,6 +40,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   int _secondsRemaining = 3600; // 60 minutes
   Timer? _timer;
   String? _invoiceData;
+  String? _errorMessage; // erro de geração do QR (exibido centralizado)
   bool _isLoading = true;
   bool _isPaid = false;
   int _paidAmountSats = 0;
@@ -100,7 +101,10 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
 
   Future<void> _generatePayload() async {
     if (_method == ReceiveMethod.pix) return; // painel PIX cuida do próprio QR
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
       String payload = '';
       final wallet = context.read<WalletService>();
@@ -113,10 +117,16 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
             forMerchant: widget.isMerchant,
           );
         } else {
-          payload = (widget.isMerchant
-                  ? wallet.merchantFixedInvoice
-                  : wallet.mainWalletFixedInvoice) ??
-              'Carregando...';
+          // Nunca gerar um QR com o texto "Carregando..." — se a fatura fixa
+          // ainda não existe, o nó está iniciando ou indisponível.
+          final fixed = widget.isMerchant
+              ? wallet.merchantFixedInvoice
+              : wallet.mainWalletFixedInvoice;
+          if (fixed == null || fixed.isEmpty) {
+            throw Exception(
+                'Fatura Lightning ainda indisponível — o nó pode estar iniciando ou offline. Tente novamente em instantes.');
+          }
+          payload = fixed;
         }
         if (Bolt11.looksLikeInvoice(payload)) {
           try {
@@ -147,12 +157,53 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao gerar recebimento: $e'), backgroundColor: IrisTheme.danger),
-        );
+        setState(() {
+          _isLoading = false;
+          _invoiceData = null;
+          _errorMessage = _friendlyError(e);
+        });
       }
     }
+  }
+
+  /// Remove o prefixo "Exception:" das mensagens para exibição.
+  String _friendlyError(Object e) =>
+      e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+
+  /// Erro de geração do QR: mensagem centralizada (horizontal e vertical) no
+  /// espaço visível, no lugar onde o QR apareceria — sem alterar a estrutura.
+  Widget _buildCenteredError(String message) {
+    final h = (MediaQuery.of(context).size.height * 0.5).clamp(240.0, 460.0);
+    return SizedBox(
+      height: h,
+      width: double.infinity,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, color: IrisTheme.danger, size: 44),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: IrisTheme.danger, fontSize: 14, height: 1.4),
+            ),
+            const SizedBox(height: 20),
+            OutlinedButton.icon(
+              onPressed: _generatePayload,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Tentar novamente'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: IrisTheme.primary,
+                side: const BorderSide(color: IrisTheme.primary),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _switchMethod(ReceiveMethod method) {
@@ -160,6 +211,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
     setState(() {
       _method = method;
       _invoiceData = null;
+      _errorMessage = null;
       _isLoading = method != ReceiveMethod.pix;
     });
     if (method == ReceiveMethod.pix) {
@@ -550,7 +602,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                         inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))],
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                            fontFamily: 'JetBrains Mono',
+                            fontFamily: 'monospace',
                             fontSize: 32,
                             fontWeight: FontWeight.w600,
                             color: IrisTheme.textPrimary),
@@ -563,9 +615,9 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                         onChanged: (_) => setState(() {}),
                       ),
                       Text(
-                        '≈ ${CurrencyFormatter.formatSats(exchangeRate.brlToSats(double.tryParse(_pixBrlCtrl.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0))} sats',
+                        '≈ ${CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(double.tryParse(_pixBrlCtrl.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0))}',
                         style: const TextStyle(
-                            fontFamily: 'JetBrains Mono', fontSize: 12, color: IrisTheme.primary),
+                            fontFamily: 'monospace', fontSize: 12, color: IrisTheme.primary),
                       ),
                       if (pix.provider.requiresPayerTaxNumber) ...[
                         const SizedBox(height: 16),
@@ -635,7 +687,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                         child: Text(
                           displayPayload,
                           style: const TextStyle(
-                            fontFamily: 'JetBrains Mono',
+                            fontFamily: 'monospace',
                             fontSize: 12,
                             color: IrisTheme.textSecondary,
                           ),
@@ -646,7 +698,9 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                       ),
                     ],
                   ),
-                ),
+                )
+              else if (_errorMessage != null && !_isLoading)
+                _buildCenteredError(_errorMessage!),
 
               const SizedBox(height: 24),
 
@@ -655,7 +709,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                 Text(
                   'R\$ ${CurrencyFormatter.formatBrl(pixCharge.amountBrl)}',
                   style: const TextStyle(
-                    fontFamily: 'JetBrains Mono',
+                    fontFamily: 'monospace',
                     fontSize: 28,
                     fontWeight: FontWeight.w700,
                     color: IrisTheme.primary,
@@ -663,7 +717,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '≈ ${CurrencyFormatter.formatSats(exchangeRate.brlToSats(pixCharge.amountBrl))} sats no seu saldo',
+                  '≈ ${CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(pixCharge.amountBrl))} no seu saldo',
                   style: const TextStyle(fontSize: 14, color: IrisTheme.textSecondary),
                 ),
                 const SizedBox(height: 12),
@@ -681,7 +735,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                 const Text(
                   'QR PIX FIXO',
                   style: TextStyle(
-                    fontFamily: 'JetBrains Mono',
+                    fontFamily: 'monospace',
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
                     color: IrisTheme.primary,
@@ -710,13 +764,15 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                   child: const Text('← Voltar ao QR fixo',
                       style: TextStyle(color: IrisTheme.textSecondary)),
                 ),
+              ] else if (!isPix && _errorMessage != null) ...[
+                // Erro já exibido de forma centralizada acima; nada aqui.
               ] else if (!isPix && widget.satsAmount > 0) ...[
                 Text(
                   showSats
-                      ? '${CurrencyFormatter.formatSats(widget.satsAmount)} SATS'
+                      ? CurrencyFormatter.formatBtcOrSats(widget.satsAmount)
                       : 'R\$ ${CurrencyFormatter.formatBrl(brlAmount)}',
                   style: const TextStyle(
-                    fontFamily: 'JetBrains Mono',
+                    fontFamily: 'monospace',
                     fontSize: 28,
                     fontWeight: FontWeight.w700,
                     color: IrisTheme.primary,
@@ -726,7 +782,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                 Text(
                   showSats
                       ? '≈ R\$ ${CurrencyFormatter.formatBrl(brlAmount)}'
-                      : '≈ ${CurrencyFormatter.formatSats(widget.satsAmount)} sats',
+                      : '≈ ${CurrencyFormatter.formatBtcOrSats(widget.satsAmount)}',
                   style: const TextStyle(
                     fontSize: 14,
                     color: IrisTheme.textSecondary,
@@ -736,7 +792,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                 const Text(
                   'VALOR ABERTO',
                   style: TextStyle(
-                    fontFamily: 'JetBrains Mono',
+                    fontFamily: 'monospace',
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
                     color: IrisTheme.primary,
@@ -780,10 +836,10 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                         const SizedBox(height: 12),
                         Text(
                           _pixStaticReceived
-                              ? 'PIX recebido! +${CurrencyFormatter.formatSats(_pixReceivedSats)} sats no saldo'
+                              ? 'PIX recebido! +${CurrencyFormatter.formatBtcOrSats(_pixReceivedSats)} no saldo'
                               : pixPaid
                                   ? 'PIX pago! Convertendo para sats...'
-                                  : 'Pagamento recebido! ⚡ ${CurrencyFormatter.formatSats(_paidAmountSats)} sats',
+                                  : 'Pagamento recebido! ⚡ ${CurrencyFormatter.formatBtcOrSats(_paidAmountSats)}',
                           style: const TextStyle(color: IrisTheme.success, fontSize: 16, fontWeight: FontWeight.w700),
                           textAlign: TextAlign.center,
                         ),
@@ -833,7 +889,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
               Text(
                 'Expira em $_formattedTime',
                 style: TextStyle(
-                  fontFamily: 'JetBrains Mono',
+                  fontFamily: 'monospace',
                   fontSize: 14,
                   color: _secondsRemaining < 60 ? IrisTheme.danger : IrisTheme.textTertiary,
                   fontWeight: FontWeight.w600,
@@ -902,7 +958,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
         child: Text(
           label,
           style: TextStyle(
-            fontFamily: 'JetBrains Mono',
+            fontFamily: 'monospace',
             fontSize: 11,
             fontWeight: FontWeight.w700,
             color: isOn ? Colors.white : IrisTheme.textSecondary,

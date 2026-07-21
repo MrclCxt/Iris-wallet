@@ -103,9 +103,9 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
                           children: [
                             SizedBox(
                               width: 20,
-                              child: Text('${i + 1}.', style: const TextStyle(fontSize: 10, fontFamily: 'JetBrains Mono', color: IrisTheme.textTertiary)),
+                              child: Text('${i + 1}.', style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: IrisTheme.textTertiary)),
                             ),
-                            Text(words[i], style: const TextStyle(fontSize: 12, fontFamily: 'JetBrains Mono', color: IrisTheme.primary, fontWeight: FontWeight.w600)),
+                            Text(words[i], style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: IrisTheme.primary, fontWeight: FontWeight.w600)),
                           ],
                         ),
                       );

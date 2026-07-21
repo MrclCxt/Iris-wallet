@@ -79,7 +79,7 @@ class _ConsumerHomeScreenState extends State<ConsumerHomeScreen> {
                 ),
                 NavigationRailDestination(
                   icon: Text('💸', style: TextStyle(fontSize: 20)),
-                  label: Text('Pagar', style: TextStyle(fontWeight: FontWeight.w600)),
+                  label: Text('Enviar', style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
                 NavigationRailDestination(
                   icon: Text('⬇', style: TextStyle(fontSize: 20)),
@@ -120,7 +120,7 @@ class _IrisBottomNav extends StatelessWidget {
 
     final items = [
       ('🏠', 'INÍCIO'),
-      ('💸', 'PAGAR'),
+      ('💸', 'ENVIAR'),
       ('⬇', 'RECEBER'),
       ('⚙️', 'CONFIG'),
     ];

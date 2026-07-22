@@ -119,6 +119,9 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
   Future<void> _winCaptureAndDecode() async {
     final ctrl = _winCamCtrl;
     if (ctrl == null || _winDecoding || _hasScanned || _isResolving) return;
+    // O timer pode disparar depois que a câmera foi desligada ou a tela saiu:
+    // usar o controller descartado enche o log de erro a cada segundo.
+    if (!mounted || !ctrl.value.isInitialized) return;
     _winDecoding = true;
     try {
       final shot = await ctrl.takePicture();

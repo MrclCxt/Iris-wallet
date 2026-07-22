@@ -76,7 +76,14 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
     _paidTimer?.cancel();
     // Limpa a cobrança PIX criada por esta tela para não vazar o estado global
     // (senão as abas de trilho somem em Receber/Cobrar até reiniciar o app).
-    if (_createdPixCharge) _pix?.clearActiveCharge();
+    //
+    // Fora do dispose: clearActiveCharge notifica os ouvintes, e notificar
+    // durante o desmonte da árvore dispara "setState() called when widget tree
+    // was locked". O microtask roda depois que o frame termina.
+    if (_createdPixCharge) {
+      final pix = _pix;
+      Future.microtask(() => pix?.clearActiveCharge());
+    }
     super.dispose();
   }
 

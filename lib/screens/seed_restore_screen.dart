@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:bip39/bip39.dart' as bip39;
+
 import '../../services/wallet_service.dart';
 import '../../core/theme.dart';
 
@@ -17,15 +17,11 @@ class _SeedRestoreScreenState extends State<SeedRestoreScreen> {
 
   void _importSeed() {
     final seed = _seedController.text.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
-    final words = seed.split(' ');
-
-    if (words.length != 12) {
-      setState(() => _error = 'A semente deve conter exatamente 12 palavras.');
-      return;
-    }
-
-    if (!bip39.validateMnemonic(seed)) {
-      setState(() => _error = 'Semente inválida. Verifique a ortografia das palavras.');
+    // Aceita 12 ou 24 palavras; a validação (tamanho + checksum) fica no
+    // serviço para as duas áreas usarem a mesma regra.
+    final erro = WalletService.validateSeedPhrase(seed);
+    if (erro != null) {
+      setState(() => _error = erro);
       return;
     }
 
@@ -83,7 +79,7 @@ class _SeedRestoreScreenState extends State<SeedRestoreScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          '12 palavras (separadas por espaço)',
+                          '12 ou 24 palavras (separadas por espaço)',
                           style: TextStyle(fontSize: 12, color: IrisTheme.textSecondary, fontWeight: FontWeight.w500),
                         ),
                         const SizedBox(height: 4),

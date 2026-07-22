@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:ldk_node/ldk_node.dart' as ldk;
 
@@ -89,21 +90,55 @@ class EmbeddedNodeApi implements NodeApi {
     required this.mnemonic,
     required this.storagePath,
     this.listeningPort = 9735,
-    // blockstream.info passou a bloquear uso não autenticado (HTTP 429 desde
-    // jul/2025), o que fazia o start do nó falhar com feerateEstimationUpdateFailed.
-    // mempool.space/testnet responde normalmente e é o backend Esplora ativo.
-    this.esploraUrl = 'https://mempool.space/testnet/api',
+    // Vazio = escolhe automaticamente entre os candidatos no start.
+    this.esploraUrl = '',
   });
+
+  /// Backends Esplora, em ordem de preferência.
+  ///
+  /// Os dois já falharam em momentos diferentes: o blockstream chegou a
+  /// devolver HTTP 429 para uso não autenticado, e o mempool.space passou a
+  /// responder 203 em ~15s (o que estoura o timeout de fee do LDK e derruba o
+  /// start do nó). Fixar um só significa trocar de backend a cada incidente —
+  /// por isso o nó testa e usa o que estiver de pé.
+  static const List<String> esploraCandidatos = [
+    'https://blockstream.info/testnet/api',
+    'https://mempool.space/testnet/api',
+  ];
+
+  /// Devolve o primeiro backend que responder 200 rápido. Se nenhum responder,
+  /// devolve o primeiro da lista para o LDK tentar mesmo assim e reportar o
+  /// erro real, em vez de a gente inventar um.
+  static Future<String> escolherEsplora() async {
+    for (final base in esploraCandidatos) {
+      try {
+        final r = await http
+            .get(Uri.parse('$base/blocks/tip/height'))
+            .timeout(const Duration(seconds: 6));
+        if (r.statusCode == 200) {
+          debugPrint('Esplora escolhido: $base');
+          return base;
+        }
+        debugPrint('Esplora $base respondeu HTTP ${r.statusCode}; tentando outro.');
+      } catch (e) {
+        debugPrint('Esplora $base indisponível ($e); tentando outro.');
+      }
+    }
+    debugPrint('Nenhum Esplora respondeu; usando ${esploraCandidatos.first}.');
+    return esploraCandidatos.first;
+  }
 
   @override
   Future<void> start() async {
+    final esplora =
+        esploraUrl.isNotEmpty ? esploraUrl : await escolherEsplora();
     final builder = ldk.Builder()
       ..setEntropyBip39Mnemonic(mnemonic: ldk.Mnemonic(seedPhrase: mnemonic))
       ..setNetwork(ldk.Network.testnet)
       ..setStorageDirPath(storagePath)
       ..setListeningAddresses(
           [ldk.SocketAddress.hostname(addr: '0.0.0.0', port: listeningPort)])
-      ..setEsploraServer(esploraUrl);
+      ..setEsploraServer(esplora);
     _node = await builder.build();
     await _node!.start();
   }

@@ -1,6 +1,6 @@
-import 'dart:math';
+import '../../core/seed_quiz.dart';
 import 'package:flutter/material.dart';
-import 'package:bip39/bip39.dart' as bip39;
+
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../services/wallet_service.dart';
@@ -22,69 +22,17 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
   String _firstPin = '';
   bool _isConfirmingPin = false;
 
-  // Variables for confirmation step
-  late int _idx1;
-  late int _idx2;
-  List<String> _opts1 = [];
-  List<String> _opts2 = [];
-  String? _ans1;
-  String? _ans2;
+  // Conferência da semente (mesma lógica da área pessoal)
+  SeedQuiz? _quiz;
+  List<String?> _respostas = [];
   String? _errorMsg;
 
-  void _generateQuestions() {
-    final words = _seed.split(' ');
-    final random = Random();
-    
-    _idx1 = random.nextInt(12);
-    _idx2 = _idx1;
-    while (_idx2 == _idx1) {
-      _idx2 = random.nextInt(12);
-    }
-    
-    if (_idx1 > _idx2) {
-      final tmp = _idx1;
-      _idx1 = _idx2;
-      _idx2 = tmp;
-    }
-    
-    _opts1 = _generateOptionsFor(words, _idx1, random);
-    _opts2 = _generateOptionsFor(words, _idx2, random);
-  }
+  /// Quantas palavras a semente nova terá.
+  int _quantidadeDePalavras = 12;
 
-  List<String> _generateOptionsFor(List<String> seedWords, int correctIdx, Random random) {
-    final correctWord = seedWords[correctIdx];
-    final opts = {correctWord};
-    
-    while (opts.length < 2) {
-      opts.add(seedWords[random.nextInt(12)]);
-    }
-    
-    final dict = [
-      'abandon', 'ability', 'able', 'about', 'above', 'absent', 'absorb', 'abstract', 'absurd', 'abuse',
-      'access', 'accident', 'account', 'accuse', 'achieve', 'acid', 'acoustic', 'acquire', 'across', 'act',
-      'action', 'actor', 'actress', 'actual', 'adapt', 'add', 'addict', 'address', 'adjust', 'admit',
-      'adult', 'advance', 'advice', 'aerobic', 'affair', 'afford', 'afraid', 'again', 'age', 'agent',
-      'basket', 'battery', 'beach', 'beauty', 'because', 'become', 'beef', 'before', 'begin', 'behave',
-      'camera', 'camp', 'can', 'canal', 'cancel', 'candy', 'cannon', 'canoe', 'canvas', 'canyon',
-      'damage', 'dance', 'danger', 'daring', 'dark', 'data', 'date', 'dawn', 'day', 'dead',
-      'early', 'earn', 'earth', 'east', 'easy', 'eat', 'echo', 'ecology', 'economy', 'edge',
-      'fabric', 'face', 'facility', 'fact', 'fade', 'fail', 'faint', 'fair', 'faith', 'fall',
-      'galaxy', 'gallery', 'game', 'gap', 'garage', 'garbage', 'garden', 'garlic', 'garment', 'gas',
-      'habit', 'hair', 'half', 'hammer', 'hamster', 'hand', 'happy', 'harbor', 'hard', 'harsh',
-      'ice', 'icon', 'idea', 'identify', 'idle', 'ignore', 'ill', 'illegal', 'illness', 'image',
-      'jacket', 'jaguar', 'jail', 'jam', 'james', 'jar', 'jazz', 'jealous', 'jeans', 'jelly',
-      'kangaroo', 'keen', 'keep', 'ketchup', 'key', 'kick', 'kid', 'kidney', 'kind', 'kingdom',
-      'label', 'labor', 'ladder', 'lady', 'lake', 'lamp', 'language', 'laptop', 'large', 'laser',
-      'machine', 'mad', 'magic', 'magnet', 'maid', 'mail', 'main', 'major', 'make', 'mammal',
-      'name', 'napkin', 'narrow', 'nasty', 'nation', 'nature', 'near', 'neck', 'need', 'negative'
-    ];
-    while (opts.length < 3) {
-      opts.add(dict[random.nextInt(dict.length)]);
-    }
-    
-    final optList = opts.toList();
-    optList.shuffle(random);
-    return optList;
+  void _generateQuestions() {
+    _quiz = SeedQuiz.gerar(_seed.split(' '));
+    _respostas = List<String?>.filled(_quiz!.indices.length, null);
   }
 
   void _nextStep() {
@@ -94,13 +42,10 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
     }
     if (_step == 2 && _mode == 'import') {
       final seedInput = _seedCtrl.text.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
-      final words = seedInput.split(' ');
-      if (words.length != 12) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('A semente deve conter exatamente 12 palavras')));
-        return;
-      }
-      if (!bip39.validateMnemonic(seedInput)) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Semente inválida. Verifique a ortografia.')));
+      // Mesma regra da área pessoal: 12 ou 24 palavras, com checksum.
+      final erro = WalletService.validateSeedPhrase(seedInput);
+      if (erro != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erro)));
         return;
       }
       _seed = seedInput;
@@ -112,7 +57,14 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
     }
     if (_step == 3) {
       final words = _seed.split(' ');
-      if (_ans1 == words[_idx1] && _ans2 == words[_idx2]) {
+      final quiz = _quiz;
+      var todasCertas = quiz != null;
+      if (quiz != null) {
+        for (var i = 0; i < quiz.indices.length; i++) {
+          if (_respostas[i] != words[quiz.indices[i]]) todasCertas = false;
+        }
+      }
+      if (todasCertas) {
         setState(() => _errorMsg = null);
       } else {
         setState(() => _errorMsg = 'Palavras incorretas. Tente novamente.');
@@ -250,7 +202,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
             const Spacer(),
             ElevatedButton(
               onPressed: () {
-                _seed = bip39.generateMnemonic();
+                _seed = WalletService.generateSeedPhrase(words: _quantidadeDePalavras);
                 _mode = 'new';
                 _nextStep();
               },
@@ -298,10 +250,56 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                     children: [
                       Text('Semente da Loja', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 1),
-                      const Text('12 palavras que abrem sua loja', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
+                      Text('$_quantidadeDePalavras palavras que abrem sua loja', style: const TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
                     ],
                   ),
                 ),
+              ],
+            ),
+          ),
+          // 12 ou 24 palavras, igual à área pessoal.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                for (final n in WalletService.seedWordCounts) ...[
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: n == _quantidadeDePalavras
+                          ? null
+                          : () => setState(() {
+                                _quantidadeDePalavras = n;
+                                _seed = WalletService.generateSeedPhrase(words: n);
+                              }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: n == _quantidadeDePalavras
+                              ? IrisTheme.primary
+                              : IrisTheme.s2,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: n == _quantidadeDePalavras
+                                  ? IrisTheme.primary
+                                  : IrisTheme.bdr),
+                        ),
+                        child: Text(
+                          '$n palavras',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: n == _quantidadeDePalavras
+                                ? Colors.white
+                                : IrisTheme.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (n != WalletService.seedWordCounts.last)
+                    const SizedBox(width: 8),
+                ],
               ],
             ),
           ),
@@ -321,7 +319,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                 crossAxisSpacing: 5,
                 mainAxisSpacing: 5,
               ),
-              itemCount: 12,
+              itemCount: _seed.isEmpty ? _quantidadeDePalavras : _seed.split(' ').length,
               itemBuilder: (ctx, i) {
                 return Container(
                   decoration: BoxDecoration(
@@ -378,7 +376,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                   ),
                   onPressed: () {
                     setState(() {
-                      _seed = bip39.generateMnemonic();
+                      _seed = WalletService.generateSeedPhrase(words: _quantidadeDePalavras);
                     });
                   },
                   child: const Text('Gerar palavras novas'),
@@ -430,7 +428,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    '12 palavras (separadas por espaço)',
+                    '12 ou 24 palavras (separadas por espaço)',
                     style: TextStyle(fontSize: 12, color: IrisTheme.textSecondary, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 4),
@@ -521,10 +519,17 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildQuestionBlock(1, _idx1, _opts1, _ans1, (val) => setState(() => _ans1 = val)),
-                  const SizedBox(height: 14),
-                  _buildQuestionBlock(2, _idx2, _opts2, _ans2, (val) => setState(() => _ans2 = val)),
-                  
+                  for (var i = 0; i < (_quiz?.indices.length ?? 0); i++) ...[
+                    _buildQuestionBlock(
+                      i + 1,
+                      _quiz!.indices[i],
+                      _quiz!.alternativas[i],
+                      _respostas[i],
+                      (val) => setState(() => _respostas[i] = val),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
                   if (_errorMsg != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 16),
@@ -542,7 +547,10 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 ElevatedButton(
-                  onPressed: (_ans1 != null && _ans2 != null) ? _nextStep : null,
+                  onPressed: (_respostas.isNotEmpty &&
+                          _respostas.every((r) => r != null))
+                      ? _nextStep
+                      : null,
                   child: const Text('Confirmar e continuar'),
                 ),
                 const SizedBox(height: 8),
@@ -556,8 +564,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                   ),
                   onPressed: () {
                     setState(() {
-                      _ans1 = null;
-                      _ans2 = null;
+                      _respostas = List<String?>.filled(_respostas.length, null);
                       _errorMsg = null;
                       _step = 2; // voltar e reler
                     });

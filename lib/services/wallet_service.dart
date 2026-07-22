@@ -216,8 +216,27 @@ class WalletService extends ChangeNotifier {
   /// carteira DESTE aparelho. Ligado no main.dart.
   VoidCallback? onCatalogImported;
 
-  final _NodeHandle _consumerNode = _NodeHandle();
-  final _NodeHandle _merchantNode = _NodeHandle();
+  /// UM nó por dispositivo, não por conta.
+  ///
+  /// Dois nós LDK sobre a mesma seed é a forma clássica de perder fundos em
+  /// Lightning: estados de canal divergentes permitem que a contraparte puna
+  /// a publicação de um estado antigo. E, mesmo com seeds distintas, dois nós
+  /// no mesmo aparelho disputavam portas e recursos à toa.
+  ///
+  /// Consequência do modelo: a carteira pessoal e a loja são PERFIS sobre a
+  /// mesma carteira — mesmo saldo, mesmo nó, mesma seed do dispositivo.
+  final _NodeHandle _deviceNode = _NodeHandle();
+
+  _NodeHandle get _consumerNode => _deviceNode;
+  _NodeHandle get _merchantNode => _deviceNode;
+
+  /// Seed única do aparelho. A primeira carteira criada a define; importar uma
+  /// semente substitui a carteira do dispositivo inteiro.
+  String? _deviceSeed;
+  String? get deviceSeed => _deviceSeed;
+
+  /// Pasta de dados do nó. Fixa, porque o nó é do dispositivo.
+  static const String _deviceNodeDir = 'ldk_device';
 
   Timer? _syncTimer;
 
@@ -254,7 +273,8 @@ class WalletService extends ChangeNotifier {
 
   bool get hasConsumerPin => activeConsumer != null || _tempConsumerSeed != null;
   bool get isUnlocked => _isUnlocked;
-  String? get consumerSeed => activeConsumer?.seed ?? _tempConsumerSeed;
+  /// A semente é do dispositivo. Durante a criação, mostra a temporária.
+  String? get consumerSeed => _tempConsumerSeed ?? _deviceSeed ?? activeConsumer?.seed;
 
   bool get hasMerchant => _merchantAccounts.isNotEmpty;
   bool get isMerchantUnlocked => _isMerchantUnlocked;
@@ -285,7 +305,9 @@ class WalletService extends ChangeNotifier {
     notifyListeners();
   }
 
-  String? get merchantSeed => activeMerchant?.seed;
+  /// Mesma semente da carteira pessoal: a loja é um perfil sobre a carteira
+  /// do dispositivo, não uma carteira separada.
+  String? get merchantSeed => _deviceSeed ?? activeMerchant?.seed;
   String? get merchantName => activeMerchant?.name;
 
   List<Product> _merchantProducts = [];
@@ -439,6 +461,8 @@ class WalletService extends ChangeNotifier {
     // Catálogo da loja: carregado AQUI, junto do perfil, e não mais dentro do
     // _startNode. Antes, se o nó falhasse ou demorasse a subir, os produtos
     // nunca eram carregados e pareciam apagados a cada abertura do app.
+    await _carregarSeedDoDispositivo();
+
     ProductImageStore.definirLoja(_activeMerchantId);
     await _loadMerchantProducts();
     // Versões anteriores guardavam as fotos numa pasta única; traz para a
@@ -464,14 +488,83 @@ class WalletService extends ChangeNotifier {
     await _saveLastSession();
   }
 
+  /// Lê a semente do dispositivo. Em aparelhos que vêm da versão com uma seed
+  /// por conta, adota a da carteira pessoal ativa (ou a da loja, se só houver
+  /// loja) e migra a pasta do nó, para não perder os canais existentes.
+  Future<void> _carregarSeedDoDispositivo() async {
+    _deviceSeed = await _storage.read(key: 'device_seed');
+    if (_deviceSeed != null) return;
+
+    final herdada = activeConsumer?.seed ?? activeMerchant?.seed;
+    if (herdada == null) return; // aparelho ainda sem carteira
+
+    _deviceSeed = herdada;
+    await _storage.write(key: 'device_seed', value: herdada);
+    await _migrarPastaDoNo();
+  }
+
+  /// Move os dados do nó da conta para a pasta única do dispositivo.
+  Future<void> _migrarPastaDoNo() async {
+    try {
+      final docs = await getApplicationDocumentsDirectory();
+      final destino = Directory('${docs.path}/$_deviceNodeDir');
+      if (await destino.exists()) return; // já migrado
+
+      final origemNome = activeConsumer != null
+          ? 'ldk_c_${activeConsumer!.id}'
+          : (activeMerchant != null ? 'ldk_m_${activeMerchant!.id}' : null);
+      if (origemNome == null) return;
+
+      final origem = Directory('${docs.path}/$origemNome');
+      if (!await origem.exists()) return;
+
+      await origem.rename(destino.path);
+      debugPrint('Nó migrado de $origemNome para $_deviceNodeDir.');
+    } catch (e) {
+      debugPrint('Falha ao migrar a pasta do nó: $e');
+    }
+  }
+
+  /// Define a semente do aparelho na primeira carteira criada/importada.
+  Future<void> _definirSeedDoDispositivo(String seed) async {
+    _deviceSeed = seed;
+    await _storage.write(key: 'device_seed', value: seed);
+  }
+
   Future<bool> checkHasWallet() async {
     await initWallet();
     return _consumerAccounts.isNotEmpty || _merchantAccounts.isNotEmpty;
   }
 
-  void resetAndGenerateSeed() {
-    _tempConsumerSeed = bip39.generateMnemonic();
+  /// Gera uma semente nova. [words] aceita 12 (128 bits de entropia) ou
+  /// 24 (256 bits) — os dois tamanhos padrão do BIP39.
+  void resetAndGenerateSeed({int words = 12}) {
+    _tempConsumerSeed = generateSeedPhrase(words: words);
     notifyListeners();
+  }
+
+  /// Tamanhos de semente aceitos pelo app.
+  static const List<int> seedWordCounts = [12, 24];
+
+  /// 12 palavras = 128 bits; 24 palavras = 256 bits.
+  static String generateSeedPhrase({int words = 12}) {
+    final strength = words == 24 ? 256 : 128;
+    return bip39.generateMnemonic(strength: strength);
+  }
+
+  /// Valida o tamanho e o checksum. Devolve null se estiver tudo certo, ou a
+  /// mensagem de erro pronta para a tela.
+  static String? validateSeedPhrase(String seed) {
+    final limpa = seed.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+    if (limpa.isEmpty) return 'Digite as palavras da sua semente.';
+    final palavras = limpa.split(' ');
+    if (!seedWordCounts.contains(palavras.length)) {
+      return 'A semente deve ter 12 ou 24 palavras (você digitou ${palavras.length}).';
+    }
+    if (!bip39.validateMnemonic(limpa)) {
+      return 'Semente inválida. Confira a ortografia das palavras.';
+    }
+    return null;
   }
 
   void importSeed(String seed) {
@@ -517,13 +610,19 @@ class WalletService extends ChangeNotifier {
       _activeConsumerId = newAccount.id;
       _tempConsumerSeed = null;
 
+      // Uma seed por dispositivo: a primeira carteira criada define a do
+      // aparelho; as demais contas são perfis sobre ela.
+      if (_deviceSeed == null) {
+        await _definirSeedDoDispositivo(newAccount.seed);
+      }
+
       await _saveConsumers();
       _isUnlocked = true;
       _consumerTransactions.clear();
       await setLastSessionType('consumer');
       notifyListeners();
 
-      _startNode(_consumerNode, newAccount.seed, 'ldk_c_${newAccount.id}', isMerchant: false)
+      _startNode(_consumerNode, _deviceSeed!, _deviceNodeDir, isMerchant: false)
           .catchError((e) => debugPrint('Erro ao iniciar LDK após criação: $e'));
       return true;
     }
@@ -540,23 +639,27 @@ class WalletService extends ChangeNotifier {
       _isUnlocked = true;
       await setLastSessionType('consumer');
       notifyListeners();
-      _startNode(_consumerNode, active.seed, 'ldk_c_${active.id}', isMerchant: false)
+      _startNode(_consumerNode, _deviceSeed ?? active.seed, _deviceNodeDir, isMerchant: false)
           .catchError((e) => debugPrint('Erro ao iniciar LDK: $e'));
       return true;
     }
     return false;
   }
 
+  /// Cria o perfil de loja. Se o aparelho já tem carteira, [seed] é ignorada:
+  /// a loja é um PERFIL sobre a carteira do dispositivo, com o mesmo saldo.
+  /// A semente informada só vale quando ainda não existe carteira aqui.
   Future<void> setupMerchant(String name, String seed, String pin) async {
-    // O nó da loja anterior precisa parar ANTES: o _startNode desiste se já
-    // houver um nó rodando, e a loja nova acabaria operando sobre a seed (e o
-    // saldo) da loja antiga.
-    await _merchantNode.stop();
+    final jaTinhaCarteira = _deviceSeed != null;
+    if (!jaTinhaCarteira) {
+      await _definirSeedDoDispositivo(seed);
+    }
+    final seedDoPerfil = _deviceSeed!;
 
     final newAccount = AccountProfile(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: name,
-      seed: seed,
+      seed: seedDoPerfil,
       pinHash: hashPin(pin),
     );
 
@@ -566,12 +669,12 @@ class WalletService extends ChangeNotifier {
     await _saveMerchants();
 
     _isMerchantUnlocked = true;
-    // Loja nova nasce zerada: nada da loja anterior pode aparecer aqui.
+    // Loja nova nasce sem catálogo próprio; o SALDO é o do dispositivo.
     _clearMerchantSessionState();
     await setLastSessionType('merchant');
     notifyListeners();
 
-    _startNode(_merchantNode, seed, 'ldk_m_${newAccount.id}', isMerchant: true)
+    _startNode(_merchantNode, _deviceSeed!, _deviceNodeDir, isMerchant: true)
         .catchError((e) => debugPrint('Erro ao iniciar LDK da loja: $e'));
   }
 
@@ -588,7 +691,7 @@ class WalletService extends ChangeNotifier {
       _isMerchantUnlocked = true;
       await setLastSessionType('merchant');
       notifyListeners();
-      _startNode(_merchantNode, active.seed, 'ldk_m_${active.id}', isMerchant: true)
+      _startNode(_merchantNode, _deviceSeed ?? active.seed, _deviceNodeDir, isMerchant: true)
           .catchError((e) => debugPrint('Erro ao iniciar LDK da loja: $e'));
       return true;
     }
@@ -1016,10 +1119,11 @@ class WalletService extends ChangeNotifier {
   Future<void> restartNode({bool forMerchant = false}) async {
     final handle = forMerchant ? _merchantNode : _consumerNode;
     await handle.stop();
-    final acc = forMerchant ? activeMerchant : activeConsumer;
-    if (acc == null) return;
-    final dir = forMerchant ? 'ldk_m_${acc.id}' : 'ldk_c_${acc.id}';
-    await _startNode(handle, acc.seed, dir, isMerchant: forMerchant);
+    // O nó é do dispositivo: mesma seed e mesma pasta, venha de onde vier.
+    final seed = _deviceSeed ??
+        (forMerchant ? activeMerchant?.seed : activeConsumer?.seed);
+    if (seed == null) return;
+    await _startNode(handle, seed, _deviceNodeDir, isMerchant: forMerchant);
   }
 
   Future<String> getFixedInvoice({bool forMerchant = false}) async {

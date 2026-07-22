@@ -123,8 +123,12 @@ class CargoKitPlugin implements Plugin<Project> {
 
             // Same thing addFlutterDependencies does in flutter.gradle
             if (buildType == "debug") {
-                // platforms.add("android-x86") // desativado: só arm64 no debug
-                // platforms.add("android-x64") // desativado: só arm64 no debug
+                // Só arm64 no debug. O abiFilters do app filtra apenas o que
+                // entra no APK; sem filtrar AQUI, o Rust era compilado para
+                // arm64 + armeabi-v7a + x86_64, triplicando tempo e espaço em
+                // disco (cada libldk_node.so de debug tem centenas de MB).
+                // O release continua universal.
+                platforms = platforms.findAll { it == "android-arm64" }
             }
 
             // The task name depends on plugin properties, which are not available

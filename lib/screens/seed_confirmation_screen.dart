@@ -1,4 +1,4 @@
-import 'dart:math';
+import '../core/seed_quiz.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/wallet_service.dart';
@@ -12,12 +12,8 @@ class SeedConfirmationScreen extends StatefulWidget {
 }
 
 class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
-  late int _idx1;
-  late int _idx2;
-  List<String> _opts1 = [];
-  List<String> _opts2 = [];
-  String? _ans1;
-  String? _ans2;
+  SeedQuiz? _quiz;
+  List<String?> _respostas = [];
   String? _error;
 
   @override
@@ -29,72 +25,26 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
   void _generateQuestions() {
     final seedStr = context.read<WalletService>().consumerSeed;
     if (seedStr == null) return;
-    
-    final words = seedStr.split(' ');
-    final random = Random();
-    
-    // Pick two distinct indices
-    _idx1 = random.nextInt(12);
-    _idx2 = _idx1;
-    while (_idx2 == _idx1) {
-      _idx2 = random.nextInt(12);
-    }
-    
-    // Make sure _idx1 < _idx2 for UI order
-    if (_idx1 > _idx2) {
-      final tmp = _idx1;
-      _idx1 = _idx2;
-      _idx2 = tmp;
-    }
-    
-    _opts1 = _generateOptionsFor(words, _idx1, random);
-    _opts2 = _generateOptionsFor(words, _idx2, random);
+    // Funciona igual para 12 ou 24 palavras.
+    _quiz = SeedQuiz.gerar(seedStr.split(' '));
+    _respostas = List<String?>.filled(_quiz!.indices.length, null);
   }
 
-  List<String> _generateOptionsFor(List<String> seedWords, int correctIdx, Random random) {
-    final correctWord = seedWords[correctIdx];
-    final opts = {correctWord};
-    
-    // Try to get another word from the seed itself
-    while (opts.length < 2) {
-      opts.add(seedWords[random.nextInt(12)]);
-    }
-    
-    // Get a random BIP39 word from a small local dictionary to use as a distractor
-    final dict = [
-      'abandon', 'ability', 'able', 'about', 'above', 'absent', 'absorb', 'abstract', 'absurd', 'abuse',
-      'access', 'accident', 'account', 'accuse', 'achieve', 'acid', 'acoustic', 'acquire', 'across', 'act',
-      'action', 'actor', 'actress', 'actual', 'adapt', 'add', 'addict', 'address', 'adjust', 'admit',
-      'adult', 'advance', 'advice', 'aerobic', 'affair', 'afford', 'afraid', 'again', 'age', 'agent',
-      'basket', 'battery', 'beach', 'beauty', 'because', 'become', 'beef', 'before', 'begin', 'behave',
-      'camera', 'camp', 'can', 'canal', 'cancel', 'candy', 'cannon', 'canoe', 'canvas', 'canyon',
-      'damage', 'dance', 'danger', 'daring', 'dark', 'data', 'date', 'dawn', 'day', 'dead',
-      'early', 'earn', 'earth', 'east', 'easy', 'eat', 'echo', 'ecology', 'economy', 'edge',
-      'fabric', 'face', 'facility', 'fact', 'fade', 'fail', 'faint', 'fair', 'faith', 'fall',
-      'galaxy', 'gallery', 'game', 'gap', 'garage', 'garbage', 'garden', 'garlic', 'garment', 'gas',
-      'habit', 'hair', 'half', 'hammer', 'hamster', 'hand', 'happy', 'harbor', 'hard', 'harsh',
-      'ice', 'icon', 'idea', 'identify', 'idle', 'ignore', 'ill', 'illegal', 'illness', 'image',
-      'jacket', 'jaguar', 'jail', 'jam', 'james', 'jar', 'jazz', 'jealous', 'jeans', 'jelly',
-      'kangaroo', 'keen', 'keep', 'ketchup', 'key', 'kick', 'kid', 'kidney', 'kind', 'kingdom',
-      'label', 'labor', 'ladder', 'lady', 'lake', 'lamp', 'language', 'laptop', 'large', 'laser',
-      'machine', 'mad', 'magic', 'magnet', 'maid', 'mail', 'main', 'major', 'make', 'mammal',
-      'name', 'napkin', 'narrow', 'nasty', 'nation', 'nature', 'near', 'neck', 'need', 'negative'
-    ];
-    while (opts.length < 3) {
-      opts.add(dict[random.nextInt(dict.length)]);
-    }
-    
-    final optList = opts.toList();
-    optList.shuffle(random);
-    return optList;
-  }
 
   void _verify() {
     final seedStr = context.read<WalletService>().consumerSeed;
     if (seedStr == null) return;
     final words = seedStr.split(' ');
-    
-    if (_ans1 == words[_idx1] && _ans2 == words[_idx2]) {
+    final quiz = _quiz;
+    if (quiz == null) return;
+
+    // Todas as posições sorteadas precisam bater.
+    var todasCertas = true;
+    for (var i = 0; i < quiz.indices.length; i++) {
+      if (_respostas[i] != words[quiz.indices[i]]) todasCertas = false;
+    }
+
+    if (todasCertas) {
       setState(() => _error = null);
       Navigator.pushReplacementNamed(context, '/pin_create');
     } else {
@@ -154,10 +104,17 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildQuestionBlock(1, _idx1, _opts1, _ans1, (val) => setState(() => _ans1 = val)),
-                        const SizedBox(height: 14),
-                        _buildQuestionBlock(2, _idx2, _opts2, _ans2, (val) => setState(() => _ans2 = val)),
-                        
+                        for (var i = 0; i < (_quiz?.indices.length ?? 0); i++) ...[
+                          _buildQuestionBlock(
+                            i + 1,
+                            _quiz!.indices[i],
+                            _quiz!.alternativas[i],
+                            _respostas[i],
+                            (val) => setState(() => _respostas[i] = val),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+
                         if (_error != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 16),
@@ -175,7 +132,10 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       ElevatedButton(
-                        onPressed: (_ans1 != null && _ans2 != null) ? _verify : null,
+                        onPressed: (_respostas.isNotEmpty &&
+                                _respostas.every((r) => r != null))
+                            ? _verify
+                            : null,
                         child: const Text('Confirmar e continuar'),
                       ),
                       const SizedBox(height: 8),

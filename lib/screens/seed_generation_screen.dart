@@ -11,6 +11,9 @@ class SeedGenerationScreen extends StatefulWidget {
 }
 
 class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
+  /// Quantas palavras a semente terá. 24 dá 256 bits de entropia.
+  int _quantidadeDePalavras = 12;
+
   @override
   void initState() {
     super.initState();
@@ -24,7 +27,8 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
   Widget build(BuildContext context) {
     final wallet = context.watch<WalletService>();
     final seed = wallet.consumerSeed;
-    final words = seed != null ? seed.split(' ') : List.filled(12, '...');
+    final words =
+        seed != null ? seed.split(' ') : List.filled(_quantidadeDePalavras, '...');
 
     return Scaffold(
       appBar: AppBar(
@@ -74,6 +78,52 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
                     ],
                   ),
                 ),
+                // Escolha do tamanho: 24 palavras dobram a entropia.
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    children: [
+                      for (final n in WalletService.seedWordCounts) ...[
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: n == _quantidadeDePalavras
+                                ? null
+                                : () {
+                                    setState(() => _quantidadeDePalavras = n);
+                                    wallet.resetAndGenerateSeed(words: n);
+                                  },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: n == _quantidadeDePalavras
+                                    ? IrisTheme.primary
+                                    : IrisTheme.s2,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                    color: n == _quantidadeDePalavras
+                                        ? IrisTheme.primary
+                                        : IrisTheme.bdr),
+                              ),
+                              child: Text(
+                                '$n palavras',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: n == _quantidadeDePalavras
+                                      ? Colors.white
+                                      : IrisTheme.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (n != WalletService.seedWordCounts.last)
+                          const SizedBox(width: 8),
+                      ],
+                    ],
+                  ),
+                ),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Align(
@@ -90,7 +140,7 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
                       crossAxisSpacing: 5,
                       mainAxisSpacing: 5,
                     ),
-                    itemCount: 12,
+                    itemCount: words.length,
                     itemBuilder: (ctx, i) {
                       return Container(
                         decoration: BoxDecoration(

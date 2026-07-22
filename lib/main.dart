@@ -52,10 +52,10 @@ void main() async {
             // Contas são separadas: ao trocar de carteira/loja, PIX e Liquid
             // descartam o estado da conta anterior.
             final wallet = Provider.of<WalletService>(context, listen: false);
-            wallet.onAccountChanged = () {
-              pix.clearForAccountSwitch();
-              liquid.resetForAccountSwitch();
-            };
+            // A carteira (nó e Liquid) é do dispositivo, não da conta: trocar
+            // de perfil não a reinicia. Só as cobranças PIX em cache, que
+            // pertencem à tela/sessão anterior, são descartadas.
+            wallet.onAccountChanged = pix.clearForAccountSwitch;
             // Na importação a carteira local continua a mesma — só as cobranças
             // em cache são descartadas, para os QR nascerem com o endereço
             // deste aparelho.

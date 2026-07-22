@@ -53,3 +53,8 @@ packages/*/rust/target/
 # Artefatos de build Android dos plugins vendorizados
 packages/*/android/.gradle/
 packages/*/android/build/
+
+# Chaves de assinatura — NUNCA versionar
+*.keystore
+*.jks
+android/key.properties

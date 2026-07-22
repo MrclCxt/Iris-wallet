@@ -8,6 +8,7 @@ import 'services/pix_service.dart';
 import 'services/exchange_rate_service.dart';
 import 'screens/splash_screen.dart';
 import 'services/chroma_service.dart';
+import 'services/product_image_store.dart';
 import 'screens/seed_generation_screen.dart';
 import 'screens/seed_confirmation_screen.dart';
 import 'screens/seed_restore_screen.dart';
@@ -19,8 +20,11 @@ import 'screens/welcome_screen.dart';
 import 'screens/consumer/custom_charge_screen.dart';
 import 'screens/consumer/node_manager_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Prepara a pasta das fotos de produto antes do primeiro build: os widgets
+  // resolvem o caminho do arquivo de forma síncrona.
+  await ProductImageStore.init();
   runApp(
     MultiProvider(
       providers: [
@@ -42,8 +46,22 @@ void main() {
             liquidWalletService: Provider.of<LiquidWalletService>(context, listen: false),
             swapService: Provider.of<SwapService>(context, listen: false),
           ),
-          update: (context, liquid, swap, previous) =>
-              previous ?? PixService(liquidWalletService: liquid, swapService: swap),
+          update: (context, liquid, swap, previous) {
+            final pix = previous ??
+                PixService(liquidWalletService: liquid, swapService: swap);
+            // Contas são separadas: ao trocar de carteira/loja, PIX e Liquid
+            // descartam o estado da conta anterior.
+            final wallet = Provider.of<WalletService>(context, listen: false);
+            wallet.onAccountChanged = () {
+              pix.clearForAccountSwitch();
+              liquid.resetForAccountSwitch();
+            };
+            // Na importação a carteira local continua a mesma — só as cobranças
+            // em cache são descartadas, para os QR nascerem com o endereço
+            // deste aparelho.
+            wallet.onCatalogImported = pix.clearForAccountSwitch;
+            return pix;
+          },
         ),
       ],
       child: const IrisApp(),

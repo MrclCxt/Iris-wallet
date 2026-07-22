@@ -454,6 +454,17 @@ class PixService extends ChangeNotifier {
     _loadProviderConfig();
   }
 
+  /// Descarta cobranças da conta que estava ativa. Um QR PIX aponta para um
+  /// endereço Liquid de uma carteira específica: se sobrevivesse à troca de
+  /// conta, o depósito cairia na carteira errada.
+  void clearForAccountSwitch() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    activeCharge = null;
+    staticCharge = null;
+    notifyListeners();
+  }
+
   void _log(String message) {
     logs.add(message);
     notifyListeners();

@@ -11,37 +11,79 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/bolt11.dart';
 import 'node_backend.dart';
+import 'product_image_store.dart';
 
 class Product {
   final String id;
-  String emoji;
   String name;
   double price;
   bool isActive;
+  String description;
+
+  /// Nome do arquivo da foto dentro de [ProductImageStore] — não o caminho
+  /// absoluto, que muda entre instalações. Os bytes são os originais, sem
+  /// recompressão. Na exportação a foto é embutida em base64 para viajar.
+  String? image;
 
   Product({
     required this.id,
-    required this.emoji,
     required this.name,
     required this.price,
     this.isActive = true,
+    this.description = '',
+    this.image,
   });
 
   Map<String, dynamic> toJson() => {
     'id': id,
-    'emoji': emoji,
     'name': name,
     'price': price,
     'isActive': isActive,
+    'description': description,
+    if (image != null) 'image': image,
   };
 
+  /// Tolerante com campos ausentes: produtos gravados por versões anteriores
+  /// não têm descrição nem imagem e precisam continuar carregando. O antigo
+  /// campo 'emoji' é simplesmente ignorado.
   factory Product.fromJson(Map<String, dynamic> json) => Product(
     id: json['id'],
-    emoji: json['emoji'],
     name: json['name'],
     price: json['price'],
     isActive: json['isActive'],
+    description: json['description'] is String ? json['description'] as String : '',
+    image: json['image'] is String ? json['image'] as String : null,
   );
+}
+
+/// Produto lido de um arquivo de catálogo, com a foto ainda em base64 — ela só
+/// vira arquivo local depois que o produto é aceito.
+class _ProdutoImportado {
+  final Product produto;
+  final String? fotoBase64;
+  final String extensao;
+
+  const _ProdutoImportado({
+    required this.produto,
+    required this.fotoBase64,
+    required this.extensao,
+  });
+}
+
+/// Retorno de uma importação de catálogo, para a tela dar um resumo honesto
+/// do que entrou.
+class CatalogImportResult {
+  final int adicionados;
+  final int atualizados;
+  final int ignorados;
+
+  const CatalogImportResult({
+    required this.adicionados,
+    required this.atualizados,
+    required this.ignorados,
+  });
+
+  int get total => adicionados + atualizados;
 }
 
 class Transaction {
@@ -137,6 +179,11 @@ class _NodeHandle {
     balancesInitialized = false;
     lightningBalanceSats = 0;
     onchainBalanceSats = 0;
+    // A fatura fixa pertence à conta que estava ativa. Se ficasse aqui, a
+    // próxima conta exibiria o QR estático da anterior e o pagamento cairia
+    // na carteira errada.
+    fixedInvoice = null;
+    lastStartError = null;
   }
 }
 
@@ -158,6 +205,16 @@ class WalletService extends ChangeNotifier {
 
   double _cartTotal = 0;
   double _pendingChargeAmount = 0;
+
+  /// Disparado ao trocar/criar/apagar conta, para que serviços externos
+  /// (PIX, por exemplo) descartem estado da conta anterior. Ligado no main.dart
+  /// — assim o WalletService não precisa conhecer o PixService.
+  VoidCallback? onAccountChanged;
+
+  /// Disparado ao importar um catálogo. Cobranças em cache pertencem à sessão
+  /// anterior; depois de importar, todo QR precisa ser gerado de novo contra a
+  /// carteira DESTE aparelho. Ligado no main.dart.
+  VoidCallback? onCatalogImported;
 
   final _NodeHandle _consumerNode = _NodeHandle();
   final _NodeHandle _merchantNode = _NodeHandle();
@@ -358,6 +415,15 @@ class WalletService extends ChangeNotifier {
       final List decoded = jsonDecode(merchantsStr);
       _merchantAccounts = decoded.map((e) => AccountProfile.fromJson(e)).toList();
       _activeMerchantId = await _storage.read(key: 'active_merchant_id');
+      // Dados vindos de versões antigas podem ter lojas salvas sem o id ativo,
+      // ou apontar para uma loja que já não existe. Sem um id válido a chave do
+      // catálogo fica nula e os produtos somem. Cai na primeira loja.
+      final idValido = _activeMerchantId != null &&
+          _merchantAccounts.any((a) => a.id == _activeMerchantId);
+      if (!idValido && _merchantAccounts.isNotEmpty) {
+        _activeMerchantId = _merchantAccounts.first.id;
+        await _saveMerchants();
+      }
     } else {
       final legacySeed = await _storage.read(key: 'merchant_seed');
       final legacyPin = await _storage.read(key: 'merchant_pin_hash');
@@ -369,6 +435,17 @@ class WalletService extends ChangeNotifier {
         await _saveMerchants();
       }
     }
+
+    // Catálogo da loja: carregado AQUI, junto do perfil, e não mais dentro do
+    // _startNode. Antes, se o nó falhasse ou demorasse a subir, os produtos
+    // nunca eram carregados e pareciam apagados a cada abertura do app.
+    ProductImageStore.definirLoja(_activeMerchantId);
+    await _loadMerchantProducts();
+    // Versões anteriores guardavam as fotos numa pasta única; traz para a
+    // pasta desta loja as que ela referencia.
+    await ProductImageStore.migrarDaRaiz(
+      _merchantProducts.map((p) => p.image).whereType<String>().toSet(),
+    );
 
     final lastSession = await _storage.read(key: 'last_session_type');
     if (lastSession != null) {
@@ -426,6 +503,10 @@ class WalletService extends ChangeNotifier {
   Future<bool> unlock(String pin) async {
     // Fluxo de criação de nova conta
     if (_tempConsumerSeed != null) {
+      // Mesma regra da loja: sem parar o nó anterior, a carteira nova herdaria
+      // o nó (e o saldo) da carteira antiga.
+      await _consumerNode.stop();
+
       final newAccount = AccountProfile(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: 'Carteira Pessoal ${_consumerAccounts.length + 1}',
@@ -467,6 +548,11 @@ class WalletService extends ChangeNotifier {
   }
 
   Future<void> setupMerchant(String name, String seed, String pin) async {
+    // O nó da loja anterior precisa parar ANTES: o _startNode desiste se já
+    // houver um nó rodando, e a loja nova acabaria operando sobre a seed (e o
+    // saldo) da loja antiga.
+    await _merchantNode.stop();
+
     final newAccount = AccountProfile(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: name,
@@ -476,10 +562,12 @@ class WalletService extends ChangeNotifier {
 
     _merchantAccounts.add(newAccount);
     _activeMerchantId = newAccount.id;
+    ProductImageStore.definirLoja(newAccount.id);
     await _saveMerchants();
 
     _isMerchantUnlocked = true;
-    _merchantTransactions.clear();
+    // Loja nova nasce zerada: nada da loja anterior pode aparecer aqui.
+    _clearMerchantSessionState();
     await setLastSessionType('merchant');
     notifyListeners();
 
@@ -760,8 +848,10 @@ class WalletService extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     for (final a in _merchantAccounts) {
       await prefs.remove('merchant_products_${a.id}');
+      await ProductImageStore.apagarLoja(a.id);
     }
     await prefs.remove('merchant_products');
+    ProductImageStore.definirLoja(null);
     _merchantProducts = [];
     _consumerAccounts.clear();
     _merchantAccounts.clear();
@@ -793,8 +883,12 @@ class WalletService extends ChangeNotifier {
   Future<void> deleteActiveMerchant() async {
     await _merchantNode.stop();
     final removedId = _activeMerchantId;
-    if (removedId != null) await _deleteMerchantProducts(removedId);
-    _merchantProducts = [];
+    if (removedId != null) {
+      await _deleteMerchantProducts(removedId);
+      // A loja deixou de existir: as fotos dela vão junto.
+      await ProductImageStore.apagarLoja(removedId);
+    }
+    _clearMerchantSessionState();
     _merchantAccounts.removeWhere((a) => a.id == _activeMerchantId);
     if (_merchantAccounts.isNotEmpty) {
       _activeMerchantId = _merchantAccounts.first.id;
@@ -806,11 +900,14 @@ class WalletService extends ChangeNotifier {
       }
     }
     await _saveMerchants();
+    // Assume o catálogo da loja que passou a ser a ativa.
+    await _loadMerchantProducts();
     notifyListeners();
   }
 
   Future<void> switchConsumerAccount(String id) async {
     await _consumerNode.stop();
+    _clearConsumerSessionState();
     _activeConsumerId = id;
     await _saveConsumers();
     _isUnlocked = false; // Requer PIN para a nova conta
@@ -819,9 +916,14 @@ class WalletService extends ChangeNotifier {
 
   Future<void> switchMerchantAccount(String id) async {
     await _merchantNode.stop();
+    _clearMerchantSessionState();
     _activeMerchantId = id;
-    _merchantProducts = []; // recarregado ao destravar a loja
+    // As fotos seguem a loja: sem isto, a limpeza de órfãs da loja nova
+    // apagaria as fotos da anterior.
+    ProductImageStore.definirLoja(id);
     await _saveMerchants();
+    // Carrega o catálogo da loja escolhida na hora (não depende do nó subir).
+    await _loadMerchantProducts();
     _isMerchantUnlocked = false; // Requer PIN para a nova loja
     notifyListeners();
   }
@@ -829,6 +931,24 @@ class WalletService extends ChangeNotifier {
   // ---------------------------------------------------------------------
   // Produtos do lojista
   // ---------------------------------------------------------------------
+
+  /// Apaga da memória tudo que pertence à loja que estava ativa. Contas são
+  /// separadas: catálogo, histórico, carrinho e cobrança pendente não podem
+  /// atravessar de uma para outra. Sem isso o catálogo antigo ainda seria
+  /// gravado na chave da loja nova no primeiro cadastro de produto.
+  void _clearMerchantSessionState() {
+    _merchantProducts = [];
+    _merchantTransactions.clear();
+    _cartTotal = 0;
+    _pendingChargeAmount = 0;
+    onAccountChanged?.call();
+  }
+
+  /// Equivalente para a carteira pessoal.
+  void _clearConsumerSessionState() {
+    _consumerTransactions.clear();
+    onAccountChanged?.call();
+  }
 
   /// Cada loja tem seu próprio catálogo. Uma loja nova nasce sem produtos.
   String? get _productsKey =>
@@ -942,6 +1062,8 @@ class WalletService extends ChangeNotifier {
     if (idx != -1) {
       _merchantProducts[idx] = p;
       _saveMerchantProducts();
+      // Se a foto foi trocada ou removida, a antiga vira lixo.
+      _limparFotosOrfas();
       notifyListeners();
     }
   }
@@ -949,7 +1071,220 @@ class WalletService extends ChangeNotifier {
   void removeMerchantProduct(String id) {
     _merchantProducts.removeWhere((e) => e.id == id);
     _saveMerchantProducts();
+    // A foto do produto apagado não serve mais a ninguém.
+    _limparFotosOrfas();
     notifyListeners();
+  }
+
+  /// Apaga arquivos de foto que nenhum produto referencia mais: produto
+  /// excluído, foto trocada, ou cadastro abandonado depois de escolher imagem.
+  Future<void> _limparFotosOrfas() async {
+    final emUso = _merchantProducts
+        .map((p) => p.image)
+        .whereType<String>()
+        .toSet();
+    await ProductImageStore.limparOrfaos(emUso);
+  }
+
+  // ---------------------------------------------------------------------
+  // Exportar / importar catálogo (replicar a loja em vários dispositivos)
+  // ---------------------------------------------------------------------
+
+  /// Versão do formato do arquivo. Só o catálogo trafega — nunca seed, PIN ou
+  /// qualquer chave: um arquivo exportado não dá acesso à carteira.
+  static const int catalogFormatVersion = 1;
+
+  /// Serializa o catálogo da loja ativa. O JSON sai indentado para ser legível
+  /// e conferível por quem recebe.
+  Future<String> exportMerchantCatalog() async {
+    if (_activeMerchantId == null) {
+      throw StateError('Nenhuma loja ativa para exportar.');
+    }
+
+    // A foto vive em arquivo local; para atravessar para outro aparelho ela
+    // precisa ir embutida no JSON.
+    final produtos = <Map<String, dynamic>>[];
+    for (final p in _merchantProducts) {
+      final json = p.toJson();
+      final bytes = await ProductImageStore.lerBytes(p.image);
+      if (bytes != null) {
+        json['image'] = base64Encode(bytes);
+        json['image_ext'] = _extensaoDe(p.image);
+      } else {
+        json.remove('image');
+      }
+      produtos.add(json);
+    }
+
+    return const JsonEncoder.withIndent('  ').convert({
+      'iris_catalog': catalogFormatVersion,
+      'loja': merchantName ?? '',
+      'exportado_em': DateTime.now().toIso8601String(),
+      'produtos': produtos,
+    });
+  }
+
+  static String _extensaoDe(String? nomeArquivo) {
+    if (nomeArquivo == null || !nomeArquivo.contains('.')) return 'jpg';
+    return nomeArquivo.split('.').last;
+  }
+
+  /// Lê o conteúdo exportado e valida item a item. Nada é gravado se o arquivo
+  /// for inválido — ou entra tudo que é válido, ou a operação falha inteira.
+  ///
+  /// [substituir] troca o catálogo atual; caso contrário mescla, atualizando os
+  /// produtos de mesmo id e acrescentando os novos.
+  Future<CatalogImportResult> importMerchantCatalog(String raw,
+      {bool substituir = false}) async {
+    if (_activeMerchantId == null) {
+      throw StateError('Nenhuma loja ativa para receber o catálogo.');
+    }
+
+    final texto = raw.trim();
+    if (texto.isEmpty) {
+      throw const FormatException('Conteúdo vazio.');
+    }
+
+    dynamic decodificado;
+    try {
+      decodificado = jsonDecode(texto);
+    } catch (_) {
+      throw const FormatException(
+          'Isso não é um catálogo do Iris. Verifique se o texto foi copiado por inteiro.');
+    }
+
+    // Aceita o envelope completo ou uma lista de produtos pura, para o caso de
+    // alguém colar só o trecho dos produtos.
+    List<dynamic> crus;
+    if (decodificado is List) {
+      crus = decodificado;
+    } else if (decodificado is Map<String, dynamic>) {
+      final versao = decodificado['iris_catalog'];
+      if (versao is int && versao > catalogFormatVersion) {
+        throw FormatException(
+            'Catálogo criado numa versão mais nova do app (formato $versao). Atualize o Iris neste aparelho.');
+      }
+      final lista = decodificado['produtos'];
+      if (lista is! List) {
+        throw const FormatException('O arquivo não contém uma lista de produtos.');
+      }
+      crus = lista;
+    } else {
+      throw const FormatException('Formato de catálogo não reconhecido.');
+    }
+
+    final importados = <Product>[];
+    var ignorados = 0;
+    for (final item in crus) {
+      final lido = _produtoDeJsonTolerante(item);
+      if (lido == null) {
+        ignorados++;
+        continue;
+      }
+      // Grava a foto embutida como arquivo local deste aparelho.
+      if (lido.fotoBase64 != null) {
+        lido.produto.image = await ProductImageStore.salvarBase64(
+          lido.fotoBase64!,
+          extensao: lido.extensao,
+        );
+      }
+      importados.add(lido.produto);
+    }
+
+    if (importados.isEmpty) {
+      throw const FormatException('Nenhum produto válido foi encontrado no arquivo.');
+    }
+
+    var adicionados = 0;
+    var atualizados = 0;
+    if (substituir) {
+      _merchantProducts = importados;
+      adicionados = importados.length;
+    } else {
+      for (final novo in importados) {
+        final idx = _merchantProducts.indexWhere((e) => e.id == novo.id);
+        if (idx == -1) {
+          _merchantProducts.add(novo);
+          adicionados++;
+        } else {
+          _merchantProducts[idx] = novo;
+          atualizados++;
+        }
+      }
+    }
+
+    await _saveMerchantProducts();
+    // Substituir descarta os produtos antigos: as fotos deles ficariam órfãs.
+    await _limparFotosOrfas();
+
+    // O catálogo veio de outro aparelho, mas o dinheiro é deste. Descarta
+    // cobranças em cache para que todo QR seja regerado com a carteira local
+    // (endereço Liquid, fatura Lightning e endereço on-chain daqui).
+    onCatalogImported?.call();
+
+    notifyListeners();
+    return CatalogImportResult(
+      adicionados: adicionados,
+      atualizados: atualizados,
+      ignorados: ignorados,
+    );
+  }
+
+  /// Converte um item do arquivo, ou devolve null se for inválido.
+  /// Deliberadamente tolerante com campos ausentes (descrição, foto, isActive)
+  /// e rigoroso com os que definem o produto (nome e preço).
+  static _ProdutoImportado? _produtoDeJsonTolerante(dynamic item) {
+    if (item is! Map) return null;
+
+    final nome = item['name'];
+    if (nome is! String || nome.trim().isEmpty) return null;
+
+    final precoCru = item['price'];
+    final double preco;
+    if (precoCru is num) {
+      preco = precoCru.toDouble();
+    } else if (precoCru is String) {
+      final v = double.tryParse(precoCru.replaceAll(',', '.'));
+      if (v == null) return null;
+      preco = v;
+    } else {
+      return null;
+    }
+    // NaN/infinito quebrariam a formatação e os cálculos de cobrança.
+    if (!preco.isFinite || preco < 0) return null;
+
+    final id = item['id'];
+    final descricao = item['description'];
+
+    final produto = Product(
+      id: (id is String && id.trim().isNotEmpty)
+          ? id
+          : DateTime.now().microsecondsSinceEpoch.toString(),
+      name: nome.trim(),
+      price: preco,
+      isActive: item['isActive'] is bool ? item['isActive'] as bool : true,
+      description: descricao is String ? descricao.trim() : '',
+    );
+
+    // A foto vem embutida em base64. Só é aceita se decodificar; foto inválida
+    // não invalida o produto — ele entra sem foto, em vez de sumir.
+    String? fotoBase64;
+    final imagemCrua = item['image'];
+    if (imagemCrua is String && imagemCrua.isNotEmpty) {
+      try {
+        base64Decode(imagemCrua);
+        fotoBase64 = imagemCrua;
+      } catch (_) {
+        fotoBase64 = null;
+      }
+    }
+    final ext = item['image_ext'];
+
+    return _ProdutoImportado(
+      produto: produto,
+      fotoBase64: fotoBase64,
+      extensao: (ext is String && ext.trim().isNotEmpty) ? ext.trim() : 'jpg',
+    );
   }
 
   Future<void> toggleNfc(bool value) async {

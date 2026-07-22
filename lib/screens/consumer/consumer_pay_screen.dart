@@ -25,15 +25,20 @@ class ConsumerPayScreen extends StatefulWidget {
   State<ConsumerPayScreen> createState() => _ConsumerPayScreenState();
 }
 
-class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
+class _ConsumerPayScreenState extends State<ConsumerPayScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _invoiceCtrl = TextEditingController();
+
+  /// Canal para perguntar ao Android sobre o hardware do aparelho.
+  static const _deviceChannel = MethodChannel('app.iriswallet/device');
 
   // Câmera: sempre inicia desligada; o usuário liga quando quiser escanear.
   MobileScannerController? _scannerController;
   bool _cameraOn = false;
   bool _cameraDetected = false; // existe câmera conectada no dispositivo?
   bool _cameraProbeDone = false;
-  bool _isNfcAvailable = false;
+  bool _hasNfcHardware = false; // o aparelho tem chip de NFC?
+  bool _isNfcAvailable = false; // ...e o adaptador está ligado?
   bool _hasScanned = false;
   bool _isResolving = false;
 
@@ -51,8 +56,15 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initNfc();
     _detectCamera();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Ao voltar das configurações do sistema o usuário pode ter ligado o NFC.
+    if (state == AppLifecycleState.resumed) _initNfc();
   }
 
   /// Enumera as câmeras do dispositivo SEM abri-las: a opção de ligar só
@@ -151,12 +163,28 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
     }
   }
 
+  /// Descobre se o aparelho TEM NFC (hardware) e, separadamente, se o
+  /// adaptador está ligado. O plugin só responde a segunda pergunta, e um
+  /// celular com o NFC desligado continua sendo compatível — por isso o
+  /// hardware é consultado direto no Android.
   Future<void> _initNfc() async {
+    if (Platform.isAndroid) {
+      try {
+        _hasNfcHardware =
+            await _deviceChannel.invokeMethod<bool>('hasNfcHardware') ?? false;
+      } catch (_) {
+        _hasNfcHardware = false;
+      }
+    } else {
+      _hasNfcHardware = false; // desktop não tem NFC
+    }
     try {
       _isNfcAvailable = await NfcManager.instance.isAvailable();
     } catch (_) {
       _isNfcAvailable = false;
     }
+    // Se o adaptador respondeu que está ligado, o hardware obviamente existe.
+    if (_isNfcAvailable) _hasNfcHardware = true;
     if (mounted) setState(() {});
   }
 
@@ -188,6 +216,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scannerController?.dispose();
     _stopWindowsCamera();
     if (_isNfcAvailable) {
@@ -622,8 +651,10 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
               ),
             ),
 
-            // NFC: só aparece quando o dispositivo realmente tem o hardware
-            if (_isNfcAvailable) ...[
+            // NFC: só aparece quando o aparelho realmente tem o chip. Se tiver o
+            // chip mas o adaptador estiver desligado, o campo continua visível
+            // e leva o usuário às configurações do sistema.
+            if (_hasNfcHardware) ...[
             const SizedBox(height: 16),
 
             Container(
@@ -637,12 +668,34 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
-                    child: Row(
-                      children: [
-                        const Icon(Icons.contactless, color: IrisTheme.textSecondary),
-                        const SizedBox(width: 12),
-                        const Expanded(child: Text('Pagar por aproximação', overflow: TextOverflow.ellipsis)),
-                      ],
+                    child: GestureDetector(
+                      onTap: _isNfcAvailable
+                          ? null
+                          : () => _deviceChannel.invokeMethod('openNfcSettings'),
+                      behavior: HitTestBehavior.opaque,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.contactless, color: IrisTheme.textSecondary),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text('Pagar por aproximação',
+                                    overflow: TextOverflow.ellipsis),
+                                if (!_isNfcAvailable)
+                                  const Text(
+                                    'NFC desligado · toque para ativar',
+                                    style: TextStyle(
+                                        fontSize: 11, color: IrisTheme.textTertiary),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   Switch(

@@ -133,8 +133,8 @@ class CargoKitPlugin implements Plugin<Project> {
 
             // Same thing addFlutterDependencies does in flutter.gradle
             if (buildType == "debug") {
-                platforms.add("android-x86")
-                platforms.add("android-x64")
+                // platforms.add("android-x86") // desativado: só arm64 no debug
+                // platforms.add("android-x64") // desativado: só arm64 no debug
             }
 
             // The task name depends on plugin properties, which are not available

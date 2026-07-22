@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
@@ -713,12 +714,15 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
               if (displayPayload != null)
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    // QR responsivo: ~60% da largura da tela, com meio-termo no
-                    // mobile e limite no desktop. O box acompanha o QR (sem
-                    // espaço vazio nas laterais) e nunca ultrapassa o disponível.
+                    // QR responsivo: limitado pela largura E pela altura da tela,
+                    // para a página caber sem scroll em qualquer aparelho. O box
+                    // acompanha o QR (sem espaço vazio nas laterais).
                     final screenW = MediaQuery.of(context).size.width;
+                    final screenH = MediaQuery.of(context).size.height;
                     final available = constraints.maxWidth - 32;
-                    double qrSize = (screenW * 0.6).clamp(240.0, 380.0).toDouble();
+                    double qrSize = (screenW * 0.6).clamp(200.0, 380.0).toDouble();
+                    final byHeight = screenH * 0.30;
+                    if (qrSize > byHeight) qrSize = byHeight;
                     if (qrSize > available) qrSize = available;
                     return Container(
                       width: qrSize + 32,
@@ -903,9 +907,13 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                     child: ElevatedButton.icon(
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: displayPayload));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Código copiado!')),
-                        );
+                        // O Android 13+ já exibe o próprio aviso de cópia;
+                        // mostrar o nosso duplicaria a notificação.
+                        if (!Platform.isAndroid) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Código copiado!')),
+                          );
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: IrisTheme.s1,

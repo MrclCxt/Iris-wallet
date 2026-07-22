@@ -27,8 +27,17 @@ class _PinScreenState extends State<PinScreen> {
     final wallet = context.read<WalletService>();
     final liquid = context.read<LiquidWalletService>();
     final seed = widget.isMerchant ? wallet.merchantSeed : wallet.consumerSeed;
-    if (seed != null && !liquid.isRunning) {
-      liquid.initLiquidWallet(seed).catchError((e) {
+    // Cada conta tem sua própria carteira Liquid. O id entra no caminho dos
+    // dados e faz o serviço recarregar quando a conta ativa muda — o guarda
+    // antigo (`!liquid.isRunning`) mantinha a carteira da conta anterior.
+    final accountId = widget.isMerchant
+        ? wallet.activeMerchant?.id
+        : wallet.activeConsumer?.id;
+    if (seed != null && accountId != null) {
+      liquid
+          .initLiquidWallet(seed,
+              accountId: '${widget.isMerchant ? 'm' : 'c'}_$accountId')
+          .catchError((e) {
         debugPrint('Liquid init: $e');
       });
     }

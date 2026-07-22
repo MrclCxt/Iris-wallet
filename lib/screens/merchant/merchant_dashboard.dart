@@ -6,8 +6,8 @@ import '../../services/wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
 import '../../widgets/currency_toggle_btn.dart';
 import '../../widgets/area_switcher_btn.dart';
+import '../../widgets/product_thumb.dart';
 import 'merchant_product_qr_screen.dart';
-import '../consumer/custom_charge_screen.dart';
 
 class MerchantDashboard extends StatefulWidget {
   final Function(int)? onNavigateTab;
@@ -144,31 +144,24 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
+                      // Atalho para a aba Cobrar, onde o lojista escolhe o
+                      // trilho (Lightning / on-chain / PIX) e o valor.
                       onPressed: () {
                         if (wallet.cartTotal > 0) {
                           wallet.setPendingCharge(wallet.cartTotal);
                           wallet.clearCart();
-                          if (widget.onNavigateTab != null) {
-                            widget.onNavigateTab!(2);
-                          }
-                        } else {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const CustomChargeScreen(isMerchant: true),
-                            ),
-                          );
                         }
+                        widget.onNavigateTab?.call(2);
                       },
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                       child: Text(
-                        wallet.cartTotal > 0 
-                            ? (exchangeRate.isSatsDisplay 
+                        wallet.cartTotal > 0
+                            ? (exchangeRate.isSatsDisplay
                                 ? '⚡ Cobrar ${CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(wallet.cartTotal))}'
                                 : '⚡ Cobrar R\$ ${CurrencyFormatter.formatBrlCompact(wallet.cartTotal)}')
-                            : '⚡ Cobrar valor específico',
+                            : '⚡ Cobrar',
                       ),
                     ),
                   ),
@@ -263,7 +256,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
         ),
         child: Row(
           children: [
-            Text(p.emoji, style: const TextStyle(fontSize: 24)),
+            ProductThumb(product: p, tamanho: 38),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

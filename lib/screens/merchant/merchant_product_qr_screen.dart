@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -13,7 +14,8 @@ import '../../services/liquid_wallet_service.dart';
 import '../../widgets/max_width_container.dart';
 import '../../widgets/currency_toggle_btn.dart';
 import '../../core/currency_format.dart';
-import 'merchant_product_edit_screen.dart';
+import 'merchant_product_form_screen.dart';
+import '../../widgets/product_thumb.dart';
 import 'package:share_plus/share_plus.dart';
 
 class MerchantProductQrScreen extends StatefulWidget {
@@ -34,6 +36,11 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
   StreamSubscription<ReceivedPayment>? _paymentSub;
   StreamSubscription<int>? _lbtcSub;
   Timer? _paidTimer;
+  // A cobrança PIX fica em estado GLOBAL no PixService. Se esta tela criar uma
+  // e não limpar, as abas de trilho somem na tela de Receber/Cobrar (ela some
+  // quando há cobrança ativa) e só voltam reiniciando o app.
+  PixService? _pix;
+  bool _createdPixCharge = false;
 
   @override
   void initState() {
@@ -67,12 +74,16 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
     _paymentSub?.cancel();
     _lbtcSub?.cancel();
     _paidTimer?.cancel();
+    // Limpa a cobrança PIX criada por esta tela para não vazar o estado global
+    // (senão as abas de trilho somem em Receber/Cobrar até reiniciar o app).
+    if (_createdPixCharge) _pix?.clearActiveCharge();
     super.dispose();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _pix = context.read<PixService>();
     // O trilho de recebimento segue a moeda selecionada: alternar SATS <-> R$
     // regenera o QR — R$ vira cobrança PIX; SATS vira Lightning (ou on-chain
     // para valores grandes).
@@ -93,6 +104,12 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
     });
     try {
       if (rate.isSatsDisplay) {
+        // Saiu do PIX: descarta a cobrança que esta tela havia criado, senão o
+        // estado global segue "com cobrança ativa" e some com as abas depois.
+        if (_createdPixCharge) {
+          _pix?.clearActiveCharge();
+          _createdPixCharge = false;
+        }
         if (satsAmount <= 0) {
           throw Exception('Cotação BTC/BRL indisponível — aguarde a atualização do câmbio.');
         }
@@ -118,6 +135,7 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
         // Moeda em R$: recebimento por PIX (DEPIX -> Liquid -> sats).
         final pix = context.read<PixService>();
         await pix.startDeposit(widget.product.price);
+        _createdPixCharge = true; // limpa no dispose / ao voltar para SATS
         _invoiceData = pix.activeCharge?.qrCopiaECola;
         _watchingPaymentHash = null;
         _isOnchainPayload = false;
@@ -148,8 +166,12 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
       orElse: () => widget.product, // fallback caso excluido
     );
 
-    // Se o produto foi excluido enquanto nesta tela (embora pop resolva, é bom checar)
+    // Produto excluído enquanto esta tela estava aberta: fecha o diálogo. Antes
+    // devolvia um Scaffold vazio e o resultado era uma tela preta travada.
     if (!wallet.merchantProducts.any((p) => p.id == widget.product.id)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).maybePop();
+      });
       return const Scaffold(backgroundColor: IrisTheme.bg, body: SizedBox());
     }
 
@@ -166,21 +188,18 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
               padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
               child: Row(
                 children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: IrisTheme.primary.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Center(child: Text(product.emoji, style: const TextStyle(fontSize: 17))),
-                  ),
+                  ProductThumb(product: product, tamanho: 36),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(product.name, style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
+                        Text(
+                          product.name,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
                     ),
                   ),
@@ -201,10 +220,10 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                           backgroundColor: Colors.transparent,
                           insetPadding: const EdgeInsets.all(16),
                           child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 450, maxHeight: 700),
+                            constraints: const BoxConstraints(maxWidth: 450, maxHeight: 720),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(20),
-                              child: MerchantProductEditScreen(product: product),
+                              child: MerchantProductFormScreen(product: product),
                             ),
                           ),
                         ),
@@ -247,10 +266,13 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                     else if (_invoiceData != null)
                       LayoutBuilder(
                         builder: (context, constraints) {
-                          // QR preenche o box (sem espaço vazio), num tamanho
-                          // compacto que cabe no modal.
+                          // QR limitado pela largura E pela altura da tela, para
+                          // caber no modal em qualquer aparelho (sem overflow).
+                          final screenH = MediaQuery.of(context).size.height;
+                          final byWidth = constraints.maxWidth - 48;
+                          final byHeight = screenH * 0.26;
                           final qrSize =
-                              (constraints.maxWidth - 48).clamp(180.0, 240.0).toDouble();
+                              (byWidth < byHeight ? byWidth : byHeight).clamp(160.0, 240.0).toDouble();
                           return Container(
                             width: qrSize + 32,
                             padding: const EdgeInsets.all(16),
@@ -304,22 +326,21 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                     else
                       const SizedBox(),
                     
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 12),
                     if (_isPaid) ...[
-                      const Icon(Icons.check_circle, color: IrisTheme.success, size: 48),
-                      const SizedBox(height: 8),
+                      const Icon(Icons.check_circle, color: IrisTheme.success, size: 40),
+                      const SizedBox(height: 6),
                       const Text(
                         'Pagamento recebido! ⚡',
-                        style: TextStyle(color: IrisTheme.success, fontWeight: FontWeight.w700, fontSize: 18),
+                        style: TextStyle(color: IrisTheme.success, fontWeight: FontWeight.w700, fontSize: 16),
                       ),
-                    ] else ...[
+                    ] else
+                      // Sem spinner: o texto já indica a espera e o espaço é
+                      // curto no modal (evita overflow em telas de celular).
                       const Text(
                         'Aguardando pagamento...',
-                        style: TextStyle(color: IrisTheme.primary, fontWeight: FontWeight.w600, fontSize: 16),
+                        style: TextStyle(color: IrisTheme.primary, fontWeight: FontWeight.w600, fontSize: 14),
                       ),
-                      const SizedBox(height: 8),
-                      const CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(IrisTheme.primary)),
-                    ],
                   ],
                 ),
               ),
@@ -337,9 +358,13 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                         ElevatedButton.icon(
                           onPressed: () {
                             Clipboard.setData(ClipboardData(text: _invoiceData!));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Código copiado!')),
-                            );
+                            // O Android 13+ já exibe o próprio aviso de cópia;
+                            // mostrar o nosso duplicaria a notificação.
+                            if (!Platform.isAndroid) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Código copiado!')),
+                              );
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: IrisTheme.s1,

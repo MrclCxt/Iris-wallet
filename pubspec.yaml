@@ -32,6 +32,10 @@ dependencies:
   intl: ^0.20.2
   lwk: ^0.1.7
   share_plus: ^10.0.0
+  # Salvar/abrir o arquivo de catálogo (exportar e importar entre aparelhos)
+  # Versão presa em 8.0.x: a partir de 8.1 exige web ^1.0.0, que conflita com o
+  # flutter_rust_bridge 2.0.0 (nó Lightning).
+  file_picker: ^8.0.7
   nfc_manager: ^3.5.1
   shared_preferences: ^2.5.3
 

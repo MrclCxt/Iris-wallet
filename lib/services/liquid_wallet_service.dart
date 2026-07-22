@@ -17,6 +17,7 @@ class LiquidWalletService extends ChangeNotifier {
 
   lwk.Wallet? _wallet;
   String? _mnemonic; // mantida em memória apenas para assinar (não-custodial)
+  String? _accountId; // de qual conta é a carteira que está carregada
   bool _isRunning = false;
   bool _isMock = false;
   Timer? _syncTimer;
@@ -34,15 +35,35 @@ class LiquidWalletService extends ChangeNotifier {
   String? _receiveAddress;
   String? get receiveAddress => _receiveAddress;
 
-  Future<void> initLiquidWallet(String mnemonic) async {
-    if (_isRunning) return;
+  /// Descarta a carteira Liquid carregada. Necessário ao trocar de conta: são
+  /// carteiras separadas, e manter a anterior faria o endereço de recebimento
+  /// (e o saldo exibido) pertencerem à conta errada.
+  void resetForAccountSwitch() {
+    _syncTimer?.cancel();
+    _syncTimer = null;
+    _wallet = null;
+    _mnemonic = null;
+    _accountId = null;
+    _receiveAddress = null;
+    _balanceSats = 0;
+    _isRunning = false;
+    _isMock = false;
+    notifyListeners();
+  }
+
+  /// [accountId] separa os dados em disco por conta. Sem isso todas as contas
+  /// dividiriam a mesma base do LWK.
+  Future<void> initLiquidWallet(String mnemonic, {String accountId = 'default'}) async {
+    // Já rodando para ESTA conta: nada a fazer. Para outra conta, recarrega.
+    if (_isRunning && _accountId == accountId) return;
+    if (_isRunning) resetForAccountSwitch();
     try {
       // Inicializa a ponte flutter_rust_bridge do LWK antes de qualquer chamada
       // nativa (sem isto: "flutter_rust_bridge has not been initialized").
       await lwk.LibLwk.init();
 
       final directory = await getApplicationDocumentsDirectory();
-      final dbPath = '${directory.path}/lwk_data';
+      final dbPath = '${directory.path}/lwk_data_$accountId';
       final dir = Directory(dbPath);
       if (!await dir.exists()) {
         await dir.create(recursive: true);
@@ -61,6 +82,7 @@ class LiquidWalletService extends ChangeNotifier {
         descriptor: descriptor,
       );
       _mnemonic = mnemonic;
+      _accountId = accountId;
 
       // validateDomain: true faz o cliente TLS enviar o SNI (blockstream.info
       // fica atrás de CDN que exige SNI). Com false, o servidor recusava o

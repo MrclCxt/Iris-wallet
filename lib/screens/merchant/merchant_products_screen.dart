@@ -5,8 +5,10 @@ import '../../core/currency_format.dart';
 import '../../services/wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
 import '../../widgets/currency_toggle_btn.dart';
-import 'merchant_product_new_screen.dart';
+import '../../widgets/product_thumb.dart';
+import 'merchant_product_form_screen.dart';
 import 'merchant_product_qr_screen.dart';
+import 'merchant_catalog_transfer.dart';
 
 class MerchantProductsScreen extends StatefulWidget {
   const MerchantProductsScreen({super.key});
@@ -32,9 +34,47 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
               children: [
                 const CurrencyToggleBtn(),
                 const Text('Produtos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                IconButton(
-                  icon: const Icon(Icons.add, color: IrisTheme.primary),
-                  onPressed: () => _openNewProduct(context),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Replicar o catálogo em outros aparelhos da loja.
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, color: IrisTheme.textSecondary),
+                      color: IrisTheme.s2,
+                      tooltip: 'Catálogo',
+                      onSelected: (v) {
+                        if (v == 'exportar') {
+                          showCatalogExportSheet(context);
+                        } else if (v == 'importar') {
+                          showCatalogImportDialog(context);
+                        }
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'exportar',
+                          child: ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.ios_share, size: 20),
+                            title: Text('Exportar catálogo'),
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'importar',
+                          child: ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.download, size: 20),
+                            title: Text('Importar catálogo'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add, color: IrisTheme.primary),
+                      onPressed: () => _openNewProduct(context),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -80,10 +120,10 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.all(16),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 450, maxHeight: 700),
+          constraints: const BoxConstraints(maxWidth: 450, maxHeight: 720),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
-            child: const MerchantProductNewScreen(),
+            child: const MerchantProductFormScreen(),
           ),
         ),
       ),
@@ -121,6 +161,14 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               ),
             ),
+            const SizedBox(height: 12),
+            // Segundo aparelho da mesma loja começa por aqui.
+            TextButton.icon(
+              onPressed: () => showCatalogImportDialog(context),
+              icon: const Icon(Icons.download, size: 18),
+              label: const Text('Importar de outro aparelho'),
+              style: TextButton.styleFrom(foregroundColor: IrisTheme.textSecondary),
+            ),
           ],
         ),
       ),
@@ -157,7 +205,7 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
         ),
         child: Row(
           children: [
-            Text(p.emoji, style: const TextStyle(fontSize: 32)),
+            ProductThumb(product: p),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -165,11 +213,20 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    p.name, 
+                    p.name,
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (p.description.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      p.description,
+                      style: const TextStyle(fontSize: 11, color: IrisTheme.textTertiary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Text(
                     exchangeRate.isSatsDisplay

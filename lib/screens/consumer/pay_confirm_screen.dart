@@ -219,7 +219,10 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
 
   /// Saldo disponível (em sats) para o trilho desta cobrança.
   int _availableSats(WalletService wallet, LiquidWalletService liquid) {
-    if (_isPix) return wallet.consumerBalance + liquid.balanceSats;
+    // O saque PIX gasta da carteira Liquid (é dela que sai o envio ao
+    // provedor). Somar o saldo Lightning aqui prometia um valor que a
+    // transação não conseguia pagar, e a falha só aparecia no fim.
+    if (_isPix) return liquid.balanceSats;
     if (_isLiquid) return liquid.balanceSats;
     if (_isOnchain) return wallet.consumerOnchainSats;
     return wallet.consumerLightningSats;
@@ -267,8 +270,19 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
         _showError('Cotação BTC/BRL indisponível. Tente em instantes.');
         return;
       }
-      if (wallet.consumerBalance + liquid.balanceSats < satsCost) {
-        _showError('Saldo insuficiente (custa ≈ $satsCost sats).');
+      // Confere contra a Liquid, que é de onde o envio sai de fato.
+      if (liquid.balanceSats < satsCost) {
+        if (wallet.consumerBalance >= satsCost) {
+          // Tem saldo, mas na rede errada para este trilho. Dizer isso é bem
+          // melhor do que "saldo insuficiente" com o saldo aparecendo na tela.
+          _showError(
+              'Você tem ${wallet.consumerBalance} sats em Lightning, mas o saque '
+              'PIX sai da carteira Liquid, que tem ${liquid.balanceSats} sats. '
+              'A conversão de Lightning para Liquid ainda não está disponível.');
+        } else {
+          _showError(
+              'Saldo Liquid insuficiente: custa ≈ $satsCost sats e há ${liquid.balanceSats}.');
+        }
         return;
       }
 

@@ -69,7 +69,7 @@ class LiquidWalletService extends ChangeNotifier {
         await dir.create(recursive: true);
       }
 
-      final network = lwk.Network.testnet;
+      const network = lwk.Network.testnet;
 
       final descriptor = await lwk.Descriptor.newConfidential(
         network: network,

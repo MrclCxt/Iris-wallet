@@ -63,6 +63,8 @@ class _PinScreenState extends State<PinScreen> {
               if (_pin == _firstPin) {
                 final wallet = context.read<WalletService>();
                 final success = widget.isMerchant ? await wallet.unlockMerchant(_pin) : await wallet.unlock(_pin);
+                // O desbloqueio é assíncrono: a tela pode ter saído nesse meio.
+                if (!mounted) return;
                 if (success) {
                   _initLiquidInBackground();
                   if (widget.onSuccess != null) {
@@ -102,6 +104,7 @@ class _PinScreenState extends State<PinScreen> {
             } else {
               // Desbloqueio de sessão de verdade
               final success = widget.isMerchant ? await wallet.unlockMerchant(_pin) : await wallet.unlock(_pin);
+              if (!mounted) return;
               if (success) {
                 _initLiquidInBackground();
                 Navigator.pushNamedAndRemoveUntil(context, widget.isMerchant ? '/merchant_home' : '/consumer_home', (route) => false);

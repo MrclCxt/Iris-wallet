@@ -67,26 +67,26 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
               ),
               selectedIconTheme: const IconThemeData(color: IrisTheme.primary),
               unselectedIconTheme: const IconThemeData(color: IrisTheme.textTertiary),
-              destinations: [
+              destinations: const [
                 NavigationRailDestination(
-                  icon: const Text('📈', style: TextStyle(fontSize: 20)), 
-                  label: const Text('Início', style: TextStyle(fontWeight: FontWeight.w600))
+                  icon: Text('📈', style: TextStyle(fontSize: 20)), 
+                  label: Text('Início', style: TextStyle(fontWeight: FontWeight.w600))
                 ),
                 NavigationRailDestination(
-                  icon: const Text('📦', style: TextStyle(fontSize: 20)), 
-                  label: const Text('Produtos', style: TextStyle(fontWeight: FontWeight.w600))
+                  icon: Text('📦', style: TextStyle(fontSize: 20)), 
+                  label: Text('Produtos', style: TextStyle(fontWeight: FontWeight.w600))
                 ),
                 NavigationRailDestination(
-                  icon: const Text('⚡', style: TextStyle(fontSize: 20)), 
-                  label: const Text('Cobrar', style: TextStyle(fontWeight: FontWeight.w600))
+                  icon: Text('⚡', style: TextStyle(fontSize: 20)), 
+                  label: Text('Cobrar', style: TextStyle(fontWeight: FontWeight.w600))
                 ),
                 NavigationRailDestination(
-                  icon: const Text('🧾', style: TextStyle(fontSize: 20)), 
-                  label: const Text('Histórico', style: TextStyle(fontWeight: FontWeight.w600))
+                  icon: Text('🧾', style: TextStyle(fontSize: 20)), 
+                  label: Text('Histórico', style: TextStyle(fontWeight: FontWeight.w600))
                 ),
                 NavigationRailDestination(
-                  icon: const Text('⚙️', style: TextStyle(fontSize: 20)), 
-                  label: const Text('Config.', style: TextStyle(fontWeight: FontWeight.w600))
+                  icon: Text('⚙️', style: TextStyle(fontSize: 20)), 
+                  label: Text('Config.', style: TextStyle(fontWeight: FontWeight.w600))
                 ),
               ],
             ),
@@ -98,9 +98,9 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
       mobile: Scaffold(
         body: _pagesWithArgs[_currentIndex],
         bottomNavigationBar: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: IrisTheme.bg,
-            border: const Border(
+            border: Border(
               top: BorderSide(color: IrisTheme.bdr, width: 1.0),
             ),
           ),

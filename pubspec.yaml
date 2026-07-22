@@ -25,6 +25,8 @@ dependencies:
   mobile_scanner: ^3.5.5
   # Câmera: enumeração + preview/captura no desktop Windows
   camera: ^0.10.6
+  # NÃO REMOVER por "não estar importada": o camera 0.10.x só endossa
+  # android/ios/web. Sem esta declaração explícita não há câmera no Windows.
   camera_windows: ^0.2.1
   # Decodificação de QR em Dart puro (pipeline de scan no Windows)
   zxing2: ^0.2.3

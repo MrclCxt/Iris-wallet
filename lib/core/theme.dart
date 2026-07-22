@@ -71,7 +71,6 @@ class IrisTheme {
         secondary: accent,
         tertiary: green,
         surface: s1,
-        background: bg,
         error: danger,
       ),
       // Fonte do sistema (Roboto no Android, San Francisco no iOS, Segoe no
@@ -100,10 +99,10 @@ class IrisTheme {
         ),
       ),
       switchTheme: SwitchThemeData(
-        thumbColor: MaterialStateProperty.resolveWith((s) =>
-            s.contains(MaterialState.selected) ? accent : textTertiary),
-        trackColor: MaterialStateProperty.resolveWith((s) =>
-            s.contains(MaterialState.selected) ? accentDark : s2),
+        thumbColor: WidgetStateProperty.resolveWith((s) =>
+            s.contains(WidgetState.selected) ? accent : textTertiary),
+        trackColor: WidgetStateProperty.resolveWith((s) =>
+            s.contains(WidgetState.selected) ? accentDark : s2),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: bg,

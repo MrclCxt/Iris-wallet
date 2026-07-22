@@ -449,11 +449,11 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
         child: Column(
           children: [
             // Header
-            Row(
+            const Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const SizedBox(width: 48), // Balance for centering
-                const Text(
+                SizedBox(width: 48), // Balance for centering
+                Text(
                   'Enviar',
                   style: TextStyle(
                     fontSize: 16,
@@ -461,7 +461,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
                     letterSpacing: 0.5,
                   ),
                 ),
-                const CurrencyToggleBtn(),
+                CurrencyToggleBtn(),
               ],
             ),
             const SizedBox(height: 24),

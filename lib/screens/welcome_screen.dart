@@ -65,7 +65,7 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(
+                    const Text(
                       'Receba e pague com Bitcoin e DEPIX\nRápido, barato e sem burocracia.',
                       textAlign: TextAlign.center,
                       style: TextStyle(

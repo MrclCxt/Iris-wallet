@@ -136,9 +136,9 @@ class _IrisBottomNav extends StatelessWidget {
     );
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: IrisTheme.s1,
-        border: const Border(top: BorderSide(color: IrisTheme.bdr, width: 1.0)),
+        border: Border(top: BorderSide(color: IrisTheme.bdr, width: 1.0)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

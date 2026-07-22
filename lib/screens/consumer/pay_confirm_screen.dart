@@ -365,7 +365,7 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
           throw Exception(
               'Servidor LNURL retornou fatura com valor divergente (${parsed.amountSats} sats).');
         }
-        await context.read<WalletService>().payLightningInvoice(invoice);
+        await wallet.payLightningInvoice(invoice);
       } else {
         await wallet.payLightningInvoice(
           widget.rawInvoice!,

@@ -164,12 +164,15 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                         amountSats: sats,
                       );
                       
+                      // Abrir canal é demorado: a tela pode ter saído.
+                      if (!mounted) return;
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Sinal de abertura de canal enviado! Aguarde a confirmação on-chain.'), backgroundColor: IrisTheme.success),
                       );
                       _loadNodeData();
                     } catch (e) {
+                      if (!mounted) return;
                       setStateModal(() => isOpening = false);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Erro: $e'), backgroundColor: IrisTheme.danger),

@@ -67,7 +67,7 @@ class MerchantHistoryScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: SingleChildScrollView(
           child: DataTable(
-            headingRowColor: MaterialStateProperty.all(IrisTheme.s2),
+            headingRowColor: WidgetStateProperty.all(IrisTheme.s2),
             dataRowMinHeight: 60,
             dataRowMaxHeight: 60,
             columnSpacing: 24,
@@ -86,7 +86,7 @@ class MerchantHistoryScreen extends StatelessWidget {
                 cells: [
                   DataCell(Text('${tx.date.day.toString().padLeft(2, '0')}/${tx.date.month.toString().padLeft(2, '0')} ${tx.date.hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')}', style: const TextStyle(color: IrisTheme.textSecondary))),
                   DataCell(Text(tx.title, style: const TextStyle(fontWeight: FontWeight.w600))),
-                  DataCell(const Text('Venda', style: TextStyle(color: IrisTheme.textSecondary))),
+                  const DataCell(Text('Venda', style: TextStyle(color: IrisTheme.textSecondary))),
                   DataCell(Text(
                       exchangeRate.isSatsDisplay
                           ? '+${CurrencyFormatter.formatBtcOrSats(tx.amountSats)}'

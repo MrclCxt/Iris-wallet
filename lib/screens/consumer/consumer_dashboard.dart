@@ -25,7 +25,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
     final liquid = context.watch<LiquidWalletService>();
     final exchangeRate = context.watch<ExchangeRateService>();
     final chroma = context.watch<ChromaService>();
-    final _showSats = exchangeRate.isSatsDisplay;
+    final showSats = exchangeRate.isSatsDisplay;
     // Saldo unificado em satoshis: Lightning + Bitcoin on-chain + L-BTC (Liquid).
     // A moeda do app é o satoshi; o toggle apenas muda a exibição para BRL.
     final balanceSats = wallet.consumerBalance + liquid.balanceSats;
@@ -94,7 +94,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                             shaderCallback: (bounds) =>
                                 chroma.spectrumGradient.createShader(bounds.inflate(2)),
                             child: Text(
-                              _showSats
+                              showSats
                                   ? CurrencyFormatter.formatBtcOrSats(balanceSats)
                                   : 'R\$ ${CurrencyFormatter.formatBrlCompact(balanceBrl)}',
                               style: TextStyle(
@@ -108,7 +108,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                         ),
                         const SizedBox(height: 5),
                         Text(
-                          _showSats
+                          showSats
                               ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(balanceBrl)}'
                               : '≈ ${CurrencyFormatter.formatBtcOrSats(balanceSats)}',
                           style: const TextStyle(fontSize: 12, color: IrisTheme.textSecondary),
@@ -244,7 +244,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: DataTable(
-          headingRowColor: MaterialStateProperty.all(IrisTheme.s2),
+          headingRowColor: WidgetStateProperty.all(IrisTheme.s2),
           dataRowMinHeight: 60,
           dataRowMaxHeight: 60,
           columnSpacing: 24,

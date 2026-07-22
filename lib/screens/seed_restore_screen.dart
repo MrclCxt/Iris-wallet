@@ -69,7 +69,7 @@ class _SeedRestoreScreenState extends State<SeedRestoreScreen> {
                           children: [
                             Text('Importar carteira', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 1),
-                            Text('Use uma seed já existente', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
+                            const Text('Use uma seed já existente', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
                           ],
                         ),
                       ),

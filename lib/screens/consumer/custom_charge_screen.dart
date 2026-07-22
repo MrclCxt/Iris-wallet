@@ -184,24 +184,4 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
     );
   }
 
-  Widget _buildToggleBtn(String label, bool isSelected, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: isSelected ? null : onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? IrisTheme.s3 : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected ? IrisTheme.textPrimary : IrisTheme.textTertiary,
-          ),
-        ),
-      ),
-    );
-  }
 }

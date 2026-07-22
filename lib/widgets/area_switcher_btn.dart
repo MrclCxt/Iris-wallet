@@ -164,7 +164,7 @@ class AreaSwitcherBtn extends StatelessWidget {
                     title: const Text('Adicionar nova carteira', style: TextStyle(color: IrisTheme.textPrimary, fontWeight: FontWeight.w600)),
                     onTap: () {
                       Navigator.pop(context);
-                      wallet.resetAndGenerateSeed();
+                      // A semente é gerada na tela seguinte, depois da escolha do tamanho.
                       Navigator.pushNamed(context, '/seed_gen');
                     },
                   ),

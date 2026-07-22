@@ -126,6 +126,9 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
           onPressed: () {
             if (_step == 4 && _mode == 'import') {
               setState(() => _step = 2);
+            } else if (_step == 4 && _mode == 'device') {
+              // Usando a carteira do aparelho não há passos de semente.
+              setState(() => _step = 1);
             } else if (_step > 0) {
               setState(() => _step--);
             } else {
@@ -190,6 +193,61 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
   }
 
   Widget _buildStep1() {
+    // Este aparelho já tem carteira: a loja é um PERFIL sobre ela, com o mesmo
+    // saldo. Oferecer "criar" ou "importar" aqui seria mentira — o serviço usa
+    // a carteira do dispositivo de qualquer forma.
+    final carteiraDoAparelho = context.read<WalletService>().deviceSeed;
+    if (carteiraDoAparelho != null) {
+      return Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Carteira da loja',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              const Text(
+                'Esta loja vai usar a carteira deste aparelho — mesma semente e '
+                'mesmo saldo da sua carteira pessoal.',
+                style: TextStyle(color: IrisTheme.textSecondary, height: 1.5),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: IrisTheme.primaryDark,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: IrisTheme.primary.withOpacity(0.25)),
+                ),
+                child: const Text(
+                  'Uma carteira por aparelho: rodar dois nós Lightning sobre a '
+                  'mesma semente pode custar os fundos dos canais. O que separa '
+                  'a loja é o catálogo e o histórico, não o dinheiro.',
+                  style: TextStyle(
+                      color: IrisTheme.primaryLight, fontSize: 12, height: 1.5),
+                ),
+              ),
+              const Spacer(),
+              ElevatedButton(
+                onPressed: () {
+                  _seed = carteiraDoAparelho;
+                  _mode = 'device';
+                  setState(() => _step = 4); // direto para o PIN
+                },
+                style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: IrisTheme.primary),
+                child: const Text('Continuar →',
+                    style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Aparelho ainda sem carteira: aqui a escolha é real.
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -199,6 +257,51 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
             const Text('Opções de Carteira', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             const Text('Como deseja configurar a carteira do seu estabelecimento?', style: TextStyle(color: IrisTheme.textSecondary)),
+            const SizedBox(height: 24),
+            // Tamanho escolhido ANTES de a semente ser criada.
+            const Text('Tamanho da semente',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: IrisTheme.textSecondary,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                for (final n in WalletService.seedWordCounts) ...[
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _quantidadeDePalavras = n),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: n == _quantidadeDePalavras
+                              ? IrisTheme.primary
+                              : IrisTheme.s2,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: n == _quantidadeDePalavras
+                                  ? IrisTheme.primary
+                                  : IrisTheme.bdr),
+                        ),
+                        child: Text(
+                          '$n palavras',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: n == _quantidadeDePalavras
+                                ? Colors.white
+                                : IrisTheme.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (n != WalletService.seedWordCounts.last)
+                    const SizedBox(width: 10),
+                ],
+              ],
+            ),
             const Spacer(),
             ElevatedButton(
               onPressed: () {
@@ -254,52 +357,6 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          // 12 ou 24 palavras, igual à área pessoal.
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              children: [
-                for (final n in WalletService.seedWordCounts) ...[
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: n == _quantidadeDePalavras
-                          ? null
-                          : () => setState(() {
-                                _quantidadeDePalavras = n;
-                                _seed = WalletService.generateSeedPhrase(words: n);
-                              }),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          color: n == _quantidadeDePalavras
-                              ? IrisTheme.primary
-                              : IrisTheme.s2,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                              color: n == _quantidadeDePalavras
-                                  ? IrisTheme.primary
-                                  : IrisTheme.bdr),
-                        ),
-                        child: Text(
-                          '$n palavras',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: n == _quantidadeDePalavras
-                                ? Colors.white
-                                : IrisTheme.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (n != WalletService.seedWordCounts.last)
-                    const SizedBox(width: 8),
-                ],
               ],
             ),
           ),

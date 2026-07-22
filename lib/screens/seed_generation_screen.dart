@@ -17,15 +17,139 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
   @override
   void initState() {
     super.initState();
-    // Gera a semente ao entrar na tela se ainda não existir
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<WalletService>().initWallet();
     });
   }
 
+  /// Cria a carteira com o tamanho escolhido e só então revela as palavras.
+  void _criarComTamanho(int palavras) {
+    setState(() => _quantidadeDePalavras = palavras);
+    context.read<WalletService>().resetAndGenerateSeed(words: palavras);
+  }
+
+  /// Primeiro passo: o tamanho da semente. A carteira só é criada depois
+  /// desta escolha — antes, gerávamos 12 palavras e a "escolha" vinha tarde.
+  Widget _telaDeEscolha(WalletService wallet) {
+    final podeVoltar =
+        wallet.consumerAccounts.isNotEmpty || wallet.merchantAccounts.isNotEmpty;
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        leading: podeVoltar
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, color: IrisTheme.textPrimary),
+                onPressed: () {
+                  wallet.cancelWalletCreation();
+                  Navigator.pop(context);
+                },
+              )
+            : null,
+      ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('🔑', style: TextStyle(fontSize: 40), textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Tamanho da sua semente',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'São as palavras que recuperam sua carteira. Escolha antes '
+                    'de criá-la — depois não dá para mudar sem gerar outra.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 13, color: IrisTheme.textSecondary, height: 1.5),
+                  ),
+                  const SizedBox(height: 28),
+                  _opcaoDeTamanho(
+                    palavras: 12,
+                    titulo: '12 palavras',
+                    detalhe: 'Padrão. 128 bits de entropia — seguro e mais '
+                        'rápido de anotar.',
+                  ),
+                  const SizedBox(height: 12),
+                  _opcaoDeTamanho(
+                    palavras: 24,
+                    titulo: '24 palavras',
+                    detalhe: '256 bits de entropia. Margem extra, ao custo do '
+                        'dobro de palavras para guardar.',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _opcaoDeTamanho({
+    required int palavras,
+    required String titulo,
+    required String detalhe,
+  }) {
+    return InkWell(
+      onTap: () => _criarComTamanho(palavras),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: IrisTheme.s1,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: IrisTheme.bdr),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(titulo,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 4),
+                  Text(detalhe,
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: IrisTheme.textTertiary,
+                          height: 1.4)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Icon(Icons.arrow_forward, color: IrisTheme.primary, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final wallet = context.watch<WalletService>();
+
+    // Enquanto o usuário não escolher o tamanho, nenhuma carteira é criada.
+    if (!wallet.temSementeEmCriacao) {
+      return _telaDeEscolha(wallet);
+    }
+
     final seed = wallet.consumerSeed;
     final words =
         seed != null ? seed.split(' ') : List.filled(_quantidadeDePalavras, '...');
@@ -75,52 +199,6 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                // Escolha do tamanho: 24 palavras dobram a entropia.
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Row(
-                    children: [
-                      for (final n in WalletService.seedWordCounts) ...[
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: n == _quantidadeDePalavras
-                                ? null
-                                : () {
-                                    setState(() => _quantidadeDePalavras = n);
-                                    wallet.resetAndGenerateSeed(words: n);
-                                  },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              decoration: BoxDecoration(
-                                color: n == _quantidadeDePalavras
-                                    ? IrisTheme.primary
-                                    : IrisTheme.s2,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                    color: n == _quantidadeDePalavras
-                                        ? IrisTheme.primary
-                                        : IrisTheme.bdr),
-                              ),
-                              child: Text(
-                                '$n palavras',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: n == _quantidadeDePalavras
-                                      ? Colors.white
-                                      : IrisTheme.textSecondary,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (n != WalletService.seedWordCounts.last)
-                          const SizedBox(width: 8),
-                      ],
                     ],
                   ),
                 ),

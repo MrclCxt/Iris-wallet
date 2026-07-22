@@ -276,6 +276,11 @@ class WalletService extends ChangeNotifier {
   /// A semente é do dispositivo. Durante a criação, mostra a temporária.
   String? get consumerSeed => _tempConsumerSeed ?? _deviceSeed ?? activeConsumer?.seed;
 
+  /// True quando já existe uma semente recém-gerada esperando confirmação.
+  /// A tela de criação usa isto para saber se ainda precisa perguntar o
+  /// tamanho — [consumerSeed] não serve, porque devolve a seed do aparelho.
+  bool get temSementeEmCriacao => _tempConsumerSeed != null;
+
   bool get hasMerchant => _merchantAccounts.isNotEmpty;
   bool get isMerchantUnlocked => _isMerchantUnlocked;
   bool get isNfcEnabled => _isNfcEnabled;

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/wallet_service.dart';
 import '../services/chroma_service.dart';
 import '../core/theme.dart';
 import '../widgets/iris_widgets.dart';
@@ -117,7 +116,8 @@ class WelcomeScreen extends StatelessWidget {
                       IrisButton(
                         label: 'Criar minha carteira grátis',
                         onPressed: () {
-                          context.read<WalletService>().resetAndGenerateSeed();
+                          // A semente é gerada na tela seguinte, depois de o usuário escolher o
+                          // tamanho — criar aqui produzia uma carteira antes da escolha.
                           Navigator.pushNamed(context, '/seed_gen');
                         },
                       ),

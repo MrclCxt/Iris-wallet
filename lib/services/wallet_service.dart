@@ -744,6 +744,8 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
         ));
         recuperadas++;
       }
+      _fundirDuplicatasInvertidas(isMerchant: forMerchant);
+
       if (recuperadas > 0 || statusMudou) {
         lista.sort((a, b) => b.date.compareTo(a.date));
         await _salvarHistorico(forMerchant);
@@ -763,6 +765,48 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
     lista.sort((a, b) => b.date.compareTo(a.date));
     unawaited(_salvarHistorico(isMerchant));
+  }
+
+  static String? _idInvertido(String id) {
+    if (id.length != 64) return null;
+    try {
+      final bytes = <int>[];
+      for (var i = 0; i < 64; i += 2) {
+        bytes.add(int.parse(id.substring(i, i + 2), radix: 16));
+      }
+      return bytes.reversed
+          .map((b) => b.toRadixString(16).padLeft(2, '0'))
+          .join();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  int _fundirDuplicatasInvertidas({required bool isMerchant}) {
+    final lista = isMerchant ? _merchantTransactions : _consumerTransactions;
+    final porId = {for (final t in lista) t.id: t};
+    final remover = <String>{};
+
+    for (final t in lista) {
+      if (remover.contains(t.id)) continue;
+      final espelho = _idInvertido(t.id);
+      if (espelho == null || espelho == t.id) continue;
+
+      final gemea = porId[espelho];
+      if (gemea == null) continue;
+
+      final manter = t.status == 'confirmed' ? t : gemea;
+      final descartar = identical(manter, t) ? gemea : t;
+      remover.add(descartar.id);
+    }
+
+    if (remover.isEmpty) return 0;
+    lista.removeWhere((t) => remover.contains(t.id));
+    debugPrint(
+        '${remover.length} duplicata(s) de transação removida(s) do histórico.');
+    unawaited(_salvarHistorico(isMerchant));
+    notifyListeners();
+    return remover.length;
   }
 
   void _removerTransacao(String txid, {required bool isMerchant}) {

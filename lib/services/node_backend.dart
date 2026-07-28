@@ -241,6 +241,21 @@ class EmbeddedNodeApi implements NodeApi {
     return inv.signedRawInvoice;
   }
 
+  static String _idDePagamento(String bruto, bool ehOnchain) {
+    if (!ehOnchain || bruto.length != 64) return bruto;
+    try {
+      final bytes = <int>[];
+      for (var i = 0; i < 64; i += 2) {
+        bytes.add(int.parse(bruto.substring(i, i + 2), radix: 16));
+      }
+      return bytes.reversed
+          .map((b) => b.toRadixString(16).padLeft(2, '0'))
+          .join();
+    } catch (_) {
+      return bruto;
+    }
+  }
+
   @override
   Future<List<PaymentRecord>> listPayments() async {
     try {
@@ -250,11 +265,12 @@ class EmbeddedNodeApi implements NodeApi {
         try {
           final msat = p.amountMsat;
           if (msat == null) continue;
+          final ehOnchain = p.kind is ldk.PaymentKind_Onchain;
           out.add(PaymentRecord(
-            id: p.id.field0.toString(),
+            id: _idDePagamento(p.id.field0.toString(), ehOnchain),
             amountSats: (msat.toInt() / 1000).round(),
             isIncoming: p.direction == ldk.PaymentDirection.inbound,
-            isOnchain: p.kind is ldk.PaymentKind_Onchain,
+            isOnchain: ehOnchain,
             status: switch (p.status) {
               ldk.PaymentStatus.succeeded => 'confirmed',
               ldk.PaymentStatus.failed => 'failed',

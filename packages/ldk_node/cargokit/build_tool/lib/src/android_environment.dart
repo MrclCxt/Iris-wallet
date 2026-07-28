@@ -187,6 +187,14 @@ class AndroidEnvironment {
       rustFlags = '$rustFlags\x1f';
     }
     rustFlags = '$rustFlags-L\x1f$workaroundDir';
+
+    // PATCH IRIS: o app carrega libldk_node.so e liblwk.so no mesmo processo, e as duas
+    // exportam os MESMOS 28 símbolos do runtime do flutter_rust_bridge. Sem isto, uma
+    // biblioteca resolve chamadas internas pela definição da outra — alocadores Rust
+    // diferentes, heap corrompida, SIGABRT em free_zero_copy_buffer_u8.
+    // Precisa ser aqui: CARGO_ENCODED_RUSTFLAGS ignora o .cargo/config.toml.
+    rustFlags = '$rustFlags\x1f-C\x1flink-arg=-Wl,-Bsymbolic-functions';
+
     return rustFlags;
   }
 }

@@ -1,0 +1,26 @@
+# O app carrega DUAS bibliotecas Rust no mesmo processo: libldk_node.so e liblwk.so.
+# Ambas sao geradas por flutter_rust_bridge e exportam os MESMOS 28 simbolos globais do
+# runtime (free_zero_copy_buffer_*, rust_vec_u8_*, frb_pde_ffi_dispatcher_*, secp256k1...).
+#
+# Sem -Bsymbolic-functions o linkeditor dinamico do Android resolve as chamadas internas de
+# uma biblioteca pela definicao da OUTRA, a que carregou primeiro. Cada cdylib Rust tem seu
+# proprio alocador: alocar em uma e liberar na outra corrompe a heap e aborta o processo.
+#
+# Sintoma que isso causava: SIGABRT em free_zero_copy_buffer_u8, na thread do coletor de lixo
+# do Dart, em intervalos irregulares — porque depende de QUANDO o GC roda, nao de qual chamada
+# alocou. Verificado lendo o .dynsym das duas bibliotecas.
+#
+# -Bsymbolic-functions faz cada biblioteca amarrar as proprias funcoes, mantendo os simbolos
+# exportados para o dlsym do Dart continuar funcionando.
+
+[target.aarch64-linux-android]
+rustflags = ["-C", "link-arg=-Wl,-Bsymbolic-functions"]
+
+[target.armv7-linux-androideabi]
+rustflags = ["-C", "link-arg=-Wl,-Bsymbolic-functions"]
+
+[target.x86_64-linux-android]
+rustflags = ["-C", "link-arg=-Wl,-Bsymbolic-functions"]
+
+[target.i686-linux-android]
+rustflags = ["-C", "link-arg=-Wl,-Bsymbolic-functions"]

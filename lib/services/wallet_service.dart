@@ -1881,12 +1881,25 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   bool get nodeSyncDegraded =>
       _deviceNode.consecutiveSyncFailures >= _syncFailureThreshold;
 
+  int _ciclosDeSync = 0;
+
+  static const int _ciclosEntreVarreduras = 12;
+
   void _ensureSyncTimer() {
     Future<void> tick() async {
       final handle = _deviceNode;
       if (handle.api == null) return;
       try {
-        await handle.api!.sync();
+        _ciclosDeSync++;
+        final varreduraCompleta =
+            _ciclosDeSync % _ciclosEntreVarreduras == 0;
+
+        if (varreduraCompleta) {
+          debugPrint('Revarredura periódica da árvore de endereços.');
+          await handle.api!.fullScan();
+        } else {
+          await handle.api!.sync();
+        }
 
         handle.saldoConfirmadoPorSync = true;
         await _refreshBalances(handle);
@@ -2573,6 +2586,19 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> atualizarAgora() async {
+    final handle = _deviceNode;
+    if (handle.api != null) {
+      try {
+        await handle.api!.fullScan();
+        handle.saldoConfirmadoPorSync = true;
+        await _refreshBalances(handle);
+        notifyListeners();
+        return;
+      } catch (e) {
+        debugPrint('Varredura manual falhou, caindo para sync simples: $e');
+      }
+    }
+
     final f = _dispararSync;
     if (f == null) return;
     await f();

@@ -1973,18 +1973,12 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
         final semCanais = (await handle.api!.channels()).isEmpty;
 
         if (semCanais && !jaRegistrado) {
-          _registrarTransacao(
-            Transaction(
-              id: 'onchain_pend_${DateTime.now().millisecondsSinceEpoch}',
-              title: 'Recebendo on-chain — aguardando confirmação',
-              emoji: '₿',
-              amountSats: pendente,
-              isIncoming: true,
-              date: DateTime.now(),
-              status: 'pending',
-            ),
-            isMerchant: handle.isMerchant,
-          );
+          // Não cria linha no histórico: quem lista movimentação é o nó, e ele
+          // já devolve o recebimento on-chain COM o txid mesmo antes de
+          // confirmar (PaymentKind_Onchain, status pending). Criar aqui um
+          // registro paralelo com id `onchain_<millis>` era a origem da linha
+          // duplicada — dois caminhos para o mesmo dinheiro, ids que nunca
+          // batem. O aviso continua, porque é ele que dá o retorno imediato.
           _emitirRecebimento(ReceivedPayment(
             isMerchant: handle.isMerchant,
             paymentHashHex: '',
@@ -1992,6 +1986,10 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
             isOnchain: true,
             isPending: true,
           ));
+          // Puxa a movimentação do nó agora. `listPayments()` lê o armazenamento
+          // local, não a rede — então a linha aparece na hora mesmo com o
+          // Esplora recusando, sem depender de um `sync()` bem-sucedido.
+          unawaited(reconstruirHistoricoDoNo(forMerchant: handle.isMerchant));
           await _rotateCachedAddressAposDeposito(handle);
         }
       }
@@ -2005,20 +2003,8 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
           final aindaPendente =
               (newTotal - newSpendable) > (prevTotal - prevSpendable);
-          _registrarTransacao(
-            Transaction(
-              id: 'onchain_${DateTime.now().millisecondsSinceEpoch}',
-              title: aindaPendente
-                  ? 'Recebendo on-chain — aguardando confirmação'
-                  : 'Recebido on-chain (Bitcoin)',
-              emoji: '₿',
-              amountSats: delta,
-              isIncoming: true,
-              date: DateTime.now(),
-              status: aindaPendente ? 'pending' : 'confirmed',
-            ),
-            isMerchant: handle.isMerchant,
-          );
+          // Mesma razão do bloco acima: a linha do histórico vem do nó, com o
+          // txid de verdade. Aqui só o aviso.
           _emitirRecebimento(ReceivedPayment(
             isMerchant: handle.isMerchant,
             paymentHashHex: '',
@@ -2026,6 +2012,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
             isOnchain: true,
             isPending: aindaPendente,
           ));
+          unawaited(reconstruirHistoricoDoNo(forMerchant: handle.isMerchant));
           await _rotateCachedAddressAposDeposito(handle);
         } else if (newSpendable > prevSpendable) {
           final confirmado = newSpendable - prevSpendable;

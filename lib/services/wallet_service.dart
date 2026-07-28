@@ -751,16 +751,19 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
         if (indice >= 0) {
           if (lista[indice].status != p.status) {
             lista[indice].status = p.status;
+            if (p.isOnchain && p.isIncoming) {
+              lista[indice].title = tituloEntradaOnchain(p.status);
+            }
             statusMudou = true;
           }
           continue;
         }
 
-        lista.add(Transaction(
+        final novo = Transaction(
           id: p.id,
           title: p.isOnchain
               ? (p.isIncoming
-                  ? 'Recebido on-chain (Bitcoin)'
+                  ? tituloEntradaOnchain(p.status)
                   : 'Envio on-chain (Bitcoin)')
               : (p.isIncoming
                   ? (forMerchant ? 'Venda recebida' : 'Recebido via Lightning')
@@ -770,8 +773,26 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
           isIncoming: p.isIncoming,
           date: p.date,
           status: p.status,
-        ));
-        recuperadas++;
+        );
+
+        // O provisório e o registro do nó são o MESMO dinheiro por dois
+        // caminhos, e os ids nunca batem: um é `onchain_<millis>`, o outro é o
+        // txid. Sem casá-los, um único recebimento vira duas linhas e o banner
+        // de pendente soma o valor em dobro. O real toma o lugar do provisório.
+        final iProvisorio = p.isOnchain && p.isIncoming
+            ? _indiceDoProvisorio(lista, p)
+            : -1;
+
+        if (iProvisorio >= 0) {
+          lista[iProvisorio] = novo;
+          statusMudou = true;
+        } else {
+          lista.add(novo);
+          recuperadas++;
+        }
+      }
+      if (_removerProvisoriosJaCobertos(isMerchant: forMerchant) > 0) {
+        statusMudou = true;
       }
       _fundirDuplicatasInvertidas(isMerchant: forMerchant);
 
@@ -784,6 +805,76 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       debugPrint('Falha ao reconstruir histórico: $e');
     }
     return recuperadas;
+  }
+
+  // Os provisórios nascem em `_refreshBalances`, que só enxerga o saldo subir e
+  // ainda não tem txid — daí o id sintético. Eles existem para o usuário ver o
+  // dinheiro chegando na hora, antes de o nó listar o pagamento.
+  static bool _ehProvisorioOnchain(Transaction t) =>
+      t.id.startsWith('onchain_');
+
+  // Janela generosa de propósito: o provisório é datado de quando o app
+  // percebeu, o registro do nó de quando a transação entrou. Se o aparelho ficou
+  // desligado, a distância cresce. O par (valor exato + entrada + on-chain) já é
+  // restritivo o bastante; a janela só evita casar com algo de outra semana.
+  static const Duration _janelaDoProvisorio = Duration(days: 2);
+
+  int _indiceDoProvisorio(List<Transaction> lista, PaymentRecord p) {
+    var melhor = -1;
+    Duration? menorDistancia;
+
+    for (var i = 0; i < lista.length; i++) {
+      final t = lista[i];
+      if (!_ehProvisorioOnchain(t)) continue;
+      if (!t.isIncoming || t.amountSats != p.amountSats) continue;
+
+      final distancia = t.date.difference(p.date).abs();
+      if (distancia > _janelaDoProvisorio) continue;
+
+      if (menorDistancia == null || distancia < menorDistancia) {
+        menorDistancia = distancia;
+        melhor = i;
+      }
+    }
+    return melhor;
+  }
+
+  // O título precisa concordar com o status: "Recebido" numa linha marcada como
+  // aguardando confirmação diz duas coisas contrárias na mesma tela.
+  static String tituloEntradaOnchain(String status) => status == 'confirmed'
+      ? 'Recebido on-chain (Bitcoin)'
+      : 'Recebendo on-chain — aguardando confirmação';
+
+  // A absorção acima só age quando o registro do nó chega pela PRIMEIRA vez. Quem
+  // já tem as duas linhas gravadas no histórico ficaria com elas para sempre —
+  // inclusive somando em dobro no banner de "aguardando confirmação". Esta
+  // passagem limpa o que já está no disco, casando um provisório para cada
+  // registro real (1 para 1, para não apagar dois recebimentos legítimos de
+  // mesmo valor).
+  int _removerProvisoriosJaCobertos({required bool isMerchant}) {
+    final lista = isMerchant ? _merchantTransactions : _consumerTransactions;
+
+    final provisorios = lista.where(_ehProvisorioOnchain).toList();
+    if (provisorios.isEmpty) return 0;
+
+    final remover = <Transaction>[];
+    for (final real in lista) {
+      if (_ehProvisorioOnchain(real)) continue;
+      // '₿' é o que distingue on-chain de Lightning no histórico salvo; um
+      // recebimento Lightning de mesmo valor não pode absorver o provisório.
+      if (!real.isIncoming || real.emoji != '₿') continue;
+
+      final i = provisorios.indexWhere((t) =>
+          t.amountSats == real.amountSats &&
+          t.date.difference(real.date).abs() <= _janelaDoProvisorio);
+      if (i >= 0) remover.add(provisorios.removeAt(i));
+    }
+
+    if (remover.isEmpty) return 0;
+    lista.removeWhere((t) => remover.any((r) => identical(r, t)));
+    debugPrint('${remover.length} recebimento(s) provisório(s) removido(s): já '
+        'existe o registro definitivo do nó.');
+    return remover.length;
   }
 
   void _registrarTransacao(Transaction tx, {required bool isMerchant}) {

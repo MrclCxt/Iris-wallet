@@ -97,7 +97,15 @@ pub(crate) const BACKGROUND_TASK_SHUTDOWN_TIMEOUT_SECS: u64 = 5;
 pub(crate) const FEE_RATE_CACHE_UPDATE_TIMEOUT_SECS: u64 = 5;
 
 // The timeout after which we abort a transaction broadcast operation.
-pub(crate) const TX_BROADCAST_TIMEOUT_SECS: u64 = 5;
+//
+// PATCH IRIS: era 5. Cinco segundos nao bastam para o mempool.space da testnet4 em rede movel,
+// e o codigo original NAO repetia: no timeout a transacao era descartada so com uma linha de
+// log. O usuario via o saldo debitado sem nada ter ido para a rede.
+pub(crate) const TX_BROADCAST_TIMEOUT_SECS: u64 = 30;
+
+// PATCH IRIS: quantas vezes reenviar antes de desistir, e a pausa entre tentativas.
+pub(crate) const TX_BROADCAST_MAX_ATTEMPTS: usize = 4;
+pub(crate) const TX_BROADCAST_RETRY_DELAY_SECS: u64 = 3;
 
 // The timeout after which we abort a RGS sync operation.
 pub(crate) const RGS_SYNC_TIMEOUT_SECS: u64 = 5;

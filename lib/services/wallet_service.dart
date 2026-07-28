@@ -2726,11 +2726,52 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       amountSats: sats,
       isIncoming: false,
       date: DateTime.now(),
+      status: 'pending',
     );
     _registrarTransacao(tx, isMerchant: false);
     await _refreshBalances(handle);
     notifyListeners();
+
+    unawaited(_verificarBroadcast(txid, isMerchant: false));
     return txid;
+  }
+
+  Future<void> _verificarBroadcast(String txid,
+      {required bool isMerchant}) async {
+    final base = EmbeddedNodeApi.esploraEmUso;
+    if (base == null) return;
+
+    const tentativas = 10;
+    for (var i = 0; i < tentativas; i++) {
+      await Future.delayed(const Duration(seconds: 6));
+      try {
+        final r = await http
+            .get(Uri.parse('$base/tx/$txid'))
+            .timeout(const Duration(seconds: 10));
+        if (r.statusCode == 200) {
+          _atualizarStatusTx(txid, 'pending', isMerchant: isMerchant);
+          return;
+        }
+      } catch (_) {}
+    }
+
+    debugPrint(
+        'Transação $txid não apareceu na rede após ${tentativas * 6}s — marcando como não validada.');
+    _atualizarStatusTx(txid, 'failed', isMerchant: isMerchant);
+  }
+
+  void _atualizarStatusTx(String txid, String status,
+      {required bool isMerchant}) {
+    final lista = isMerchant ? _merchantTransactions : _consumerTransactions;
+    for (final t in lista) {
+      if (t.id == txid) {
+        if (t.status == status) return;
+        t.status = status;
+        unawaited(_salvarHistorico(isMerchant));
+        notifyListeners();
+        return;
+      }
+    }
   }
 
   @override

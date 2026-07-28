@@ -19,7 +19,7 @@ use lightning_transaction_sync::EsploraSyncClient;
 use super::{periodically_archive_fully_resolved_monitors, WalletSyncStatus};
 use crate::config::{
 	Config, EsploraSyncConfig, BDK_CLIENT_CONCURRENCY, BDK_CLIENT_STOP_GAP,
-	BDK_WALLET_FULL_SCAN_TIMEOUT_SECS,
+	BDK_WALLET_FULL_SCAN_TIMEOUT_SECS, TX_BROADCAST_MAX_ATTEMPTS, TX_BROADCAST_RETRY_DELAY_SECS,
 	BDK_WALLET_SYNC_TIMEOUT_SECS, DEFAULT_ESPLORA_CLIENT_TIMEOUT_SECS,
 	FEE_RATE_CACHE_UPDATE_TIMEOUT_SECS, LDK_WALLET_SYNC_TIMEOUT_SECS, TX_BROADCAST_TIMEOUT_SECS,
 };
@@ -377,14 +377,28 @@ impl EsploraChainSource {
 	pub(crate) async fn process_broadcast_package(&self, package: Vec<Transaction>) {
 		for tx in &package {
 			let txid = tx.compute_txid();
+			// PATCH IRIS: repete o envio. O original tentava UMA vez e, no timeout, descartava a
+			// transacao deixando so um log de erro — a carteira ficava mostrando o gasto sem que
+			// nada tivesse chegado a rede.
+			for tentativa in 1..=TX_BROADCAST_MAX_ATTEMPTS {
 			let timeout_fut = tokio::time::timeout(
 				Duration::from_secs(TX_BROADCAST_TIMEOUT_SECS),
 				self.esplora_client.broadcast(tx),
 			);
+			if tentativa > 1 {
+				log_info!(
+					self.logger,
+					"Retrying broadcast of transaction {} (attempt {}/{}).",
+					txid,
+					tentativa,
+					TX_BROADCAST_MAX_ATTEMPTS
+				);
+			}
 			match timeout_fut.await {
 				Ok(res) => match res {
 					Ok(()) => {
 						log_trace!(self.logger, "Successfully broadcast transaction {}", txid);
+						break;
 					},
 					Err(e) => match e {
 						esplora_client::Error::HttpResponse { status, message } => {
@@ -431,8 +445,10 @@ impl EsploraChainSource {
 				Err(e) => {
 					log_error!(
 						self.logger,
-						"Failed to broadcast transaction due to timeout {}: {}",
+						"Failed to broadcast transaction due to timeout {} (attempt {}/{}): {}",
 						txid,
+						tentativa,
+						TX_BROADCAST_MAX_ATTEMPTS,
 						e
 					);
 					log_trace!(
@@ -441,6 +457,18 @@ impl EsploraChainSource {
 						log_bytes!(tx.encode())
 					);
 				},
+			}
+
+				if tentativa < TX_BROADCAST_MAX_ATTEMPTS {
+					tokio::time::sleep(Duration::from_secs(TX_BROADCAST_RETRY_DELAY_SECS)).await;
+				} else {
+					log_error!(
+						self.logger,
+						"Giving up on broadcasting transaction {} after {} attempts.",
+						txid,
+						TX_BROADCAST_MAX_ATTEMPTS
+					);
+				}
 			}
 		}
 	}

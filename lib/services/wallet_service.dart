@@ -1915,8 +1915,8 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   void _reagendarSyncTimer() {
     _syncTimer?.cancel();
     final intervalo = _appEmPrimeiroPlano
-        ? const Duration(seconds: 45)
-        : const Duration(seconds: 120);
+        ? const Duration(minutes: 5)
+        : const Duration(minutes: 10);
     _syncTimer = Timer.periodic(intervalo, (_) => _dispararSync?.call());
   }
 
@@ -1926,6 +1926,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   String? _enderecoVigiado;
 
   int _vigiaEmEspera = 0;
+  int _seguidos429 = 0;
 
   void _ensureFastWatch() {
     _reagendarFastWatch();
@@ -1959,11 +1960,15 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
           .get(Uri.parse('$base/address/$addr'))
           .timeout(const Duration(seconds: 8));
       if (r.statusCode == 429) {
-        _vigiaEmEspera = 12;
-        debugPrint('Vigia rápida: 429 do Esplora — pausando por ~1 min.');
+        _seguidos429++;
+        final ciclos = (12 * (1 << (_seguidos429 - 1))).clamp(12, 360);
+        _vigiaEmEspera = ciclos;
+        debugPrint(
+            'Vigia rápida: 429 do Esplora ($_seguidos429º seguido) — pausando por ~${ciclos * 5}s.');
         return;
       }
       if (r.statusCode != 200) return;
+      _seguidos429 = 0;
 
       final j = jsonDecode(r.body) as Map<String, dynamic>;
       final chain = (j['chain_stats'] as Map<String, dynamic>?) ?? const {};

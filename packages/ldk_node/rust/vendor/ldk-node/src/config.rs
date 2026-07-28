@@ -23,8 +23,12 @@ use crate::logger::LogLevel;
 
 // Config defaults
 const DEFAULT_NETWORK: Network = Network::Bitcoin;
-const DEFAULT_BDK_WALLET_SYNC_INTERVAL_SECS: u64 = 80;
-const DEFAULT_LDK_WALLET_SYNC_INTERVAL_SECS: u64 = 30;
+// PATCH IRIS: eram 80 e 30. Cada sync on-chain consulta UMA requisicao por endereco ja
+// revelado — com 201 enderecos, um sync a cada 80s da ~150 requisicoes/min so nisso, e a
+// testnet4 tem um unico provedor que bane quem abusa. A deteccao rapida de recebimento nao
+// depende disto: a vigia do app consulta 1 endereco a cada 5s, barato e suficiente.
+const DEFAULT_BDK_WALLET_SYNC_INTERVAL_SECS: u64 = 600;
+const DEFAULT_LDK_WALLET_SYNC_INTERVAL_SECS: u64 = 120;
 const DEFAULT_FEE_RATE_CACHE_UPDATE_INTERVAL_SECS: u64 = 60 * 10;
 const DEFAULT_PROBING_LIQUIDITY_LIMIT_MULTIPLIER: u64 = 3;
 const DEFAULT_ANCHOR_PER_CHANNEL_RESERVE_SATS: u64 = 25_000;
@@ -359,8 +363,8 @@ pub(crate) fn default_user_config(config: &Config) -> UserConfig {
 ///
 /// | Parameter                              | Value              |
 /// |----------------------------------------|--------------------|
-/// | `onchain_wallet_sync_interval_secs`    | 80                 |
-/// | `lightning_wallet_sync_interval_secs`  | 30                 |
+/// | `onchain_wallet_sync_interval_secs`    | 300 (PATCH IRIS)   |
+/// | `lightning_wallet_sync_interval_secs`  | 90  (PATCH IRIS)   |
 /// | `fee_rate_cache_update_interval_secs`  | 600                |
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct BackgroundSyncConfig {

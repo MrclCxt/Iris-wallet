@@ -1,0 +1,15 @@
+# Opções do cargokit para TODAS as bibliotecas Rust deste app (ldk_node e lwk).
+#
+# Precisa estar aqui, na raiz do projeto: `CargokitUserOptions.load()` começa em
+# `Environment.rootProjectDir` e sobe os diretórios pai. Um arquivo dentro de
+# `packages/<lib>/` nunca é lido.
+verbose_logging: true
+
+# PATCH IRIS: o padrão é `true`, e com ele o liblwk.so vinha PRONTO da internet —
+# nunca compilado aqui. O `-Wl,-Bsymbolic-functions` que corrige a colisão de
+# símbolos entre liblwk.so e libldk_node.so é injetado via RUSTFLAGS dentro do
+# cargokit (android_environment.dart), então só alcança bibliotecas compiladas
+# localmente. Com binário baixado, metade da correção não existia: o lwk seguia
+# resolvendo o runtime do flutter_rust_bridge pela definição do ldk_node —
+# alocando num alocador e liberando noutro, heap corrompida, SIGABRT.
+use_precompiled_binaries: false

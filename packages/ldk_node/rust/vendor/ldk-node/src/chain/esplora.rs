@@ -90,17 +90,39 @@ impl EsploraChainSource {
 	pub(super) async fn sync_onchain_wallet(
 		&self, onchain_wallet: Arc<Wallet>,
 	) -> Result<(), Error> {
-		let receiver_res = {
-			let mut status_lock = self.onchain_wallet_sync_status.lock().unwrap();
-			status_lock.register_or_subscribe_pending_sync()
-		};
-		if let Some(mut sync_receiver) = receiver_res {
+		// PATCH IRIS: uma varredura completa NAO pode pegar carona num sync incremental que ja
+		// estava em voo. O original devolvia o resultado da rodada em andamento, entao o pedido de
+		// varredura era dado como atendido sem nunca ter varrido nada — e o sinalizador ja tinha
+		// sido consumido. Dinheiro num indice que este aparelho nunca revelou ficava invisivel.
+		// Quando ha varredura pedida, esperamos a rodada em curso terminar e executamos a nossa.
+		let forced = self.force_full_scan.load(std::sync::atomic::Ordering::SeqCst);
+		let mut ja_esperou = false;
+
+		loop {
+			let receiver_res = {
+				let mut status_lock = self.onchain_wallet_sync_status.lock().unwrap();
+				status_lock.register_or_subscribe_pending_sync()
+			};
+
+			let mut sync_receiver = match receiver_res {
+				Some(rx) => rx,
+				None => break,
+			};
+
 			log_info!(self.logger, "Sync in progress, skipping.");
-			return sync_receiver.recv().await.map_err(|e| {
+			let res = sync_receiver.recv().await.map_err(|e| {
 				debug_assert!(false, "Failed to receive wallet sync result: {:?}", e);
 				log_error!(self.logger, "Failed to receive wallet sync result: {:?}", e);
 				Error::WalletOperationFailed
 			})?;
+
+			// Sem varredura pedida, o resultado da rodada em curso serve. Com varredura pedida,
+			// esperamos uma unica vez e entao rodamos a nossa, para nao ficar preso num aparelho
+			// que sincroniza sem parar.
+			if !forced || ja_esperou {
+				return res;
+			}
+			ja_esperou = true;
 		}
 
 		let res = self.sync_onchain_wallet_inner(onchain_wallet).await;
@@ -208,7 +230,21 @@ impl EsploraChainSource {
 					BDK_CLIENT_CONCURRENCY,
 				),
 			);
-			get_and_apply_wallet_update!(wallet_sync_timeout_fut)
+			let res = get_and_apply_wallet_update!(wallet_sync_timeout_fut);
+
+			// PATCH IRIS: o sinalizador foi consumido la em cima, antes de sabermos se a varredura
+			// daria certo. Se ela falhou (timeout de 180s, HTTP 429 do mempool.space, rede caindo),
+			// o pedido precisa continuar de pe — senao a proxima rodada volta a ser incremental e o
+			// aparelho nunca redescobre os indices onde o dinheiro esta.
+			if forced && res.is_err() {
+				log_info!(
+					self.logger,
+					"Varredura completa falhou; mantendo o pedido para a proxima sincronizacao."
+				);
+				self.force_full_scan.store(true, std::sync::atomic::Ordering::SeqCst);
+			}
+
+			res
 		}
 	}
 

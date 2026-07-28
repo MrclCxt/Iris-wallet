@@ -107,6 +107,20 @@ use std::net::ToSocketAddrs;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+/// PATCH IRIS: expoe as constantes de varredura que foram REALMENTE compiladas nesta biblioteca.
+///
+/// Existe porque o build Rust do Android ja falhou em silencio uma vez — o Gradle seguiu
+/// empacotando uma `.so` antiga e o aparelho rodou meses com `stop_gap` 20 enquanto o codigo-fonte
+/// dizia 150. Sem isso, "o celular esta com a correcao?" nao tem resposta observavel: o fonte
+/// mente. Com isso, uma linha no logcat responde.
+pub fn iris_parametros_de_varredura() -> (usize, usize, u64) {
+	(
+		crate::config::BDK_CLIENT_STOP_GAP,
+		crate::config::BDK_CLIENT_CONCURRENCY,
+		crate::config::BDK_WALLET_FULL_SCAN_TIMEOUT_SECS,
+	)
+}
+
 pub use balance::{BalanceDetails, LightningBalance, PendingSweepBalance};
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::{Address, Amount};
@@ -1461,13 +1475,34 @@ impl Node {
 		let sync_cman = Arc::clone(&self.channel_manager);
 		let sync_cmon = Arc::clone(&self.chain_monitor);
 		let sync_sweeper = Arc::clone(&self.output_sweeper);
+		let logger = Arc::clone(&self.logger);
 		self.runtime.block_on(async move {
 			if chain_source.is_transaction_based() {
-				chain_source.update_fee_rate_estimates().await?;
-				chain_source
+				// PATCH IRIS: a carteira on-chain era a ULTIMA da fila e cada etapa anterior
+				// abortava a funcao inteira com `?`. Contra o mempool.space da testnet4 em rede
+				// movel, a estimativa de taxa e o sync Lightning falham com frequencia (timeout,
+				// HTTP 429) — e ai o saldo on-chain simplesmente nunca era atualizado, mesmo com o
+				// dinheiro na cadeia. O app lia zero e pintava zero na tela.
+				//
+				// Agora as tres etapas sempre rodam. O erro da varredura on-chain tem prioridade no
+				// retorno porque e ele que decide se o saldo exibido e confiavel; falha so na
+				// estimativa de taxa nao invalida o saldo e nao conta como sync perdido (ela tem
+				// atualizacao periodica propria e so importa na hora de enviar).
+				let fee_res = chain_source.update_fee_rate_estimates().await;
+				let ln_res = chain_source
 					.sync_lightning_wallet(sync_cman, sync_cmon, Arc::clone(&sync_sweeper))
-					.await?;
-				chain_source.sync_onchain_wallet(sync_wallet).await?;
+					.await;
+				let onchain_res = chain_source.sync_onchain_wallet(sync_wallet).await;
+
+				if let Err(e) = fee_res {
+					log_info!(
+						logger,
+						"Estimativa de taxa falhou ({:?}), mas a sincronizacao de saldo seguiu.",
+						e
+					);
+				}
+
+				onchain_res.and(ln_res)?;
 			} else {
 				chain_source.update_fee_rate_estimates().await?;
 				chain_source

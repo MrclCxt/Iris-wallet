@@ -185,6 +185,26 @@ class ReceivedPayment {
   });
 }
 
+/// Decide se uma leitura de saldo zerada pode substituir o saldo já conhecido.
+///
+/// Uma carteira não fica zerada sozinha. Ou o dinheiro saiu — e o envio passou
+/// por este app, que registrou a transação — ou a leitura não achou o dinheiro.
+/// O segundo caso é comum e não se resolve repetindo a leitura: um sync
+/// incremental confere apenas os índices de endereço que ESTE aparelho já
+/// revelou, e quais índices foram usados é estado local, não derivável da
+/// semente. Um aparelho restaurado com as mesmas palavras pode repetir zero
+/// para sempre com o dinheiro parado na cadeia.
+///
+/// Por isso só duas coisas autorizam apagar o saldo da tela: uma varredura
+/// completa bem-sucedida (que percorre a árvore inteira até o limite de gap) ou
+/// um envio que o próprio app registrou.
+bool zeroPodeApagarSaldoDaTela({
+  required bool tinhaSaldoConhecido,
+  required bool aposVarreduraCompleta,
+  required bool houveSaidaRegistrada,
+}) =>
+    !tinhaSaldoConhecido || aposVarreduraCompleta || houveSaidaRegistrada;
+
 class _NodeHandle {
   NodeApi? api;
   bool isRunning = false;
@@ -207,6 +227,9 @@ class _NodeHandle {
 
   int consecutiveSyncFailures = 0;
   int leiturasZeradas = 0;
+
+  bool houveSaidaDesdeLeituraBoa = false;
+  bool varreduraDeResgatePedida = false;
 
   bool saldoConfirmadoPorSync = false;
   bool _eventLoopActive = false;
@@ -233,6 +256,9 @@ class _NodeHandle {
     runningSeedFingerprint = null;
     runningSeed = null;
     consecutiveSyncFailures = 0;
+    leiturasZeradas = 0;
+    houveSaidaDesdeLeituraBoa = false;
+    varreduraDeResgatePedida = false;
   }
 }
 
@@ -1732,7 +1758,8 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _rotateCachedAddressAposDeposito(_NodeHandle handle) async {}
 
-  Future<void> _refreshBalances(_NodeHandle handle) async {
+  Future<void> _refreshBalances(_NodeHandle handle,
+      {bool aposVarreduraCompleta = false}) async {
     if (handle.api == null) return;
     try {
       final balances = await handle.api!.balances();
@@ -1750,24 +1777,38 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
             ultimo != null && (ultimo.total > 0 || ultimo.lightning > 0);
 
         // Uma carteira não fica zerada sozinha: ou houve um envio, que o app
-        // conhece, ou a leitura falhou. Zero contradizendo saldo conhecido é
-        // tratado como suspeito até se repetir — antes bastava uma leitura
-        // ruim depois do primeiro sync para o saldo sumir da tela.
-        if (tinhaSaldo && handle.leiturasZeradas < _leiturasZeradasParaAceitar) {
+        // conhece, ou a leitura não enxergou o dinheiro. Contar leituras
+        // zeradas não distingue os dois casos — um sync incremental só olha os
+        // índices que ESTE aparelho já revelou, então ele pode repetir zero
+        // indefinidamente com o dinheiro parado na cadeia. Só uma varredura
+        // completa bem-sucedida, ou um envio que o próprio app registrou,
+        // autorizam apagar o saldo da tela.
+        final zeroConfiavel = zeroPodeApagarSaldoDaTela(
+          tinhaSaldoConhecido: tinhaSaldo,
+          aposVarreduraCompleta: aposVarreduraCompleta,
+          houveSaidaRegistrada: handle.houveSaidaDesdeLeituraBoa,
+        );
+
+        if (tinhaSaldo && !zeroConfiavel) {
           newTotal = ultimo.total;
           newSpendable = ultimo.spendable;
           newLightning = ultimo.lightning;
           _saldoSobSuspeita = true;
           debugPrint(
-              'Saldo lido como zero (${handle.leiturasZeradas}/$_leiturasZeradasParaAceitar) '
-              'contra $newTotal sats conhecidos — mantendo o valor anterior.');
+              'Saldo lido como zero (${handle.leiturasZeradas}ª vez) contra '
+              '$newTotal sats conhecidos, sem varredura completa nem envio — '
+              'mantendo o valor anterior.');
+          unawaited(_pedirVarreduraDeResgate(handle));
         } else if (tinhaSaldo) {
-          debugPrint(
-              'Saldo zero confirmado em $_leiturasZeradasParaAceitar leituras seguidas — aceitando.');
+          debugPrint(aposVarreduraCompleta
+              ? 'Saldo zero confirmado por varredura completa — aceitando.'
+              : 'Saldo zero após envio registrado pelo app — aceitando.');
           _saldoSobSuspeita = false;
         }
       } else {
         handle.leiturasZeradas = 0;
+        handle.houveSaidaDesdeLeituraBoa = false;
+        handle.varreduraDeResgatePedida = false;
         _saldoSobSuspeita = false;
       }
 
@@ -1866,6 +1907,31 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('refreshBalances: $e');
     }
+  }
+
+  // Um zero contra saldo conhecido quase sempre é a árvore de endereços deste
+  // aparelho estando atrás do que já foi usado — estado local, não derivável da
+  // semente. Esperar a varredura periódica (a cada 12 ciclos, ~1h) deixa o
+  // usuário olhando para o valor antigo com aviso de "sincronizando" por tempo
+  // demais; aqui a varredura completa é pedida na hora, uma vez por episódio.
+  Future<void> _pedirVarreduraDeResgate(_NodeHandle handle) async {
+    if (handle.varreduraDeResgatePedida) return;
+    if (handle.api == null || !handle.isRunning || handle.isMock) return;
+    handle.varreduraDeResgatePedida = true;
+
+    debugPrint('Saldo zerado contra valor conhecido — varredura completa de '
+        'resgate disparada.');
+    try {
+      await handle.api!.fullScan();
+    } catch (e) {
+      debugPrint('Varredura de resgate falhou: $e');
+      handle.varreduraDeResgatePedida = false;
+      return;
+    }
+
+    handle.saldoConfirmadoPorSync = true;
+    await _refreshBalances(handle, aposVarreduraCompleta: true);
+    notifyListeners();
   }
 
   String _lastBalanceKey(_NodeHandle handle) =>
@@ -1980,7 +2046,8 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
         }
 
         handle.saldoConfirmadoPorSync = true;
-        await _refreshBalances(handle);
+        await _refreshBalances(handle,
+            aposVarreduraCompleta: varreduraCompleta);
         await reconstruirHistoricoDoNo(forMerchant: handle.isMerchant);
         handle.consecutiveSyncFailures = 0;
       } catch (e) {
@@ -2004,8 +2071,6 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
   bool _saldoSobSuspeita = false;
   bool get saldoSobSuspeita => _saldoSobSuspeita;
-
-  static const int _leiturasZeradasParaAceitar = 3;
 
   bool _appEmPrimeiroPlano = true;
 
@@ -2690,7 +2755,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       try {
         await handle.api!.fullScan();
         handle.saldoConfirmadoPorSync = true;
-        await _refreshBalances(handle);
+        await _refreshBalances(handle, aposVarreduraCompleta: true);
         notifyListeners();
         return;
       } catch (e) {
@@ -2726,14 +2791,21 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       return 0;
     }
 
-    await _refreshBalances(handle);
+    await _refreshBalances(handle, aposVarreduraCompleta: true);
     await reconstruirHistoricoDoNo(forMerchant: forMerchant);
     notifyListeners();
     return handle.totalSats - saldoAntes;
   }
 
+  // v2, não v1: o marcador diz "esta carteira já foi varrida", mas o que uma
+  // varredura ALCANÇA mudou quando o stop gap subiu de 20 para 150. Um aparelho
+  // que varreu na era do gap 20 tem o marcador gravado e nunca mais varre — fica
+  // preso na árvore rasa, mostrando saldo menor que outro aparelho com a MESMA
+  // semente (medido: UTXO no índice externo 112, invisível com gap 20).
+  // Trocar a versão da chave obriga uma única varredura nova por carteira, já
+  // com o gap atual.
   static String _chaveVarredura(_NodeHandle h) =>
-      'full_scan_v1_${h.runningSeedFingerprint}';
+      'full_scan_v2_${h.runningSeedFingerprint}';
 
   Future<void> _marcarVarreduraFeita(_NodeHandle handle) async {
     final fp = handle.runningSeedFingerprint;
@@ -2879,6 +2951,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       status: 'pending',
     );
     _registrarTransacao(tx, isMerchant: false);
+    handle.houveSaidaDesdeLeituraBoa = true;
     await _refreshBalances(handle);
     notifyListeners();
 
@@ -2960,6 +3033,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       status: 'pending',
     );
     _registrarTransacao(tx, isMerchant: false);
+    handle.houveSaidaDesdeLeituraBoa = true;
     await _refreshBalances(handle);
     notifyListeners();
 

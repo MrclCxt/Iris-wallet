@@ -446,13 +446,6 @@ class _$ClosureReason_CounterpartyForceClosedImpl
   const _$ClosureReason_CounterpartyForceClosedImpl({required this.peerMsg})
       : super._();
 
-  /// The error which the peer sent us.
-  ///
-  /// Be careful about printing the peer_msg, a well-crafted message could exploit
-  /// a security vulnerability in the terminal emulator or the logging subsystem.
-  /// To be safe, use `Display` on `UntrustedString`
-  ///
-  /// [`UntrustedString`]: crate::util::string::UntrustedString
   @override
   final String peerMsg;
 
@@ -651,13 +644,6 @@ abstract class ClosureReason_CounterpartyForceClosed extends ClosureReason {
       _$ClosureReason_CounterpartyForceClosedImpl;
   const ClosureReason_CounterpartyForceClosed._() : super._();
 
-  /// The error which the peer sent us.
-  ///
-  /// Be careful about printing the peer_msg, a well-crafted message could exploit
-  /// a security vulnerability in the terminal emulator or the logging subsystem.
-  /// To be safe, use `Display` on `UntrustedString`
-  ///
-  /// [`UntrustedString`]: crate::util::string::UntrustedString
   String get peerMsg;
 
   /// Create a copy of ClosureReason
@@ -1999,7 +1985,6 @@ class _$ClosureReason_ProcessingErrorImpl
     extends ClosureReason_ProcessingError {
   const _$ClosureReason_ProcessingErrorImpl({required this.err}) : super._();
 
-  /// A developer-readable error message which we generated.
   @override
   final String err;
 
@@ -2197,7 +2182,6 @@ abstract class ClosureReason_ProcessingError extends ClosureReason {
       _$ClosureReason_ProcessingErrorImpl;
   const ClosureReason_ProcessingError._() : super._();
 
-  /// A developer-readable error message which we generated.
   String get err;
 
   /// Create a copy of ClosureReason
@@ -4047,20 +4031,12 @@ class _$Event_PaymentClaimableImpl extends Event_PaymentClaimable {
       this.claimDeadline})
       : super._();
 
-  /// A local identifier used to track the payment.
   @override
   final PaymentId paymentId;
-
-  /// The hash of the payment.
   @override
   final PaymentHash paymentHash;
-
-  /// The value, in thousandths of a satoshi, that is claimable.
   @override
   final BigInt claimableAmountMsat;
-
-  /// The block height at which this payment will be failed back and will no longer be
-  /// eligible for claiming.
   @override
   final int? claimDeadline;
 
@@ -4261,17 +4237,9 @@ abstract class Event_PaymentClaimable extends Event {
       final int? claimDeadline}) = _$Event_PaymentClaimableImpl;
   const Event_PaymentClaimable._() : super._();
 
-  /// A local identifier used to track the payment.
   PaymentId get paymentId;
-
-  /// The hash of the payment.
   PaymentHash get paymentHash;
-
-  /// The value, in thousandths of a satoshi, that is claimable.
   BigInt get claimableAmountMsat;
-
-  /// The block height at which this payment will be failed back and will no longer be
-  /// eligible for claiming.
   int? get claimDeadline;
 
   /// Create a copy of Event
@@ -4334,17 +4302,10 @@ class _$Event_PaymentSuccessfulImpl extends Event_PaymentSuccessful {
       {this.paymentId, required this.paymentHash, this.feePaidMsat})
       : super._();
 
-  /// A local identifier used to track the payment.
-  ///
-  /// Will only be `None` for events serialized with LDK Node v0.2.1 or prior.
   @override
   final PaymentId? paymentId;
-
-  /// The hash of the payment.
   @override
   final PaymentHash paymentHash;
-
-  /// The total fee which was spent at intermediate hops in this payment.
   @override
   final BigInt? feePaidMsat;
 
@@ -4539,15 +4500,8 @@ abstract class Event_PaymentSuccessful extends Event {
       final BigInt? feePaidMsat}) = _$Event_PaymentSuccessfulImpl;
   const Event_PaymentSuccessful._() : super._();
 
-  /// A local identifier used to track the payment.
-  ///
-  /// Will only be `None` for events serialized with LDK Node v0.2.1 or prior.
   PaymentId? get paymentId;
-
-  /// The hash of the payment.
   PaymentHash get paymentHash;
-
-  /// The total fee which was spent at intermediate hops in this payment.
   BigInt? get feePaidMsat;
 
   /// Create a copy of Event
@@ -4610,19 +4564,10 @@ class _$Event_PaymentFailedImpl extends Event_PaymentFailed {
       {this.paymentId, required this.paymentHash, this.reason})
       : super._();
 
-  /// A local identifier used to track the payment.
-  ///
-  /// Will only be `None` for events serialized with LDK Node v0.2.1 or prior.
   @override
   final PaymentId? paymentId;
-
-  /// The hash of the payment.
   @override
   final PaymentHash paymentHash;
-
-  /// The reason why the payment failed.
-  ///
-  /// This will be `None` for events serialized by LDK Node v0.2.1 and prior.
   @override
   final PaymentFailureReason? reason;
 
@@ -4815,17 +4760,8 @@ abstract class Event_PaymentFailed extends Event {
       final PaymentFailureReason? reason}) = _$Event_PaymentFailedImpl;
   const Event_PaymentFailed._() : super._();
 
-  /// A local identifier used to track the payment.
-  ///
-  /// Will only be `None` for events serialized with LDK Node v0.2.1 or prior.
   PaymentId? get paymentId;
-
-  /// The hash of the payment.
   PaymentHash get paymentHash;
-
-  /// The reason why the payment failed.
-  ///
-  /// This will be `None` for events serialized by LDK Node v0.2.1 and prior.
   PaymentFailureReason? get reason;
 
   /// Create a copy of Event
@@ -4886,17 +4822,10 @@ class _$Event_PaymentReceivedImpl extends Event_PaymentReceived {
       {this.paymentId, required this.paymentHash, required this.amountMsat})
       : super._();
 
-  /// A local identifier used to track the payment.
-  ///
-  /// Will only be `None` for events serialized with LDK Node v0.2.1 or prior.
   @override
   final PaymentId? paymentId;
-
-  /// The hash of the payment.
   @override
   final PaymentHash paymentHash;
-
-  /// The value, in thousandths of a satoshi, that has been received.
   @override
   final BigInt amountMsat;
 
@@ -5091,15 +5020,8 @@ abstract class Event_PaymentReceived extends Event {
       required final BigInt amountMsat}) = _$Event_PaymentReceivedImpl;
   const Event_PaymentReceived._() : super._();
 
-  /// A local identifier used to track the payment.
-  ///
-  /// Will only be `None` for events serialized with LDK Node v0.2.1 or prior.
   PaymentId? get paymentId;
-
-  /// The hash of the payment.
   PaymentHash get paymentHash;
-
-  /// The value, in thousandths of a satoshi, that has been received.
   BigInt get amountMsat;
 
   /// Create a copy of Event
@@ -5178,23 +5100,14 @@ class _$Event_ChannelPendingImpl extends Event_ChannelPending {
       required this.fundingTxo})
       : super._();
 
-  /// The `channelId` of the channel.
   @override
   final ChannelId channelId;
-
-  /// The `userChannelId` of the channel.
   @override
   final UserChannelId userChannelId;
-
-  /// The `temporaryChannelId` this channel used to be known by during channel establishment.
   @override
   final ChannelId formerTemporaryChannelId;
-
-  /// The `nodeId` of the channel counterparty.
   @override
   final PublicKey counterpartyNodeId;
-
-  /// The outpoint of the channel's funding transaction.
   @override
   final OutPoint fundingTxo;
 
@@ -5400,19 +5313,10 @@ abstract class Event_ChannelPending extends Event {
       required final OutPoint fundingTxo}) = _$Event_ChannelPendingImpl;
   const Event_ChannelPending._() : super._();
 
-  /// The `channelId` of the channel.
   ChannelId get channelId;
-
-  /// The `userChannelId` of the channel.
   UserChannelId get userChannelId;
-
-  /// The `temporaryChannelId` this channel used to be known by during channel establishment.
   ChannelId get formerTemporaryChannelId;
-
-  /// The `nodeId` of the channel counterparty.
   PublicKey get counterpartyNodeId;
-
-  /// The outpoint of the channel's funding transaction.
   OutPoint get fundingTxo;
 
   /// Create a copy of Event
@@ -5477,17 +5381,10 @@ class _$Event_ChannelReadyImpl extends Event_ChannelReady {
       this.counterpartyNodeId})
       : super._();
 
-  /// The `channelId` of the channel.
   @override
   final ChannelId channelId;
-
-  /// The `userChannelId` of the channel.
   @override
   final UserChannelId userChannelId;
-
-  /// The `nodeId` of the channel counterparty.
-  ///
-  /// This will be `None` for events serialized by LDK Node v0.1.0 and prior.
   @override
   final PublicKey? counterpartyNodeId;
 
@@ -5682,15 +5579,8 @@ abstract class Event_ChannelReady extends Event {
       final PublicKey? counterpartyNodeId}) = _$Event_ChannelReadyImpl;
   const Event_ChannelReady._() : super._();
 
-  /// The `channelId` of the channel.
   ChannelId get channelId;
-
-  /// The `userChannelId` of the channel.
   UserChannelId get userChannelId;
-
-  /// The `nodeId` of the channel counterparty.
-  ///
-  /// This will be `None` for events serialized by LDK Node v0.1.0 and prior.
   PublicKey? get counterpartyNodeId;
 
   /// Create a copy of Event
@@ -5778,21 +5668,12 @@ class _$Event_ChannelClosedImpl extends Event_ChannelClosed {
       this.reason})
       : super._();
 
-  /// The `channelId` of the channel.
   @override
   final ChannelId channelId;
-
-  /// The `userChannelId` of the channel.
   @override
   final UserChannelId userChannelId;
-
-  /// The `nodeId` of the channel counterparty.
-  ///
-  /// This will be `None` for events serialized by LDK Node v0.1.0 and prior.
   @override
   final PublicKey? counterpartyNodeId;
-
-  /// This will be `None` for events serialized by LDK Node v0.2.1 and prior.
   @override
   final ClosureReason? reason;
 
@@ -5991,18 +5872,9 @@ abstract class Event_ChannelClosed extends Event {
       final ClosureReason? reason}) = _$Event_ChannelClosedImpl;
   const Event_ChannelClosed._() : super._();
 
-  /// The `channelId` of the channel.
   ChannelId get channelId;
-
-  /// The `userChannelId` of the channel.
   UserChannelId get userChannelId;
-
-  /// The `nodeId` of the channel counterparty.
-  ///
-  /// This will be `None` for events serialized by LDK Node v0.1.0 and prior.
   PublicKey? get counterpartyNodeId;
-
-  /// This will be `None` for events serialized by LDK Node v0.2.1 and prior.
   ClosureReason? get reason;
 
   /// Create a copy of Event
@@ -6050,7 +5922,6 @@ class __$$Event_UnknownImplCopyWithImpl<$Res>
 class _$Event_UnknownImpl extends Event_Unknown {
   const _$Event_UnknownImpl({required this.kind}) : super._();
 
-  /// Nome da variante do LDK, para diagnóstico.
   @override
   final String kind;
 
@@ -6236,7 +6107,6 @@ abstract class Event_Unknown extends Event {
       _$Event_UnknownImpl;
   const Event_Unknown._() : super._();
 
-  /// Nome da variante do LDK, para diagnóstico.
   String get kind;
 
   /// Create a copy of Event
@@ -6578,14 +6448,8 @@ abstract class GossipSourceConfig_RapidGossipSync extends GossipSourceConfig {
 
 /// @nodoc
 mixin _$LightningBalance {
-  /// The identifier of the channel this balance belongs to.
   ChannelId get channelId => throw _privateConstructorUsedError;
-
-  /// The identifier of our channel counterparty.
   PublicKey get counterpartyNodeId => throw _privateConstructorUsedError;
-
-  /// The amount available to claim, in satoshis, excluding the on-chain fees which will be
-  /// required to do so.
   BigInt get amountSatoshis => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
@@ -6846,16 +6710,10 @@ class _$LightningBalance_ClaimableOnChannelCloseImpl
       required this.amountSatoshis})
       : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   final ChannelId channelId;
-
-  /// The identifier of our channel counterparty.
   @override
   final PublicKey counterpartyNodeId;
-
-  /// The amount available to claim, in satoshis, excluding the on-chain fees which will be
-  /// required to do so.
   @override
   final BigInt amountSatoshis;
 
@@ -7071,16 +6929,10 @@ abstract class LightningBalance_ClaimableOnChannelClose
       _$LightningBalance_ClaimableOnChannelCloseImpl;
   const LightningBalance_ClaimableOnChannelClose._() : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   ChannelId get channelId;
-
-  /// The identifier of our channel counterparty.
   @override
   PublicKey get counterpartyNodeId;
-
-  /// The amount available to claim, in satoshis, excluding the on-chain fees which will be
-  /// required to do so.
   @override
   BigInt get amountSatoshis;
 
@@ -7164,23 +7016,12 @@ class _$LightningBalance_ClaimableAwaitingConfirmationsImpl
       required this.confirmationHeight})
       : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   final ChannelId channelId;
-
-  /// The identifier of our channel counterparty.
   @override
   final PublicKey counterpartyNodeId;
-
-  /// The amount available to claim, in satoshis, possibly excluding the on-chain fees which
-  /// were spent in broadcasting the transaction.
   @override
   final BigInt amountSatoshis;
-
-  /// The height at which an [`Event::SpendableOutputs`] event will be generated for this
-  /// amount.
-  ///
-  /// [`Event::SpendableOutputs`]: lightning::events::Event::SpendableOutputs
   @override
   final int confirmationHeight;
 
@@ -7400,23 +7241,12 @@ abstract class LightningBalance_ClaimableAwaitingConfirmations
       _$LightningBalance_ClaimableAwaitingConfirmationsImpl;
   const LightningBalance_ClaimableAwaitingConfirmations._() : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   ChannelId get channelId;
-
-  /// The identifier of our channel counterparty.
   @override
   PublicKey get counterpartyNodeId;
-
-  /// The amount available to claim, in satoshis, possibly excluding the on-chain fees which
-  /// were spent in broadcasting the transaction.
   @override
   BigInt get amountSatoshis;
-
-  /// The height at which an [`Event::SpendableOutputs`] event will be generated for this
-  /// amount.
-  ///
-  /// [`Event::SpendableOutputs`]: lightning::events::Event::SpendableOutputs
   int get confirmationHeight;
 
   /// Create a copy of LightningBalance
@@ -7510,29 +7340,16 @@ class _$LightningBalance_ContentiousClaimableImpl
       required this.paymentPreimage})
       : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   final ChannelId channelId;
-
-  /// The identifier of our channel counterparty.
   @override
   final PublicKey counterpartyNodeId;
-
-  /// The amount available to claim, in satoshis, excluding the on-chain fees which will be
-  /// required to do so.
   @override
   final BigInt amountSatoshis;
-
-  /// The height at which the counterparty may be able to claim the balance if we have not
-  /// done so.
   @override
   final int timeoutHeight;
-
-  /// The payment hash that locks this HTLC.
   @override
   final PaymentHash paymentHash;
-
-  /// The preimage that can be used to claim this HTLC.
   @override
   final PaymentPreimage paymentPreimage;
 
@@ -7755,27 +7572,14 @@ abstract class LightningBalance_ContentiousClaimable extends LightningBalance {
       _$LightningBalance_ContentiousClaimableImpl;
   const LightningBalance_ContentiousClaimable._() : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   ChannelId get channelId;
-
-  /// The identifier of our channel counterparty.
   @override
   PublicKey get counterpartyNodeId;
-
-  /// The amount available to claim, in satoshis, excluding the on-chain fees which will be
-  /// required to do so.
   @override
   BigInt get amountSatoshis;
-
-  /// The height at which the counterparty may be able to claim the balance if we have not
-  /// done so.
   int get timeoutHeight;
-
-  /// The payment hash that locks this HTLC.
   PaymentHash get paymentHash;
-
-  /// The preimage that can be used to claim this HTLC.
   PaymentPreimage get paymentPreimage;
 
   /// Create a copy of LightningBalance
@@ -7863,25 +7667,14 @@ class _$LightningBalance_MaybeTimeoutClaimableHTLCImpl
       required this.paymentHash})
       : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   final ChannelId channelId;
-
-  /// The identifier of our channel counterparty.
   @override
   final PublicKey counterpartyNodeId;
-
-  /// The amount potentially available to claim, in satoshis, excluding the on-chain fees
-  /// which will be required to do so.
   @override
   final BigInt amountSatoshis;
-
-  /// The height at which we will be able to claim the balance if our counterparty has not
-  /// done so.
   @override
   final int claimableHeight;
-
-  /// The payment hash whose preimage our counterparty needs to claim this HTLC.
   @override
   final PaymentHash paymentHash;
 
@@ -8104,24 +7897,13 @@ abstract class LightningBalance_MaybeTimeoutClaimableHTLC
       _$LightningBalance_MaybeTimeoutClaimableHTLCImpl;
   const LightningBalance_MaybeTimeoutClaimableHTLC._() : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   ChannelId get channelId;
-
-  /// The identifier of our channel counterparty.
   @override
   PublicKey get counterpartyNodeId;
-
-  /// The amount potentially available to claim, in satoshis, excluding the on-chain fees
-  /// which will be required to do so.
   @override
   BigInt get amountSatoshis;
-
-  /// The height at which we will be able to claim the balance if our counterparty has not
-  /// done so.
   int get claimableHeight;
-
-  /// The payment hash whose preimage our counterparty needs to claim this HTLC.
   PaymentHash get paymentHash;
 
   /// Create a copy of LightningBalance
@@ -8210,25 +7992,14 @@ class _$LightningBalance_MaybePreimageClaimableHTLCImpl
       required this.paymentHash})
       : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   final ChannelId channelId;
-
-  /// The identifier of our channel counterparty.
   @override
   final PublicKey counterpartyNodeId;
-
-  /// The amount potentially available to claim, in satoshis, excluding the on-chain fees
-  /// which will be required to do so.
   @override
   final BigInt amountSatoshis;
-
-  /// The height at which our counterparty will be able to claim the balance if we have not
-  /// yet received the preimage and claimed it ourselves.
   @override
   final int expiryHeight;
-
-  /// The payment hash whose preimage we need to claim this HTLC.
   @override
   final PaymentHash paymentHash;
 
@@ -8451,24 +8222,13 @@ abstract class LightningBalance_MaybePreimageClaimableHTLC
       _$LightningBalance_MaybePreimageClaimableHTLCImpl;
   const LightningBalance_MaybePreimageClaimableHTLC._() : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   ChannelId get channelId;
-
-  /// The identifier of our channel counterparty.
   @override
   PublicKey get counterpartyNodeId;
-
-  /// The amount potentially available to claim, in satoshis, excluding the on-chain fees
-  /// which will be required to do so.
   @override
   BigInt get amountSatoshis;
-
-  /// The height at which our counterparty will be able to claim the balance if we have not
-  /// yet received the preimage and claimed it ourselves.
   int get expiryHeight;
-
-  /// The payment hash whose preimage we need to claim this HTLC.
   PaymentHash get paymentHash;
 
   /// Create a copy of LightningBalance
@@ -8548,15 +8308,10 @@ class _$LightningBalance_CounterpartyRevokedOutputClaimableImpl
       required this.amountSatoshis})
       : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   final ChannelId channelId;
-
-  /// The identifier of our channel counterparty.
   @override
   final PublicKey counterpartyNodeId;
-
-  /// The amount, in satoshis, of the output which we can claim.
   @override
   final BigInt amountSatoshis;
 
@@ -8774,15 +8529,10 @@ abstract class LightningBalance_CounterpartyRevokedOutputClaimable
       _$LightningBalance_CounterpartyRevokedOutputClaimableImpl;
   const LightningBalance_CounterpartyRevokedOutputClaimable._() : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   ChannelId get channelId;
-
-  /// The identifier of our channel counterparty.
   @override
   PublicKey get counterpartyNodeId;
-
-  /// The amount, in satoshis, of the output which we can claim.
   @override
   BigInt get amountSatoshis;
 
@@ -9517,15 +9267,10 @@ class _$PaymentKind_Bolt11Impl extends PaymentKind_Bolt11 {
       {required this.hash, this.preimage, this.secret})
       : super._();
 
-  /// The payment hash, i.e., the hash of the `preimage`.
   @override
   final PaymentHash hash;
-
-  /// The pre-image used by the payment.
   @override
   final PaymentPreimage? preimage;
-
-  /// The secret used by the payment.
   @override
   final PaymentSecret? secret;
 
@@ -9676,13 +9421,8 @@ abstract class PaymentKind_Bolt11 extends PaymentKind {
       final PaymentSecret? secret}) = _$PaymentKind_Bolt11Impl;
   const PaymentKind_Bolt11._() : super._();
 
-  /// The payment hash, i.e., the hash of the `preimage`.
   PaymentHash get hash;
-
-  /// The pre-image used by the payment.
   PaymentPreimage? get preimage;
-
-  /// The secret used by the payment.
   PaymentSecret? get secret;
 
   /// Create a copy of PaymentKind
@@ -9755,23 +9495,12 @@ class _$PaymentKind_Bolt11JitImpl extends PaymentKind_Bolt11Jit {
       required this.lspFeeLimits})
       : super._();
 
-  /// The payment hash, i.e., the hash of the `preimage`.
   @override
   final PaymentHash hash;
-
-  /// The pre-image used by the payment.
   @override
   final PaymentPreimage? preimage;
-
-  /// The secret used by the payment.
   @override
   final PaymentSecret? secret;
-
-  /// Limits applying to how much fee we allow an LSP to deduct from the payment amount.
-  ///
-  /// Allowing them to deduct this fee from the first inbound payment will pay for the LSP's
-  /// channel opening fees.
-  ///
   @override
   final LSPFeeLimits lspFeeLimits;
 
@@ -9926,20 +9655,9 @@ abstract class PaymentKind_Bolt11Jit extends PaymentKind {
       required final LSPFeeLimits lspFeeLimits}) = _$PaymentKind_Bolt11JitImpl;
   const PaymentKind_Bolt11Jit._() : super._();
 
-  /// The payment hash, i.e., the hash of the `preimage`.
   PaymentHash get hash;
-
-  /// The pre-image used by the payment.
   PaymentPreimage? get preimage;
-
-  /// The secret used by the payment.
   PaymentSecret? get secret;
-
-  /// Limits applying to how much fee we allow an LSP to deduct from the payment amount.
-  ///
-  /// Allowing them to deduct this fee from the first inbound payment will pay for the LSP's
-  /// channel opening fees.
-  ///
   LSPFeeLimits get lspFeeLimits;
 
   /// Create a copy of PaymentKind
@@ -9995,11 +9713,8 @@ class _$PaymentKind_SpontaneousImpl extends PaymentKind_Spontaneous {
   const _$PaymentKind_SpontaneousImpl({required this.hash, this.preimage})
       : super._();
 
-  /// The payment hash, i.e., the hash of the `preimage`.
   @override
   final PaymentHash hash;
-
-  /// The pre-image used by the payment.
   @override
   final PaymentPreimage? preimage;
 
@@ -10148,10 +9863,7 @@ abstract class PaymentKind_Spontaneous extends PaymentKind {
       final PaymentPreimage? preimage}) = _$PaymentKind_SpontaneousImpl;
   const PaymentKind_Spontaneous._() : super._();
 
-  /// The payment hash, i.e., the hash of the `preimage`.
   PaymentHash get hash;
-
-  /// The pre-image used by the payment.
   PaymentPreimage? get preimage;
 
   /// Create a copy of PaymentKind
@@ -10222,19 +9934,12 @@ class _$PaymentKind_Bolt12OfferImpl extends PaymentKind_Bolt12Offer {
       {this.hash, this.preimage, this.secret, required this.offerId})
       : super._();
 
-  /// The payment hash, i.e., the hash of the `preimage`.
   @override
   final PaymentHash? hash;
-
-  /// The pre-image used by the payment.
   @override
   final PaymentPreimage? preimage;
-
-  /// The secret used by the payment.
   @override
   final PaymentSecret? secret;
-
-  /// The ID of the offer this payment is for.
   @override
   final OfferId offerId;
 
@@ -10387,16 +10092,9 @@ abstract class PaymentKind_Bolt12Offer extends PaymentKind {
       required final OfferId offerId}) = _$PaymentKind_Bolt12OfferImpl;
   const PaymentKind_Bolt12Offer._() : super._();
 
-  /// The payment hash, i.e., the hash of the `preimage`.
   PaymentHash? get hash;
-
-  /// The pre-image used by the payment.
   PaymentPreimage? get preimage;
-
-  /// The secret used by the payment.
   PaymentSecret? get secret;
-
-  /// The ID of the offer this payment is for.
   OfferId get offerId;
 
   /// Create a copy of PaymentKind
@@ -10458,15 +10156,10 @@ class _$PaymentKind_Bolt12RefundImpl extends PaymentKind_Bolt12Refund {
   const _$PaymentKind_Bolt12RefundImpl({this.hash, this.preimage, this.secret})
       : super._();
 
-  /// The payment hash, i.e., the hash of the `preimage`.
   @override
   final PaymentHash? hash;
-
-  /// The pre-image used by the payment.
   @override
   final PaymentPreimage? preimage;
-
-  /// The secret used by the payment.
   @override
   final PaymentSecret? secret;
 
@@ -10617,13 +10310,8 @@ abstract class PaymentKind_Bolt12Refund extends PaymentKind {
       final PaymentSecret? secret}) = _$PaymentKind_Bolt12RefundImpl;
   const PaymentKind_Bolt12Refund._() : super._();
 
-  /// The payment hash, i.e., the hash of the `preimage`.
   PaymentHash? get hash;
-
-  /// The pre-image used by the payment.
   PaymentPreimage? get preimage;
-
-  /// The secret used by the payment.
   PaymentSecret? get secret;
 
   /// Create a copy of PaymentKind
@@ -10635,10 +10323,7 @@ abstract class PaymentKind_Bolt12Refund extends PaymentKind {
 
 /// @nodoc
 mixin _$PendingSweepBalance {
-  /// The identifier of the channel this balance belongs to.
   ChannelId? get channelId => throw _privateConstructorUsedError;
-
-  /// The amount, in satoshis, of the output being swept.
   BigInt get amountSatoshis => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
@@ -10821,11 +10506,8 @@ class _$PendingSweepBalance_PendingBroadcastImpl
       {this.channelId, required this.amountSatoshis})
       : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   final ChannelId? channelId;
-
-  /// The amount, in satoshis, of the output being swept.
   @override
   final BigInt amountSatoshis;
 
@@ -10972,11 +10654,8 @@ abstract class PendingSweepBalance_PendingBroadcast
       _$PendingSweepBalance_PendingBroadcastImpl;
   const PendingSweepBalance_PendingBroadcast._() : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   ChannelId? get channelId;
-
-  /// The amount, in satoshis, of the output being swept.
   @override
   BigInt get amountSatoshis;
 
@@ -11062,19 +10741,12 @@ class _$PendingSweepBalance_BroadcastAwaitingConfirmationImpl
       required this.amountSatoshis})
       : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   final ChannelId? channelId;
-
-  /// The best height when we last broadcast a transaction spending the output being swept.
   @override
   final int latestBroadcastHeight;
-
-  /// The identifier of the transaction spending the swept output we last broadcast.
   @override
   final Txid latestSpendingTxid;
-
-  /// The amount, in satoshis, of the output being swept.
   @override
   final BigInt amountSatoshis;
 
@@ -11234,17 +10906,10 @@ abstract class PendingSweepBalance_BroadcastAwaitingConfirmation
       _$PendingSweepBalance_BroadcastAwaitingConfirmationImpl;
   const PendingSweepBalance_BroadcastAwaitingConfirmation._() : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   ChannelId? get channelId;
-
-  /// The best height when we last broadcast a transaction spending the output being swept.
   int get latestBroadcastHeight;
-
-  /// The identifier of the transaction spending the swept output we last broadcast.
   Txid get latestSpendingTxid;
-
-  /// The amount, in satoshis, of the output being swept.
   @override
   BigInt get amountSatoshis;
 
@@ -11339,23 +11004,14 @@ class _$PendingSweepBalance_AwaitingThresholdConfirmationsImpl
       required this.amountSatoshis})
       : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   final ChannelId? channelId;
-
-  /// The identifier of the confirmed transaction spending the swept output.
   @override
   final Txid latestSpendingTxid;
-
-  /// The hash of the block in which the spending transaction was confirmed.
   @override
   final String confirmationHash;
-
-  /// The height at which the spending transaction was confirmed.
   @override
   final int confirmationHeight;
-
-  /// The amount, in satoshis, of the output being swept.
   @override
   final BigInt amountSatoshis;
 
@@ -11518,20 +11174,11 @@ abstract class PendingSweepBalance_AwaitingThresholdConfirmations
       _$PendingSweepBalance_AwaitingThresholdConfirmationsImpl;
   const PendingSweepBalance_AwaitingThresholdConfirmations._() : super._();
 
-  /// The identifier of the channel this balance belongs to.
   @override
   ChannelId? get channelId;
-
-  /// The identifier of the confirmed transaction spending the swept output.
   Txid get latestSpendingTxid;
-
-  /// The hash of the block in which the spending transaction was confirmed.
   String get confirmationHash;
-
-  /// The height at which the spending transaction was confirmed.
   int get confirmationHeight;
-
-  /// The amount, in satoshis, of the output being swept.
   @override
   BigInt get amountSatoshis;
 

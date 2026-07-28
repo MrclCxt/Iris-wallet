@@ -128,6 +128,10 @@ impl LdkNode {
         self.ptr.sync_wallets().map_err(|e| e.into())
     }
 
+    pub fn full_scan_wallets(&self) -> anyhow::Result<(), LdkNodeError> {
+        self.ptr.full_scan_wallets().map_err(|e| e.into())
+    }
+
     pub fn close_channel(
         &self,
         user_channel_id: UserChannelId,

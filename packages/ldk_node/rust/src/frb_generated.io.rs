@@ -2636,6 +2636,14 @@ pub extern "C" fn frbgen_ldk_node_wire__crate__api__node__ldk_node_force_close_c
 }
 
 #[no_mangle]
+pub extern "C" fn frbgen_ldk_node_wire__crate__api__node__ldk_node_full_scan_wallets(
+    port_: i64,
+    that: *mut wire_cst_ldk_node,
+) {
+    wire__crate__api__node__ldk_node_full_scan_wallets_impl(port_, that)
+}
+
+#[no_mangle]
 pub extern "C" fn frbgen_ldk_node_wire__crate__api__node__ldk_node_list_balances(
     port_: i64,
     that: *mut wire_cst_ldk_node,

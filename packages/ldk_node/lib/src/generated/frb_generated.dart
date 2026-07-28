@@ -64,7 +64,7 @@ class core extends BaseEntrypoint<coreApi, coreApiImpl, coreWire> {
   String get codegenVersion => '2.0.0';
 
   @override
-  int get rustContentHash => 1761952349;
+  int get rustContentHash => 1924780707;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -235,6 +235,8 @@ abstract class coreApi extends BaseApi {
       {required LdkNode that,
       required UserChannelId userChannelId,
       required PublicKey counterpartyNodeId});
+
+  Future<void> crateApiNodeLdkNodeFullScanWallets({required LdkNode that});
 
   Future<BalanceDetails> crateApiNodeLdkNodeListBalances(
       {required LdkNode that});
@@ -1517,6 +1519,30 @@ class coreApiImpl extends coreApiImplPlatform implements coreApi {
       const TaskConstMeta(
         debugName: "ldk_node_force_close_channel",
         argNames: ["that", "userChannelId", "counterpartyNodeId"],
+      );
+
+  @override
+  Future<void> crateApiNodeLdkNodeFullScanWallets({required LdkNode that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        var arg0 = cst_encode_box_autoadd_ldk_node(that);
+        return wire.wire__crate__api__node__ldk_node_full_scan_wallets(
+            port_, arg0);
+      },
+      codec: DcoCodec(
+        decodeSuccessData: dco_decode_unit,
+        decodeErrorData: dco_decode_ldk_node_error,
+      ),
+      constMeta: kCrateApiNodeLdkNodeFullScanWalletsConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiNodeLdkNodeFullScanWalletsConstMeta =>
+      const TaskConstMeta(
+        debugName: "ldk_node_full_scan_wallets",
+        argNames: ["that"],
       );
 
   @override

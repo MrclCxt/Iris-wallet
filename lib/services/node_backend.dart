@@ -103,6 +103,7 @@ abstract class NodeApi {
     required int baseMsat,
   });
   Future<void> sync();
+  Future<void> fullScan();
   Future<NodeEvent?> nextEvent();
   Future<void> eventHandled();
 }
@@ -403,6 +404,9 @@ class EmbeddedNodeApi implements NodeApi {
   @override
   Future<void> sync() => _n.syncWallets();
 
+  @override
+  Future<void> fullScan() => _n.fullScanWallets();
+
   static String _hashHex(ldk.PaymentHash h) =>
       h.data.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 
@@ -586,6 +590,11 @@ class RemoteNodeApi implements NodeApi {
   @override
   Future<void> sync() async {
     await _post('/sync', {});
+  }
+
+  @override
+  Future<void> fullScan() async {
+    await _post('/full_scan', {});
   }
 
   @override

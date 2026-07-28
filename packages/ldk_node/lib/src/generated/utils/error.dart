@@ -51,38 +51,16 @@ sealed class DecodeError with _$DecodeError {
 
 enum LdkBuilderError {
   socketAddressParseError,
-
-  /// The given seed bytes are invalid, e.g., have invalid length.
   invalidSeedBytes,
-
-  /// The given seed file is invalid, e.g., has invalid length, or could not be read.
   invalidSeedFile,
-
-  /// The current system time is invalid, clocks might have gone backwards.
   invalidSystemTime,
-
-  /// The a read channel monitor is invalid.
   invalidChannelMonitor,
-
-  /// The given listening addresses are invalid, e.g. too many were passed.
   invalidListeningAddress,
-
-  /// We failed to read data from the [`KVStore`].
   readFailed,
-
-  /// We failed to write data to the [`KVStore`].
   writeFailed,
-
-  /// We failed to access the given `storage_dir_path`.
   storagePathAccessFailed,
-
-  /// We failed to setup our [`KVStore`].
   kvStoreSetupFailed,
-
-  /// We failed to setup the onchain wallet.
   walletSetupFailed,
-
-  /// We failed to setup the logger.
   loggerSetupFailed,
   invalidPublicKey,
   ;
@@ -93,180 +71,84 @@ sealed class LdkNodeError with _$LdkNodeError implements FrbException {
   const LdkNodeError._();
 
   const factory LdkNodeError.invalidTxid() = LdkNodeError_InvalidTxid;
-
-  /// Returned when trying to start [Node] while it is already running.
   const factory LdkNodeError.alreadyRunning() = LdkNodeError_AlreadyRunning;
-
-  /// Returned when trying to stop [Node] while it is not running.
   const factory LdkNodeError.notRunning() = LdkNodeError_NotRunning;
-
-  /// An on-chain transaction could not be created.
   const factory LdkNodeError.onchainTxCreationFailed() =
       LdkNodeError_OnchainTxCreationFailed;
-
-  /// A network connection has been closed.
   const factory LdkNodeError.connectionFailed() = LdkNodeError_ConnectionFailed;
-
-  /// Invoice creation failed.
   const factory LdkNodeError.invoiceCreationFailed() =
       LdkNodeError_InvoiceCreationFailed;
-
-  /// Sending a payment has failed.
   const factory LdkNodeError.paymentSendingFailed() =
       LdkNodeError_PaymentSendingFailed;
-
-  /// Sending a payment probe has failed.
   const factory LdkNodeError.probeSendingFailed() =
       LdkNodeError_ProbeSendingFailed;
-
-  /// A channel could not be opened.
   const factory LdkNodeError.channelCreationFailed() =
       LdkNodeError_ChannelCreationFailed;
-
-  /// A channel could not be closed.
   const factory LdkNodeError.channelClosingFailed() =
       LdkNodeError_ChannelClosingFailed;
-
-  /// A channel config could not be updated.
   const factory LdkNodeError.channelConfigUpdateFailed() =
       LdkNodeError_ChannelConfigUpdateFailed;
-
-  /// Persistence failed.
   const factory LdkNodeError.persistenceFailed() =
       LdkNodeError_PersistenceFailed;
-
-  /// A wallet operation failed.
   const factory LdkNodeError.walletOperationFailed() =
       LdkNodeError_WalletOperationFailed;
-
-  /// A signing operation for transaction failed.
   const factory LdkNodeError.onchainTxSigningFailed() =
       LdkNodeError_OnchainTxSigningFailed;
-
-  /// A signing operation for message failed.
   const factory LdkNodeError.messageSigningFailed() =
       LdkNodeError_MessageSigningFailed;
-
-  /// A transaction sync operation failed.
   const factory LdkNodeError.txSyncFailed() = LdkNodeError_TxSyncFailed;
-
-  /// A gossip updating operation failed.
   const factory LdkNodeError.gossipUpdateFailed() =
       LdkNodeError_GossipUpdateFailed;
-
-  /// The given address is invalid.
   const factory LdkNodeError.invalidAddress() = LdkNodeError_InvalidAddress;
-
-  /// The given network address is invalid.
   const factory LdkNodeError.invalidSocketAddress() =
       LdkNodeError_InvalidSocketAddress;
-
-  /// The given public key is invalid.
   const factory LdkNodeError.invalidPublicKey() = LdkNodeError_InvalidPublicKey;
-
-  /// The given secret key is invalid.
   const factory LdkNodeError.invalidSecretKey() = LdkNodeError_InvalidSecretKey;
-
-  /// The given payment hash is invalid.
   const factory LdkNodeError.invalidPaymentHash() =
       LdkNodeError_InvalidPaymentHash;
-
-  /// The given payment preimage is invalid.
   const factory LdkNodeError.invalidPaymentPreimage() =
       LdkNodeError_InvalidPaymentPreimage;
-
-  /// The given payment secret is invalid.
   const factory LdkNodeError.invalidPaymentSecret() =
       LdkNodeError_InvalidPaymentSecret;
-
-  /// The given amount is invalid.
   const factory LdkNodeError.invalidAmount() = LdkNodeError_InvalidAmount;
-
-  /// The given invoice is invalid.
   const factory LdkNodeError.invalidInvoice() = LdkNodeError_InvalidInvoice;
-
-  /// The given channel ID is invalid.
   const factory LdkNodeError.invalidChannelId() = LdkNodeError_InvalidChannelId;
-
-  /// The given network is invalid.
   const factory LdkNodeError.invalidNetwork() = LdkNodeError_InvalidNetwork;
-
-  /// A payment with the given hash has already been initiated.
   const factory LdkNodeError.duplicatePayment() = LdkNodeError_DuplicatePayment;
-
-  /// There are insufficient funds to complete the given operation.
   const factory LdkNodeError.insufficientFunds() =
       LdkNodeError_InsufficientFunds;
-
-  ///A fee rate estimation update failed.
   const factory LdkNodeError.feerateEstimationUpdateFailed() =
       LdkNodeError_FeerateEstimationUpdateFailed;
-
-  ///A liquidity request operation failed.
   const factory LdkNodeError.liquidityRequestFailed() =
       LdkNodeError_LiquidityRequestFailed;
-
-  ///The given operation failed due to the required liquidity source being unavailable.
   const factory LdkNodeError.liquiditySourceUnavailable() =
       LdkNodeError_LiquiditySourceUnavailable;
-
-  ///The given operation failed due to the LSP's required opening fee being too high.
   const factory LdkNodeError.liquidityFeeTooHigh() =
       LdkNodeError_LiquidityFeeTooHigh;
-
-  ///The given payment id is invalid.
   const factory LdkNodeError.invalidPaymentId() = LdkNodeError_InvalidPaymentId;
-
-  ///An error in decoding a message or struct.
   const factory LdkNodeError.decode(
     DecodeError field0,
   ) = LdkNodeError_Decode;
-
-  ///An error in decoding the Bolt12 offer.
   const factory LdkNodeError.bolt12Parse(
     Bolt12ParseError field0,
   ) = LdkNodeError_Bolt12Parse;
-
-  ///Invoice request creation failed.
   const factory LdkNodeError.invoiceRequestCreationFailed() =
       LdkNodeError_InvoiceRequestCreationFailed;
-
-  ///Offer creation failed.
   const factory LdkNodeError.offerCreationFailed() =
       LdkNodeError_OfferCreationFailed;
-
-  ///Refund creation failed.
   const factory LdkNodeError.refundCreationFailed() =
       LdkNodeError_RefundCreationFailed;
-
-  ///A fee rate estimation update timed out.
   const factory LdkNodeError.feerateEstimationUpdateTimeout() =
       LdkNodeError_FeerateEstimationUpdateTimeout;
-
-  ///A wallet operation timed out.
   const factory LdkNodeError.walletOperationTimeout() =
       LdkNodeError_WalletOperationTimeout;
-
-  ///A transaction sync operation timed out.
   const factory LdkNodeError.txSyncTimeout() = LdkNodeError_TxSyncTimeout;
-
-  ///A gossip updating operation timed out.
   const factory LdkNodeError.gossipUpdateTimeout() =
       LdkNodeError_GossipUpdateTimeout;
-
-  ///The given offer id is invalid.
   const factory LdkNodeError.invalidOfferId() = LdkNodeError_InvalidOfferId;
-
-  ///The given node id is invalid.
   const factory LdkNodeError.invalidNodeId() = LdkNodeError_InvalidNodeId;
-
-  ///The given offer is invalid.
   const factory LdkNodeError.invalidOffer() = LdkNodeError_InvalidOffer;
-
-  ///The given refund is invalid.
   const factory LdkNodeError.invalidRefund() = LdkNodeError_InvalidRefund;
-
-  ///The provided offer was denominated in an unsupported currency.
   const factory LdkNodeError.unsupportedCurrency() =
       LdkNodeError_UnsupportedCurrency;
 }

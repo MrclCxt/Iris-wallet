@@ -24,6 +24,7 @@ ldk-node = { version = "0.7.0" }
 # Testnet4 usa o mesmo HRP `lntb` da testnet3 no BOLT11.
 [patch.crates-io]
 lightning-invoice = { path = "vendor/lightning-invoice" }
+ldk-node = { path = "vendor/ldk-node" }
 
 
 [profile.release]

@@ -82,6 +82,11 @@ class LdkNode {
           userChannelId: userChannelId,
           counterpartyNodeId: counterpartyNodeId);
 
+  Future<void> fullScanWallets() =>
+      core.instance.api.crateApiNodeLdkNodeFullScanWallets(
+        that: this,
+      );
+
   Future<BalanceDetails> listBalances() =>
       core.instance.api.crateApiNodeLdkNodeListBalances(
         that: this,

@@ -1526,6 +1526,12 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       _runEventLoop(handle, isMerchant: isMerchant);
       _ensureSyncTimer();
 
+      Timer(const Duration(seconds: 20), () {
+        _varrerSePendente(handle, isMerchant: isMerchant).catchError((e) {
+          debugPrint('Varredura completa em segundo plano falhou: $e');
+        });
+      });
+
       notifyListeners();
       debugPrint(
           'Nó (${isMerchant ? 'loja' : 'pessoal'}) iniciado na testnet4 — backend ${handle.isRemote ? 'daemon local' : 'embarcado'}.');
@@ -2532,34 +2538,54 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
-  Future<int> deepScan({int ateIndice = 150, bool forMerchant = false}) async {
+  Future<int> deepScan({bool forMerchant = false}) async {
     final handle = forMerchant ? _merchantNode : _consumerNode;
     if (handle.api == null) return 0;
 
-    await reconstruirHistoricoDoNo(forMerchant: forMerchant);
-
-    var revelados = 0;
-    for (var i = 0; i < ateIndice; i++) {
-      try {
-        final addr = await handle.api!.newOnchainAddress();
-
-        await _registrarEnderecoProprio(addr);
-        revelados++;
-      } catch (e) {
-        debugPrint('Varredura profunda parou no índice $i: $e');
-        break;
-      }
-    }
+    final saldoAntes = handle.totalSats;
 
     try {
-      await handle.api!.sync();
+      await handle.api!.fullScan();
       handle.saldoConfirmadoPorSync = true;
+      await _marcarVarreduraFeita(handle);
     } catch (e) {
-      debugPrint('Sync após varredura profunda falhou: $e');
+      debugPrint('Varredura profunda falhou: $e');
+      return 0;
     }
+
     await _refreshBalances(handle);
+    await reconstruirHistoricoDoNo(forMerchant: forMerchant);
     notifyListeners();
-    return revelados;
+    return handle.totalSats - saldoAntes;
+  }
+
+  static String _chaveVarredura(_NodeHandle h) =>
+      'full_scan_v1_${h.runningSeedFingerprint}';
+
+  Future<void> _marcarVarreduraFeita(_NodeHandle handle) async {
+    final fp = handle.runningSeedFingerprint;
+    if (fp == null || fp.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_chaveVarredura(handle), true);
+  }
+
+  Future<bool> _precisaVarredura(_NodeHandle handle) async {
+    final fp = handle.runningSeedFingerprint;
+    if (fp == null || fp.isEmpty) return false;
+    final prefs = await SharedPreferences.getInstance();
+    return !(prefs.getBool(_chaveVarredura(handle)) ?? false);
+  }
+
+  Future<void> _varrerSePendente(_NodeHandle handle,
+      {required bool isMerchant}) async {
+    if (!await _precisaVarredura(handle)) return;
+    if (!handle.isRunning || handle.api == null) return;
+
+    debugPrint('Varredura completa pendente para este nó — executando.');
+    final delta = await deepScan(forMerchant: isMerchant);
+    if (delta != 0) {
+      debugPrint('Varredura completa reconciliou $delta sats.');
+    }
   }
 
   Future<List<ChannelSummary>> getChannels() async {

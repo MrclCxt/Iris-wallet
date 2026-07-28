@@ -860,6 +860,9 @@ void frbgen_ldk_node_wire__crate__api__node__ldk_node_force_close_channel(int64_
                                                                           struct wire_cst_user_channel_id *user_channel_id,
                                                                           struct wire_cst_public_key *counterparty_node_id);
 
+void frbgen_ldk_node_wire__crate__api__node__ldk_node_full_scan_wallets(int64_t port_,
+                                                                        struct wire_cst_ldk_node *that);
+
 void frbgen_ldk_node_wire__crate__api__node__ldk_node_list_balances(int64_t port_,
                                                                     struct wire_cst_ldk_node *that);
 
@@ -1212,6 +1215,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__node__ldk_node_disconnect);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__node__ldk_node_event_handled);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__node__ldk_node_force_close_channel);
+    dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__node__ldk_node_full_scan_wallets);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__node__ldk_node_list_balances);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__node__ldk_node_list_channels);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__node__ldk_node_list_payments);

@@ -14,7 +14,6 @@ import 'types.dart';
 // Rust type: RustOpaqueNom<Arc < ldk_node :: payment :: Bolt12Payment >>
 abstract class ArcBolt12Payment implements RustOpaqueInterface {}
 
-///A Bolt12Invoice is a payment request, typically corresponding to an Offer or a Refund.
 class Bolt12Invoice {
   final Uint8List data;
 
@@ -83,15 +82,6 @@ class LdkBolt12Payment {
           ptr == other.ptr;
 }
 
-/// An `Offer` is a potentially long-lived proposal for payment of a good or service.
-///
-/// An offer is a precursor to an [InvoiceRequest]. A merchant publishes an offer from which a
-/// customer may request an [Bolt12Invoice] for a specific quantity and using an amount sufficient
-/// to cover that quantity (i.e., at least `quantity * amount`).
-///
-/// Offers may be denominated in currency other than bitcoin but are ultimately paid using the
-/// latter.
-///
 class Offer {
   final String s;
 
@@ -108,7 +98,6 @@ class Offer {
       other is Offer && runtimeType == other.runtimeType && s == other.s;
 }
 
-///A Refund is a request to send an `Bolt12Invoice` without a preceding `Offer`.
 class Refund {
   final String s;
 

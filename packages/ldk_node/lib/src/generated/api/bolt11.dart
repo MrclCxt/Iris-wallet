@@ -12,8 +12,6 @@ import 'types.dart';
 // These functions are ignored because they are not marked as `pub`: `descricao_bolt11`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `eq`, `fmt`, `from`, `from`, `try_from`
 
-///Represents a syntactically and semantically correct lightning BOLT11 invoice.
-///
 class Bolt11Invoice {
   final String signedRawInvoice;
 

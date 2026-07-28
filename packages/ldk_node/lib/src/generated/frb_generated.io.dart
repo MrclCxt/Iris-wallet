@@ -5101,6 +5101,24 @@ class coreWire implements BaseWire {
               ffi.Pointer<wire_cst_user_channel_id>,
               ffi.Pointer<wire_cst_public_key>)>();
 
+  void wire__crate__api__node__ldk_node_full_scan_wallets(
+    int port_,
+    ffi.Pointer<wire_cst_ldk_node> that,
+  ) {
+    return _wire__crate__api__node__ldk_node_full_scan_wallets(
+      port_,
+      that,
+    );
+  }
+
+  late final _wire__crate__api__node__ldk_node_full_scan_walletsPtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_cst_ldk_node>)>>(
+      'frbgen_ldk_node_wire__crate__api__node__ldk_node_full_scan_wallets');
+  late final _wire__crate__api__node__ldk_node_full_scan_wallets =
+      _wire__crate__api__node__ldk_node_full_scan_walletsPtr
+          .asFunction<void Function(int, ffi.Pointer<wire_cst_ldk_node>)>();
+
   void wire__crate__api__node__ldk_node_list_balances(
     int port_,
     ffi.Pointer<wire_cst_ldk_node> that,

@@ -11,21 +11,11 @@ import 'types.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`
 
-///Details about a channel (both directions). Received within a channel announcement.
 class ChannelInfo {
-  ///Source node of the first direction of a channel
   final NodeId nodeOne;
-
-  ///Details about the first direction of a channel
   final ChannelUpdateInfo? oneToTwo;
-
-  ///Source node of the second direction of a channel
   final NodeId nodeTwo;
-
-  ///Details about the second direction of a channel
   final ChannelUpdateInfo? twoToOne;
-
-  ///The channel capacity as seen on-chain, if chain lookup is available.
   final BigInt? capacitySats;
 
   const ChannelInfo({
@@ -57,19 +47,10 @@ class ChannelInfo {
 }
 
 class ChannelUpdateInfo {
-  ///When the last update to the channel direction was issued. Value is opaque, as set in the announcement.
   final int lastUpdate;
-
-  ///Whether the channel can be currently used for payments (in this one direction).
   final bool enabled;
-
-  ///The difference in CLTV values that you must have when routing through this channel.
   final int cltvExpiryDelta;
-
-  ///The minimum value, which must be relayed to the next hop via the channel
   final BigInt htlcMinimumMsat;
-
-  ///The maximum value which may be relayed to the next hop via the channel.
   final BigInt htlcMaximumMsat;
   final RoutingFees fees;
 
@@ -111,18 +92,15 @@ class LdkNetworkGraph {
     required this.ptr,
   });
 
-  /// Returns information on a channel with the given id.
   Future<ChannelInfo?> channel({required BigInt shortChannelId}) =>
       core.instance.api.crateApiGraphLdkNetworkGraphChannel(
           that: this, shortChannelId: shortChannelId);
 
-  /// Returns the list of channels in the graph
   Future<Uint64List> listChannels() =>
       core.instance.api.crateApiGraphLdkNetworkGraphListChannels(
         that: this,
       );
 
-  /// Returns the list of nodes in the graph
   Future<List<NodeId>> listNodes() =>
       core.instance.api.crateApiGraphLdkNetworkGraphListNodes(
         that: this,
@@ -143,16 +121,8 @@ class LdkNetworkGraph {
 }
 
 class NodeAnnouncementInfo {
-  /// When the last known update to the node state was issued.
-  /// Value is opaque, as set in the announcement.
   final int lastUpdate;
-
-  /// Moniker assigned to the node.
-  /// May be invalid or malicious (eg control chars),
-  /// should not be exposed to the user.
   final String alias;
-
-  /// List of addresses on which this node is reachable
   final List<SocketAddress> addresses;
 
   const NodeAnnouncementInfo({
@@ -174,7 +144,6 @@ class NodeAnnouncementInfo {
           addresses == other.addresses;
 }
 
-///Represents the compressed public key of a node
 class NodeId {
   final Uint8List compressed;
 
@@ -193,11 +162,8 @@ class NodeId {
           compressed == other.compressed;
 }
 
-///Details about a node in the network, known from the network announcement.
 class NodeInfo {
   final Uint64List channels;
-
-  ///More information about a node from node_announcement. Optional because we store a Node entry after learning about it from a channel announcement, but before receiving a node announcement.
   final NodeAnnouncementInfo? announcementInfo;
 
   const NodeInfo({
@@ -217,12 +183,8 @@ class NodeInfo {
           announcementInfo == other.announcementInfo;
 }
 
-///Fees for routing via a given channel or a node
 class RoutingFees {
-  ///Flat routing fee in millisatoshis.
   final int baseMsat;
-
-  ///Liquidity-based routing fee in millionths of a routed amount. In other words, 10000 is 1%.
   final int proportionalMillionths;
 
   const RoutingFees({

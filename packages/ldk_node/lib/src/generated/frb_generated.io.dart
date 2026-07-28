@@ -2661,6 +2661,12 @@ abstract class coreApiImplPlatform extends BaseApiImpl<coreWire> {
       wireObj.kind.ChannelClosed.reason = pre_reason;
       return;
     }
+    if (apiObj is Event_Unknown) {
+      var pre_kind = cst_encode_String(apiObj.kind);
+      wireObj.tag = 7;
+      wireObj.kind.Unknown.kind = pre_kind;
+      return;
+    }
   }
 
   @protected
@@ -7138,6 +7144,10 @@ final class wire_cst_Event_ChannelClosed extends ffi.Struct {
   external ffi.Pointer<wire_cst_closure_reason> reason;
 }
 
+final class wire_cst_Event_Unknown extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+}
+
 final class EventKind extends ffi.Union {
   external wire_cst_Event_PaymentClaimable PaymentClaimable;
 
@@ -7152,6 +7162,8 @@ final class EventKind extends ffi.Union {
   external wire_cst_Event_ChannelReady ChannelReady;
 
   external wire_cst_Event_ChannelClosed ChannelClosed;
+
+  external wire_cst_Event_Unknown Unknown;
 }
 
 final class wire_cst_event extends ffi.Struct {

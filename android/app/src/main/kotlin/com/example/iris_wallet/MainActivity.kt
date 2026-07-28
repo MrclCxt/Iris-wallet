@@ -9,6 +9,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val channelName = "app.iriswallet/device"
+    private var backgroundServiceRunning = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -31,6 +32,21 @@ class MainActivity : FlutterActivity() {
                         )
                         result.success(true)
                     }
+                    // Mantém o processo vivo em segundo plano (o nó Lightning já
+                    // embarcado continua rodando neste mesmo processo) — ver
+                    // IrisForegroundService.
+                    "startBackgroundService" -> {
+                        startForegroundService(Intent(this, IrisForegroundService::class.java))
+                        backgroundServiceRunning = true
+                        result.success(true)
+                    }
+                    "stopBackgroundService" -> {
+                        stopService(Intent(this, IrisForegroundService::class.java))
+                        backgroundServiceRunning = false
+                        result.success(true)
+                    }
+                    "isBackgroundServiceRunning" ->
+                        result.success(backgroundServiceRunning)
                     else -> result.notImplemented()
                 }
             }

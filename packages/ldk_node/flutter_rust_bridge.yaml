@@ -6,3 +6,7 @@ web: false
 dart3: true
 c_output: ios/Classes/frb_generated.h
 dart_entrypoint_class_name: core
+# LLVM do Visual Studio já instalado nesta máquina — o ffigen não o acha
+# sozinho no Windows e falha com "Couldn't find bin\libclang.dll".
+llvm_path:
+  - C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64

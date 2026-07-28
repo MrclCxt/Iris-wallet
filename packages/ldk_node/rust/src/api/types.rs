@@ -132,15 +132,15 @@ pub struct ChannelConfig {
     pub accept_underpaying_htlcs: bool,
 }
 
-impl From<ldk_node::ChannelConfig> for ChannelConfig {
-    fn from(value: ldk_node::ChannelConfig) -> Self {
+impl From<ldk_node::config::ChannelConfig> for ChannelConfig {
+    fn from(value: ldk_node::config::ChannelConfig) -> Self {
         ChannelConfig {
-            forwarding_fee_proportional_millionths: value.forwarding_fee_proportional_millionths(),
-            forwarding_fee_base_msat: value.forwarding_fee_base_msat(),
-            cltv_expiry_delta: value.cltv_expiry_delta(),
+            forwarding_fee_proportional_millionths: value.forwarding_fee_proportional_millionths,
+            forwarding_fee_base_msat: value.forwarding_fee_base_msat,
+            cltv_expiry_delta: value.cltv_expiry_delta,
             max_dust_htlc_exposure: None,
-            force_close_avoidance_max_fee_satoshis: value.force_close_avoidance_max_fee_satoshis(),
-            accept_underpaying_htlcs: value.accept_underpaying_htlcs(),
+            force_close_avoidance_max_fee_satoshis: value.force_close_avoidance_max_fee_satoshis,
+            accept_underpaying_htlcs: value.accept_underpaying_htlcs,
         }
     }
 }
@@ -161,26 +161,30 @@ pub enum MaxDustHTLCExposure {
     // This variant is primarily meant to serve pre-anchor channels, as HTLC fees being included on HTLC outputs means your channel may be subject to more dust exposure in the event of increases in fee rate.
     FeeRateMultiplier(u64),
 }
-impl From<ChannelConfig> for ldk_node::ChannelConfig {
+impl From<ChannelConfig> for ldk_node::config::ChannelConfig {
     fn from(e: ChannelConfig) -> Self {
-        let config = ldk_node::ChannelConfig::new();
-        if e.accept_underpaying_htlcs {
-            config.accept_underpaying_htlcs();
-        }
-        config.set_accept_underpaying_htlcs(e.accept_underpaying_htlcs);
-        config.set_cltv_expiry_delta(e.cltv_expiry_delta);
-        config.set_forwarding_fee_base_msat(e.forwarding_fee_base_msat);
-        config.set_force_close_avoidance_max_fee_satoshis(e.force_close_avoidance_max_fee_satoshis);
-        config.set_forwarding_fee_proportional_millionths(e.forwarding_fee_proportional_millionths);
+        // PORTE 0.7.0: o ChannelConfig deixou de ter setters (`set_*`) e voltou
+        // a ser uma struct de CAMPOS públicos. Atribuição direta no lugar da
+        // API fluente antiga.
+        let mut config = ldk_node::config::ChannelConfig::default();
+        config.accept_underpaying_htlcs = e.accept_underpaying_htlcs;
+        config.cltv_expiry_delta = e.cltv_expiry_delta;
+        config.forwarding_fee_base_msat = e.forwarding_fee_base_msat;
+        config.force_close_avoidance_max_fee_satoshis = e.force_close_avoidance_max_fee_satoshis;
+        config.forwarding_fee_proportional_millionths = e.forwarding_fee_proportional_millionths;
         if let Some(max_dust_htlc_exposure) = e.max_dust_htlc_exposure {
-            match max_dust_htlc_exposure {
+            use ldk_node::config::MaxDustHTLCExposure as LdkMaxDust;
+            // PORTE 0.7.0: as variantes viraram struct com campo nomeado
+            // (`FixedLimit { limit_msat }` / `FeeRateMultiplier { multiplier }`)
+            // e `FixedLimitMsat` foi renomeada para `FixedLimit`.
+            config.max_dust_htlc_exposure = match max_dust_htlc_exposure {
                 MaxDustHTLCExposure::FixedLimitMsat(e) => {
-                    config.set_max_dust_htlc_exposure_from_fixed_limit(e);
+                    LdkMaxDust::FixedLimit { limit_msat: e }
                 }
                 MaxDustHTLCExposure::FeeRateMultiplier(e) => {
-                    config.set_max_dust_htlc_exposure_from_fee_rate_multiplier(e);
+                    LdkMaxDust::FeeRateMultiplier { multiplier: e }
                 }
-            }
+            };
         }
         config
     }
@@ -196,14 +200,14 @@ pub struct ChannelId {
     pub data: [u8; 32],
 }
 
-impl From<ldk_node::lightning::ln::ChannelId> for ChannelId {
-    fn from(value: ldk_node::lightning::ln::ChannelId) -> Self {
+impl From<ldk_node::lightning::ln::types::ChannelId> for ChannelId {
+    fn from(value: ldk_node::lightning::ln::types::ChannelId) -> Self {
         ChannelId { data: value.0 }
     }
 }
-impl From<ChannelId> for ldk_node::lightning::ln::ChannelId {
+impl From<ChannelId> for ldk_node::lightning::ln::types::ChannelId {
     fn from(value: ChannelId) -> Self {
-        ldk_node::lightning::ln::ChannelId(value.data)
+        ldk_node::lightning::ln::types::ChannelId(value.data)
     }
 }
 ///A local, potentially user-provided, identifier of a channel.
@@ -239,7 +243,7 @@ impl From<ldk_node::lightning::events::ClosureReason> for ClosureReason {
                     peer_msg: peer_msg.0,
                 }
             }
-            ldk_node::lightning::events::ClosureReason::HolderForceClosed => {
+            ldk_node::lightning::events::ClosureReason::HolderForceClosed { .. } => {
                 ClosureReason::HolderForceClosed
             }
 
@@ -273,9 +277,17 @@ impl From<ldk_node::lightning::events::ClosureReason> for ClosureReason {
             ldk_node::lightning::events::ClosureReason::LocallyInitiatedCooperativeClosure => {
                 ClosureReason::LocallyInitiatedCooperativeClosure
             }
-            ldk_node::lightning::events::ClosureReason::HTLCsTimedOut => {
+            ldk_node::lightning::events::ClosureReason::HTLCsTimedOut { .. } => {
                 ClosureReason::HTLCsTimedOut
             }
+            // PORTE 0.7.0: o LDK ganhou motivos novos de fechamento
+            // (LocallyCoopClosedUnfundedChannel, PeerFeerateTooLow, ...) e vai
+            // ganhar outros. Um braço genérico evita que cada versão nova
+            // quebre a compilação — o motivo exato vira texto no ProcessingError,
+            // que é o que a UI já sabe exibir.
+            outro => ClosureReason::ProcessingError {
+                err: format!("{:?}", outro),
+            },
         }
     }
 }
@@ -322,6 +334,11 @@ impl From<ldk_node::lightning::events::PaymentFailureReason> for PaymentFailureR
             ldk_node::lightning::events::PaymentFailureReason::UnexpectedError => {
                 PaymentFailureReason::UnexpectedError
             }
+            // PORTE 0.7.0: o LDK acrescentou motivos de falha (BOLT12:
+            // InvoiceRequestExpired/Rejected, UnknownRequiredFeatures, ...).
+            // Caem em UnexpectedError em vez de quebrar a compilação a cada
+            // versão nova — para a UI, o efeito prático é o mesmo: falhou.
+            _ => PaymentFailureReason::UnexpectedError,
         }
     }
 }
@@ -507,6 +524,18 @@ pub enum Event {
         /// This will be `None` for events serialized by LDK Node v0.2.1 and prior.
         reason: Option<ClosureReason>,
     },
+    /// Evento do LDK que este pacote ainda não traduz.
+    ///
+    /// PORTE 0.7.0: o LDK ganhou eventos novos (`PaymentForwarded`,
+    /// `SplicePending`, `SpliceFailed`) e vai ganhar outros. Sem esta variante,
+    /// cada versão nova quebraria a compilação — e mapear o desconhecido para
+    /// um evento existente seria pior: o app trataria um splice como se fosse
+    /// pagamento recebido. Aqui o tipo vem como texto e quem consome decide se
+    /// ignora.
+    Unknown {
+        /// Nome da variante do LDK, para diagnóstico.
+        kind: String,
+    },
 }
 
 impl From<ldk_node::Event> for Event {
@@ -516,6 +545,7 @@ impl From<ldk_node::Event> for Event {
                 payment_id,
                 payment_hash,
                 fee_paid_msat,
+                ..
             } => Event::PaymentSuccessful {
                 payment_id: payment_id.map(|e| e.into()),
                 payment_hash: PaymentHash {
@@ -527,10 +557,11 @@ impl From<ldk_node::Event> for Event {
                 payment_id,
                 payment_hash,
                 reason,
+                ..
             } => Event::PaymentFailed {
                 payment_id: payment_id.map(|e| e.into()),
                 payment_hash: PaymentHash {
-                    data: payment_hash.0,
+                    data: payment_hash.map(|h| h.0).unwrap_or([0u8; 32]),
                 },
                 reason: reason.map(|e| e.into()),
             },
@@ -538,6 +569,7 @@ impl From<ldk_node::Event> for Event {
                 payment_id,
                 payment_hash,
                 amount_msat,
+                ..
             } => Event::PaymentReceived {
                 payment_id: payment_id.map(|e| e.into()),
                 payment_hash: PaymentHash {
@@ -549,6 +581,7 @@ impl From<ldk_node::Event> for Event {
                 channel_id,
                 user_channel_id,
                 counterparty_node_id,
+                ..
             } => Event::ChannelReady {
                 channel_id: channel_id.into(),
                 user_channel_id: user_channel_id.into(),
@@ -559,6 +592,7 @@ impl From<ldk_node::Event> for Event {
                 user_channel_id,
                 counterparty_node_id,
                 reason,
+                ..
             } => Event::ChannelClosed {
                 channel_id: channel_id.into(),
                 user_channel_id: user_channel_id.into(),
@@ -571,6 +605,7 @@ impl From<ldk_node::Event> for Event {
                 former_temporary_channel_id,
                 counterparty_node_id,
                 funding_txo,
+                ..
             } => Event::ChannelPending {
                 channel_id: channel_id.into(),
                 user_channel_id: user_channel_id.into(),
@@ -585,11 +620,15 @@ impl From<ldk_node::Event> for Event {
                 payment_hash,
                 claimable_amount_msat,
                 claim_deadline,
+                ..
             } => Event::PaymentClaimable {
                 payment_id: payment_id.into(),
                 payment_hash: payment_hash.into(),
                 claimable_amount_msat: claimable_amount_msat,
                 claim_deadline: claim_deadline,
+            },
+            outro => Event::Unknown {
+                kind: format!("{:?}", outro),
             },
         }
     }
@@ -694,14 +733,14 @@ pub struct PaymentHash {
     pub data: [u8; 32],
 }
 
-impl From<PaymentHash> for ldk_node::lightning::ln::PaymentHash {
+impl From<PaymentHash> for ldk_node::lightning_types::payment::PaymentHash {
     fn from(value: PaymentHash) -> Self {
-        ldk_node::lightning::ln::PaymentHash(value.data)
+        ldk_node::lightning_types::payment::PaymentHash(value.data)
     }
 }
 
-impl From<ldk_node::lightning::ln::PaymentHash> for PaymentHash {
-    fn from(value: ldk_node::lightning::ln::PaymentHash) -> Self {
+impl From<ldk_node::lightning_types::payment::PaymentHash> for PaymentHash {
+    fn from(value: ldk_node::lightning_types::payment::PaymentHash) -> Self {
         PaymentHash { data: value.0 }
     }
 }
@@ -713,15 +752,15 @@ pub struct PaymentPreimage {
     pub data: [u8; 32],
 }
 
-impl From<ldk_node::lightning::ln::PaymentPreimage> for PaymentPreimage {
-    fn from(value: ldk_node::lightning::ln::PaymentPreimage) -> Self {
+impl From<ldk_node::lightning_types::payment::PaymentPreimage> for PaymentPreimage {
+    fn from(value: ldk_node::lightning_types::payment::PaymentPreimage) -> Self {
         Self { data: value.0 }
     }
 }
 
-impl From<PaymentPreimage> for ldk_node::lightning::ln::PaymentPreimage {
+impl From<PaymentPreimage> for ldk_node::lightning_types::payment::PaymentPreimage {
     fn from(value: PaymentPreimage) -> Self {
-        ldk_node::lightning::ln::PaymentPreimage(value.data)
+        ldk_node::lightning_types::payment::PaymentPreimage(value.data)
     }
 }
 /// payment_secret type, use to authenticate sender to the receiver and tie MPP HTLCs together
@@ -868,11 +907,13 @@ pub enum PaymentKind {
 impl From<ldk_node::payment::PaymentKind> for PaymentKind {
     fn from(value: ldk_node::payment::PaymentKind) -> Self {
         match value {
-            ldk_node::payment::PaymentKind::Onchain => PaymentKind::Onchain,
+            ldk_node::payment::PaymentKind::Onchain { .. } => PaymentKind::Onchain,
             ldk_node::payment::PaymentKind::Bolt11 {
                 hash,
                 preimage,
                 secret,
+                ..
+
             } => PaymentKind::Bolt11 {
                 hash: hash.into(),
                 preimage: preimage.map(|e| e.into()),
@@ -883,13 +924,14 @@ impl From<ldk_node::payment::PaymentKind> for PaymentKind {
                 preimage,
                 secret,
                 lsp_fee_limits,
+                ..
             } => PaymentKind::Bolt11Jit {
                 hash: hash.into(),
                 preimage: preimage.map(|e| e.into()),
                 secret: secret.map(|e| e.into()),
                 lsp_fee_limits: lsp_fee_limits.into(),
             },
-            ldk_node::payment::PaymentKind::Spontaneous { hash, preimage } => {
+            ldk_node::payment::PaymentKind::Spontaneous { hash, preimage, .. } => {
                 PaymentKind::Spontaneous {
                     hash: hash.into(),
                     preimage: preimage.map(|e| e.into()),
@@ -900,6 +942,7 @@ impl From<ldk_node::payment::PaymentKind> for PaymentKind {
                 preimage,
                 secret,
                 offer_id,
+                ..
             } => PaymentKind::Bolt12Offer {
                 hash: hash.map(|e| e.into()),
                 preimage: preimage.map(|e| e.into()),
@@ -910,6 +953,7 @@ impl From<ldk_node::payment::PaymentKind> for PaymentKind {
                 hash,
                 preimage,
                 secret,
+                ..
             } => PaymentKind::Bolt12Refund {
                 hash: hash.map(|e| e.into()),
                 preimage: preimage.map(|e| e.into()),
@@ -1095,7 +1139,7 @@ impl From<&ldk_node::ChannelDetails> for ChannelDetails {
             is_outbound: value.clone().is_outbound,
             is_channel_ready: value.clone().is_channel_ready,
             is_usable: value.clone().is_usable,
-            is_public: value.clone().is_public,
+            is_public: value.clone().is_announced,
             cltv_expiry_delta: value.clone().cltv_expiry_delta,
             counterparty_unspendable_punishment_reserve: value
                 .clone()
@@ -1118,7 +1162,7 @@ impl From<&ldk_node::ChannelDetails> for ChannelDetails {
             force_close_spend_delay: value.force_close_spend_delay,
             inbound_htlc_minimum_msat: value.inbound_htlc_minimum_msat,
             inbound_htlc_maximum_msat: value.inbound_htlc_maximum_msat,
-            config: (*value.config).clone().into(),
+            config: value.config.clone().into(),
         }
     }
 }
@@ -1133,6 +1177,12 @@ pub enum Network {
     ///Bitcoin’s testnet
     ///
     Testnet,
+    /// Testnet4 — a testnet que substituiu a testnet3.
+    ///
+    /// É o motivo deste porte para o ldk-node 0.7.0: na 0.3.0 esta variante
+    /// não existia, então o nó anunciava o ChainHash da testnet3 enquanto as
+    /// transações caíam na testnet4, e nenhum nó real aceitava os canais.
+    Testnet4,
     ///Bitcoin’s signet
     ///
     Signet,
@@ -1146,6 +1196,7 @@ impl From<Network> for ldk_node::bitcoin::Network {
         match value {
             Network::Bitcoin => ldk_node::bitcoin::Network::Bitcoin,
             Network::Testnet => ldk_node::bitcoin::Network::Testnet,
+            Network::Testnet4 => ldk_node::bitcoin::Network::Testnet4,
             Network::Signet => ldk_node::bitcoin::Network::Signet,
             Network::Regtest => ldk_node::bitcoin::Network::Regtest,
         }
@@ -1156,6 +1207,7 @@ impl From<ldk_node::bitcoin::Network> for Network {
         match value {
             ldk_node::bitcoin::Network::Bitcoin => Network::Bitcoin,
             ldk_node::bitcoin::Network::Testnet => Network::Testnet,
+            ldk_node::bitcoin::Network::Testnet4 => Network::Testnet4,
             ldk_node::bitcoin::Network::Signet => Network::Signet,
             ldk_node::bitcoin::Network::Regtest => Network::Regtest,
             _ => Network::Bitcoin,
@@ -1212,28 +1264,28 @@ pub enum LogLevel {
     Error,
 }
 
-impl From<LogLevel> for ldk_node::LogLevel {
+impl From<LogLevel> for ldk_node::logger::LogLevel {
     fn from(value: LogLevel) -> Self {
         match value {
-            LogLevel::Gossip => ldk_node::LogLevel::Gossip,
-            LogLevel::Trace => ldk_node::LogLevel::Trace,
-            LogLevel::Debug => ldk_node::LogLevel::Debug,
-            LogLevel::Info => ldk_node::LogLevel::Info,
-            LogLevel::Warn => ldk_node::LogLevel::Warn,
-            LogLevel::Error => ldk_node::LogLevel::Error,
+            LogLevel::Gossip => ldk_node::logger::LogLevel::Gossip,
+            LogLevel::Trace => ldk_node::logger::LogLevel::Trace,
+            LogLevel::Debug => ldk_node::logger::LogLevel::Debug,
+            LogLevel::Info => ldk_node::logger::LogLevel::Info,
+            LogLevel::Warn => ldk_node::logger::LogLevel::Warn,
+            LogLevel::Error => ldk_node::logger::LogLevel::Error,
         }
     }
 }
 
-impl From<ldk_node::LogLevel> for LogLevel {
-    fn from(value: ldk_node::LogLevel) -> Self {
+impl From<ldk_node::logger::LogLevel> for LogLevel {
+    fn from(value: ldk_node::logger::LogLevel) -> Self {
         match value {
-            ldk_node::LogLevel::Gossip => LogLevel::Gossip,
-            ldk_node::LogLevel::Trace => LogLevel::Trace,
-            ldk_node::LogLevel::Debug => LogLevel::Debug,
-            ldk_node::LogLevel::Info => LogLevel::Info,
-            ldk_node::LogLevel::Warn => LogLevel::Warn,
-            ldk_node::LogLevel::Error => LogLevel::Error,
+            ldk_node::logger::LogLevel::Gossip => LogLevel::Gossip,
+            ldk_node::logger::LogLevel::Trace => LogLevel::Trace,
+            ldk_node::logger::LogLevel::Debug => LogLevel::Debug,
+            ldk_node::logger::LogLevel::Info => LogLevel::Info,
+            ldk_node::logger::LogLevel::Warn => LogLevel::Warn,
+            ldk_node::logger::LogLevel::Error => LogLevel::Error,
         }
     }
 }
@@ -1300,7 +1352,7 @@ pub struct AnchorChannelsConfig {
     pub per_channel_reserve_sats: u64,
 }
 
-impl TryFrom<AnchorChannelsConfig> for ldk_node::AnchorChannelsConfig {
+impl TryFrom<AnchorChannelsConfig> for ldk_node::config::AnchorChannelsConfig {
     type Error = LdkBuilderError;
 
     fn try_from(value: AnchorChannelsConfig) -> Result<Self, Self::Error> {
@@ -1319,8 +1371,8 @@ impl TryFrom<AnchorChannelsConfig> for ldk_node::AnchorChannelsConfig {
     }
 }
 
-impl From<ldk_node::AnchorChannelsConfig> for AnchorChannelsConfig {
-    fn from(value: ldk_node::AnchorChannelsConfig) -> Self {
+impl From<ldk_node::config::AnchorChannelsConfig> for AnchorChannelsConfig {
+    fn from(value: ldk_node::config::AnchorChannelsConfig) -> Self {
         Self {
             trusted_peers_no_reserve: value
                 .trusted_peers_no_reserve
@@ -1332,7 +1384,7 @@ impl From<ldk_node::AnchorChannelsConfig> for AnchorChannelsConfig {
     }
 }
 
-impl TryFrom<Config> for ldk_node::Config {
+impl TryFrom<Config> for ldk_node::config::Config {
     type Error = LdkBuilderError;
 
     fn try_from(value: Config) -> Result<Self, Self::Error> {
@@ -1350,7 +1402,7 @@ impl TryFrom<Config> for ldk_node::Config {
         };
         let anchor_channels_config =
             if let Some(anchor_channels_config) = value.anchor_channels_config {
-                let anchr_channels_config: Result<ldk_node::AnchorChannelsConfig, LdkBuilderError> =
+                let anchr_channels_config: Result<ldk_node::config::AnchorChannelsConfig, LdkBuilderError> =
                     anchor_channels_config.try_into();
                 Some(anchr_channels_config?)
             } else {
@@ -1365,27 +1417,33 @@ impl TryFrom<Config> for ldk_node::Config {
             .map(|x| x.try_into().map_err(|_| LdkBuilderError::InvalidPublicKey))
             .collect();
 
-        Ok(ldk_node::Config {
-            storage_dir_path: value.storage_dir_path,
-            log_dir_path: value.log_dir_path,
-            network: value.network.into(),
-            listening_addresses: addresses,
-            default_cltv_expiry_delta: value.default_cltv_expiry_delta,
-            onchain_wallet_sync_interval_secs: value.onchain_wallet_sync_interval_secs,
-            wallet_sync_interval_secs: value.wallet_sync_interval_secs,
-            fee_rate_cache_update_interval_secs: value.fee_rate_cache_update_interval_secs,
-            trusted_peers_0conf: trusted_peers_0conf?,
-            log_level: value.log_level.into(),
-            probing_liquidity_limit_multiplier: value.probing_liquidity_limit_multiplier,
-            anchor_channels_config,
-        })
+        // PORTE 0.7.0: partimos do Default e sobrescrevemos só o que ainda
+        // existe. O Config encolheu (logging, intervalos de sync e
+        // default_cltv_expiry_delta viraram setters do Builder), e listar
+        // campo por campo quebraria de novo a cada versão nova.
+        let mut cfg = ldk_node::config::Config::default();
+        cfg.storage_dir_path = value.storage_dir_path;
+        cfg.network = value.network.into();
+        cfg.listening_addresses = addresses;
+        cfg.trusted_peers_0conf = trusted_peers_0conf?;
+        cfg.probing_liquidity_limit_multiplier = value.probing_liquidity_limit_multiplier;
+        cfg.anchor_channels_config = anchor_channels_config;
+        Ok(cfg)
     }
 }
-impl From<ldk_node::Config> for Config {
-    fn from(value: ldk_node::Config) -> Self {
+impl From<ldk_node::config::Config> for Config {
+    fn from(value: ldk_node::config::Config) -> Self {
+        // PORTE 0.7.0: o Config do ldk-node enxugou. Logging (log_dir_path,
+        // log_level), intervalos de sync e default_cltv_expiry_delta saíram
+        // dele — na 0.7.0 são configurados pelo Builder, não pelo Config.
+        //
+        // Mantemos esses campos no NOSSO Config para não quebrar a API que o
+        // Dart já consome; eles simplesmente deixam de vir do ldk-node e
+        // assumem o padrão. Quem quiser controlá-los passa a fazê-lo pelos
+        // setters do Builder.
         Config {
             storage_dir_path: value.storage_dir_path,
-            log_dir_path: value.log_dir_path,
+            log_dir_path: None,
             network: value.network.into(),
             listening_addresses: value.listening_addresses.map(|vec_socket_addr| {
                 vec_socket_addr
@@ -1393,16 +1451,16 @@ impl From<ldk_node::Config> for Config {
                     .map(|socket_addr| socket_addr.into())
                     .collect()
             }),
-            default_cltv_expiry_delta: value.default_cltv_expiry_delta,
-            onchain_wallet_sync_interval_secs: value.onchain_wallet_sync_interval_secs,
-            wallet_sync_interval_secs: value.wallet_sync_interval_secs,
-            fee_rate_cache_update_interval_secs: value.fee_rate_cache_update_interval_secs,
+            default_cltv_expiry_delta: 144,
+            onchain_wallet_sync_interval_secs: 80,
+            wallet_sync_interval_secs: 30,
+            fee_rate_cache_update_interval_secs: 600,
             trusted_peers_0conf: value
                 .trusted_peers_0conf
                 .into_iter()
                 .map(|x| x.into())
                 .collect(),
-            log_level: value.log_level.into(),
+            log_level: LogLevel::Debug,
             probing_liquidity_limit_multiplier: value.probing_liquidity_limit_multiplier,
             anchor_channels_config: value.anchor_channels_config.map(|e| e.into()),
         }
@@ -1670,6 +1728,7 @@ impl From<ldk_node::LightningBalance> for LightningBalance {
                 channel_id,
                 counterparty_node_id,
                 amount_satoshis,
+                ..
             } => LightningBalance::ClaimableOnChannelClose {
                 channel_id: channel_id.into(),
                 counterparty_node_id: counterparty_node_id.into(),
@@ -1680,6 +1739,7 @@ impl From<ldk_node::LightningBalance> for LightningBalance {
                 counterparty_node_id,
                 amount_satoshis,
                 confirmation_height,
+                ..
             } => LightningBalance::ClaimableAwaitingConfirmations {
                 channel_id: channel_id.into(),
                 counterparty_node_id: counterparty_node_id.into(),
@@ -1693,6 +1753,7 @@ impl From<ldk_node::LightningBalance> for LightningBalance {
                 timeout_height,
                 payment_hash,
                 payment_preimage,
+                ..
             } => LightningBalance::ContentiousClaimable {
                 channel_id: channel_id.into(),
                 counterparty_node_id: counterparty_node_id.into(),
@@ -1707,6 +1768,7 @@ impl From<ldk_node::LightningBalance> for LightningBalance {
                 amount_satoshis,
                 claimable_height,
                 payment_hash,
+                ..
             } => LightningBalance::MaybeTimeoutClaimableHTLC {
                 channel_id: channel_id.into(),
                 counterparty_node_id: counterparty_node_id.into(),
@@ -1720,6 +1782,7 @@ impl From<ldk_node::LightningBalance> for LightningBalance {
                 amount_satoshis,
                 expiry_height,
                 payment_hash,
+                ..
             } => LightningBalance::MaybePreimageClaimableHTLC {
                 channel_id: channel_id.into(),
                 counterparty_node_id: counterparty_node_id.into(),
@@ -1731,6 +1794,7 @@ impl From<ldk_node::LightningBalance> for LightningBalance {
                 channel_id,
                 counterparty_node_id,
                 amount_satoshis,
+                ..
             } => LightningBalance::CounterpartyRevokedOutputClaimable {
                 channel_id: channel_id.into(),
                 counterparty_node_id: counterparty_node_id.into(),
@@ -1788,6 +1852,7 @@ impl From<ldk_node::PendingSweepBalance> for PendingSweepBalance {
             ldk_node::PendingSweepBalance::PendingBroadcast {
                 channel_id,
                 amount_satoshis,
+                ..
             } => PendingSweepBalance::PendingBroadcast {
                 channel_id: channel_id.map(|e| e.into()),
                 amount_satoshis,
@@ -1797,6 +1862,7 @@ impl From<ldk_node::PendingSweepBalance> for PendingSweepBalance {
                 latest_broadcast_height,
                 latest_spending_txid,
                 amount_satoshis,
+                ..
             } => PendingSweepBalance::BroadcastAwaitingConfirmation {
                 channel_id: channel_id.map(|e| e.into()),
                 latest_broadcast_height,
@@ -1809,6 +1875,7 @@ impl From<ldk_node::PendingSweepBalance> for PendingSweepBalance {
                 confirmation_hash,
                 confirmation_height,
                 amount_satoshis,
+                ..
             } => PendingSweepBalance::AwaitingThresholdConfirmations {
                 channel_id: channel_id.map(|e| e.into()),
                 latest_spending_txid: latest_spending_txid.into(),
@@ -1876,9 +1943,16 @@ impl From<ldk_node::NodeStatus> for NodeStatus {
     fn from(value: ldk_node::NodeStatus) -> Self {
         Self {
             is_running: value.is_running,
-            is_listening: value.is_listening,
+            // PORTE 0.7.0: `is_listening` não existe mais no NodeStatus. Não
+            // inventamos o valor: reportamos `false`, que é o mais seguro —
+            // afirmar que está escutando sem saber levaria alguém a esperar
+            // conexões de entrada que podem não chegar. O app Dart não lê este
+            // campo hoje; ele fica só para não quebrar a forma do tipo.
+            is_listening: false,
             current_best_block: value.current_best_block.into(),
-            latest_wallet_sync_timestamp: value.latest_wallet_sync_timestamp,
+            // O timestamp único virou dois (lightning e on-chain). Aqui vai o
+            // do Lightning; o on-chain tem campo próprio logo abaixo.
+            latest_wallet_sync_timestamp: value.latest_lightning_wallet_sync_timestamp,
             latest_onchain_wallet_sync_timestamp: value.latest_onchain_wallet_sync_timestamp,
             latest_fee_rate_cache_update_timestamp: value.latest_fee_rate_cache_update_timestamp,
             latest_rgs_snapshot_timestamp: value.latest_rgs_snapshot_timestamp,

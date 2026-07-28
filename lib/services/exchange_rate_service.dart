@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ExchangeRateService extends ChangeNotifier {
   double _btcToBrlRate = 0.0;
@@ -18,9 +19,37 @@ class ExchangeRateService extends ChangeNotifier {
 
   /// Busca imediata + atualização periódica (motor de conversão em tempo real).
   void startAutoRefresh({Duration interval = const Duration(seconds: 60)}) {
+    loadDisplayPref();
     fetchRate();
     _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(interval, (_) => fetchRate());
+  }
+
+  /// Carrega a preferência de moeda de exibição (persistida entre sessões).
+  Future<void> loadDisplayPref() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _isSatsDisplay = prefs.getBool('display_sats') ?? false;
+      notifyListeners();
+    } catch (_) {
+      // Sem plugin (ex.: ambiente de teste): mantém o padrão em memória.
+    }
+  }
+
+  Future<void> _persistDisplay() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('display_sats', _isSatsDisplay);
+    } catch (_) {
+      // Persistência indisponível: não é fatal para a exibição.
+    }
+  }
+
+  /// Define a moeda de exibição explicitamente (Perfil) e persiste.
+  void setSatsDisplay(bool sats) {
+    _isSatsDisplay = sats;
+    _persistDisplay();
+    notifyListeners();
   }
 
   @override
@@ -31,6 +60,7 @@ class ExchangeRateService extends ChangeNotifier {
 
   void toggleCurrencyDisplay() {
     _isSatsDisplay = !_isSatsDisplay;
+    _persistDisplay();
     notifyListeners();
   }
 

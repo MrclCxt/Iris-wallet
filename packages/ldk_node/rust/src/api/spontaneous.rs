@@ -15,7 +15,7 @@ impl From<ldk_node::payment::SpontaneousPayment> for LdkSpontaneousPayment {
 impl LdkSpontaneousPayment {
     pub fn send(&self, amount_msat: u64, node_id: PublicKey) -> Result<PaymentId, LdkNodeError> {
         self.ptr
-            .send(amount_msat, node_id.try_into()?)
+            .send(amount_msat, node_id.try_into()?, None)
             .map_err(|e| e.into())
             .map(|e| e.into())
     }

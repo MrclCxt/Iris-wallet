@@ -8,7 +8,6 @@ import 'merchant_config_screen.dart';
 import '../consumer/receive_qr_screen.dart';
 import '../../services/wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
-import '../../widgets/area_switcher_btn.dart';
 import 'package:provider/provider.dart';
 
 class MerchantHomeScreen extends StatefulWidget {
@@ -19,7 +18,7 @@ class MerchantHomeScreen extends StatefulWidget {
 }
 
 class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
   bool _isRailExtended = true;
 
   late final List<Widget> _pagesWithArgs = [
@@ -30,10 +29,17 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
     const MerchantConfigScreen(),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = context.read<WalletService>().merchantTab;
+  }
+
   void _onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
     });
+    context.read<WalletService>().setMerchantTab(index);
   }
 
   @override
@@ -49,54 +55,52 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
               selectedIndex: _currentIndex,
               onDestinationSelected: _onTabTapped,
               leading: IconButton(
-                icon: Icon(_isRailExtended ? Icons.menu_open : Icons.menu, color: IrisTheme.primary),
+                icon: Icon(_isRailExtended ? Icons.menu_open : Icons.menu,
+                    color: IrisTheme.primary),
                 onPressed: () {
                   setState(() {
                     _isRailExtended = !_isRailExtended;
                   });
                 },
               ),
-              trailing: Expanded(
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 24.0),
-                    child: AreaSwitcherBtn(isCurrentlyConsumer: false, showText: _isRailExtended),
-                  ),
-                ),
-              ),
+              // Sem troca de área aqui: ela mora em Configurações (mesma
+              // decisão do lado pessoal).
               selectedIconTheme: const IconThemeData(color: IrisTheme.primary),
-              unselectedIconTheme: const IconThemeData(color: IrisTheme.textTertiary),
+              unselectedIconTheme:
+                  const IconThemeData(color: IrisTheme.textTertiary),
               destinations: const [
                 NavigationRailDestination(
-                  icon: Text('📈', style: TextStyle(fontSize: 20)), 
-                  label: Text('Início', style: TextStyle(fontWeight: FontWeight.w600))
-                ),
+                    icon: Text('📈', style: TextStyle(fontSize: 20)),
+                    label: Text('Início',
+                        style: TextStyle(fontWeight: FontWeight.w600))),
                 NavigationRailDestination(
-                  icon: Text('📦', style: TextStyle(fontSize: 20)), 
-                  label: Text('Produtos', style: TextStyle(fontWeight: FontWeight.w600))
-                ),
+                    icon: Text('📦', style: TextStyle(fontSize: 20)),
+                    label: Text('Produtos',
+                        style: TextStyle(fontWeight: FontWeight.w600))),
                 NavigationRailDestination(
-                  icon: Text('⚡', style: TextStyle(fontSize: 20)), 
-                  label: Text('Cobrar', style: TextStyle(fontWeight: FontWeight.w600))
-                ),
+                    icon: Text('⚡', style: TextStyle(fontSize: 20)),
+                    label: Text('Cobrar',
+                        style: TextStyle(fontWeight: FontWeight.w600))),
                 NavigationRailDestination(
-                  icon: Text('🧾', style: TextStyle(fontSize: 20)), 
-                  label: Text('Histórico', style: TextStyle(fontWeight: FontWeight.w600))
-                ),
+                    icon: Text('🧾', style: TextStyle(fontSize: 20)),
+                    label: Text('Histórico',
+                        style: TextStyle(fontWeight: FontWeight.w600))),
                 NavigationRailDestination(
-                  icon: Text('⚙️', style: TextStyle(fontSize: 20)), 
-                  label: Text('Config.', style: TextStyle(fontWeight: FontWeight.w600))
-                ),
+                    icon: Text('⚙️', style: TextStyle(fontSize: 20)),
+                    label: Text('Config.',
+                        style: TextStyle(fontWeight: FontWeight.w600))),
               ],
             ),
             const VerticalDivider(thickness: 1, width: 1, color: IrisTheme.bdr),
-            Expanded(child: _pagesWithArgs[_currentIndex]),
+            Expanded(
+              child:
+                  IndexedStack(index: _currentIndex, children: _pagesWithArgs),
+            ),
           ],
         ),
       ),
       mobile: Scaffold(
-        body: _pagesWithArgs[_currentIndex],
+        body: IndexedStack(index: _currentIndex, children: _pagesWithArgs),
         bottomNavigationBar: Container(
           decoration: const BoxDecoration(
             color: IrisTheme.bg,
@@ -161,17 +165,17 @@ class _MerchantReceiveWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     final wallet = context.watch<WalletService>();
     final pending = wallet.pendingChargeAmount;
-    
+
     // Convert BRL to sats if there's a pending charge
     // But ReceiveQrScreen expects sats. Let's let it handle 0 (fixed QR) or specific sats.
     int sats = 0;
     if (pending > 0) {
-       final exchangeRate = context.read<ExchangeRateService>();
-       sats = exchangeRate.brlToSats(pending);
-       // We should clear it so it doesn't persist forever if they leave the tab? 
-       // For now it's fine, let's keep it simple.
+      final exchangeRate = context.read<ExchangeRateService>();
+      sats = exchangeRate.brlToSats(pending);
+      // We should clear it so it doesn't persist forever if they leave the tab?
+      // For now it's fine, let's keep it simple.
     }
-    
+
     return ReceiveQrScreen(satsAmount: sats, isMerchant: true);
   }
 }

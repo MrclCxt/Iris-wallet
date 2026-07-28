@@ -3,6 +3,21 @@ use crate::frb_generated::RustOpaque;
 use crate::utils::error::LdkNodeError;
 use std::str::FromStr;
 
+/// PORTE 0.7.0: os métodos `receive*` passaram a exigir
+/// `&Bolt11InvoiceDescription` no lugar de `&str`. Este helper faz a ponte a
+/// partir da String que a API Dart continua enviando, para a assinatura
+/// pública do pacote não mudar.
+///
+/// Descrição inválida (acima do limite do BOLT11) vira descrição vazia em vez
+/// de derrubar a criação da fatura — sem descrição a fatura ainda é válida e
+/// pagável, que é o que importa para quem está cobrando.
+fn descricao_bolt11(s: &str) -> ldk_node::lightning_invoice::Bolt11InvoiceDescription {
+    use ldk_node::lightning_invoice::{Bolt11InvoiceDescription, Description};
+    let d = Description::new(s.to_string())
+        .unwrap_or_else(|_| Description::new(String::new()).expect("vazia é sempre válida"));
+    Bolt11InvoiceDescription::Direct(d)
+}
+
 pub struct LdkBolt11Payment {
     pub ptr: RustOpaque<ldk_node::payment::Bolt11Payment>,
 }
@@ -39,7 +54,7 @@ impl From<ldk_node::lightning_invoice::Bolt11Invoice> for Bolt11Invoice {
 impl LdkBolt11Payment {
     pub fn send(&self, invoice: Bolt11Invoice) -> Result<PaymentId, LdkNodeError> {
         self.ptr
-            .send(&(invoice.try_into()?))
+            .send(&(invoice.try_into()?), None)
             .map_err(|e| e.into())
             .map(|e| e.into())
     }
@@ -49,14 +64,14 @@ impl LdkBolt11Payment {
         amount_msat: u64,
     ) -> anyhow::Result<PaymentId, LdkNodeError> {
         self.ptr
-            .send_using_amount(&(invoice.try_into()?), amount_msat)
+            .send_using_amount(&(invoice.try_into()?), amount_msat, None)
             .map_err(|e| e.into())
             .map(|e| e.into())
     }
 
     pub fn send_probes(&self, invoice: Bolt11Invoice) -> anyhow::Result<(), LdkNodeError> {
         self.ptr
-            .send_probes(&(invoice.try_into()?))
+            .send_probes(&(invoice.try_into()?), None)
             .map_err(|e| e.into())
     }
 
@@ -66,7 +81,7 @@ impl LdkBolt11Payment {
         amount_msat: u64,
     ) -> Result<(), LdkNodeError> {
         self.ptr
-            .send_probes_using_amount(&(invoice.try_into()?), amount_msat)
+            .send_probes_using_amount(&(invoice.try_into()?), amount_msat, None)
             .map_err(|e| e.into())
     }
     pub fn claim_for_hash(
@@ -91,7 +106,7 @@ impl LdkBolt11Payment {
         expiry_secs: u32,
     ) -> anyhow::Result<Bolt11Invoice, LdkNodeError> {
         self.ptr
-            .receive(amount_msat, description.as_str(), expiry_secs)
+            .receive(amount_msat, &descricao_bolt11(description.as_str()), expiry_secs)
             .map_err(|e| e.into())
             .map(|e| e.into())
     }
@@ -106,7 +121,7 @@ impl LdkBolt11Payment {
         self.ptr
             .receive_for_hash(
                 amount_msat,
-                description.as_str(),
+                &descricao_bolt11(description.as_str()),
                 expiry_secs,
                 payment_hash.into(),
             )
@@ -119,7 +134,7 @@ impl LdkBolt11Payment {
         expiry_secs: u32,
     ) -> anyhow::Result<Bolt11Invoice, LdkNodeError> {
         self.ptr
-            .receive_variable_amount(description.as_str(), expiry_secs)
+            .receive_variable_amount(&descricao_bolt11(description.as_str()), expiry_secs)
             .map_err(|e| e.into())
             .map(|e| e.into())
     }
@@ -130,7 +145,7 @@ impl LdkBolt11Payment {
         max_proportional_lsp_fee_limit_ppm_msat: Option<u64>,
     ) -> anyhow::Result<Bolt11Invoice, LdkNodeError> {
         match self.ptr.receive_variable_amount_via_jit_channel(
-            description.as_str(),
+            &descricao_bolt11(description.as_str()),
             expiry_secs,
             max_proportional_lsp_fee_limit_ppm_msat,
         ) {
@@ -146,7 +161,7 @@ impl LdkBolt11Payment {
         payment_hash: PaymentHash
     ) -> anyhow::Result<Bolt11Invoice, LdkNodeError> {
         match self.ptr.receive_variable_amount_for_hash(
-            description.as_str(),
+            &descricao_bolt11(description.as_str()),
             expiry_secs,
             payment_hash.into()
         ) {
@@ -164,7 +179,7 @@ impl LdkBolt11Payment {
     ) -> anyhow::Result<Bolt11Invoice, LdkNodeError> {
         match self.ptr.receive_via_jit_channel(
             amount_msat,
-            description.as_str(),
+            &descricao_bolt11(description.as_str()),
             expiry_secs,
             max_total_lsp_fee_limit_msat,
         ) {

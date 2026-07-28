@@ -50,7 +50,9 @@ mixin _$ChainDataSourceConfig {
   }) =>
       throw _privateConstructorUsedError;
 
-  @JsonKey(ignore: true)
+  /// Create a copy of ChainDataSourceConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $ChainDataSourceConfigCopyWith<ChainDataSourceConfig> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -75,6 +77,8 @@ class _$ChainDataSourceConfigCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of ChainDataSourceConfig
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -111,6 +115,8 @@ class __$$ChainDataSourceConfig_EsploraImplCopyWithImpl<$Res>
       $Res Function(_$ChainDataSourceConfig_EsploraImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of ChainDataSourceConfig
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -150,7 +156,9 @@ class _$ChainDataSourceConfig_EsploraImpl
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of ChainDataSourceConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$ChainDataSourceConfig_EsploraImplCopyWith<
@@ -222,8 +230,11 @@ abstract class ChainDataSourceConfig_Esplora extends ChainDataSourceConfig {
 
   @override
   String get field0;
+
+  /// Create a copy of ChainDataSourceConfig
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$ChainDataSourceConfig_EsploraImplCopyWith<
           _$ChainDataSourceConfig_EsploraImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -387,6 +398,9 @@ class _$ClosureReasonCopyWithImpl<$Res, $Val extends ClosureReason>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
+
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -409,6 +423,8 @@ class __$$ClosureReason_CounterpartyForceClosedImplCopyWithImpl<$Res>
       $Res Function(_$ClosureReason_CounterpartyForceClosedImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -456,7 +472,9 @@ class _$ClosureReason_CounterpartyForceClosedImpl
   @override
   int get hashCode => Object.hash(runtimeType, peerMsg);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$ClosureReason_CounterpartyForceClosedImplCopyWith<
@@ -641,7 +659,10 @@ abstract class ClosureReason_CounterpartyForceClosed extends ClosureReason {
   ///
   /// [`UntrustedString`]: crate::util::string::UntrustedString
   String get peerMsg;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$ClosureReason_CounterpartyForceClosedImplCopyWith<
           _$ClosureReason_CounterpartyForceClosedImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -664,6 +685,9 @@ class __$$ClosureReason_HolderForceClosedImplCopyWithImpl<$Res>
       _$ClosureReason_HolderForceClosedImpl _value,
       $Res Function(_$ClosureReason_HolderForceClosedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -873,6 +897,9 @@ class __$$ClosureReason_LegacyCooperativeClosureImplCopyWithImpl<$Res>
       _$ClosureReason_LegacyCooperativeClosureImpl _value,
       $Res Function(_$ClosureReason_LegacyCooperativeClosureImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -1090,6 +1117,9 @@ class __$$ClosureReason_CounterpartyInitiatedCooperativeClosureImplCopyWithImpl<
       $Res Function(_$ClosureReason_CounterpartyInitiatedCooperativeClosureImpl)
           _then)
       : super(_value, _then);
+
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -1307,6 +1337,9 @@ class __$$ClosureReason_LocallyInitiatedCooperativeClosureImplCopyWithImpl<$Res>
       $Res Function(_$ClosureReason_LocallyInitiatedCooperativeClosureImpl)
           _then)
       : super(_value, _then);
+
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -1517,6 +1550,9 @@ class __$$ClosureReason_CommitmentTxConfirmedImplCopyWithImpl<$Res>
       _$ClosureReason_CommitmentTxConfirmedImpl _value,
       $Res Function(_$ClosureReason_CommitmentTxConfirmedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -1726,6 +1762,9 @@ class __$$ClosureReason_FundingTimedOutImplCopyWithImpl<$Res>
       _$ClosureReason_FundingTimedOutImpl _value,
       $Res Function(_$ClosureReason_FundingTimedOutImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -1938,6 +1977,8 @@ class __$$ClosureReason_ProcessingErrorImplCopyWithImpl<$Res>
       $Res Function(_$ClosureReason_ProcessingErrorImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1978,7 +2019,9 @@ class _$ClosureReason_ProcessingErrorImpl
   @override
   int get hashCode => Object.hash(runtimeType, err);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$ClosureReason_ProcessingErrorImplCopyWith<
@@ -2156,7 +2199,10 @@ abstract class ClosureReason_ProcessingError extends ClosureReason {
 
   /// A developer-readable error message which we generated.
   String get err;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$ClosureReason_ProcessingErrorImplCopyWith<
           _$ClosureReason_ProcessingErrorImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -2179,6 +2225,9 @@ class __$$ClosureReason_DisconnectedPeerImplCopyWithImpl<$Res>
       _$ClosureReason_DisconnectedPeerImpl _value,
       $Res Function(_$ClosureReason_DisconnectedPeerImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -2388,6 +2437,9 @@ class __$$ClosureReason_OutdatedChannelManagerImplCopyWithImpl<$Res>
       _$ClosureReason_OutdatedChannelManagerImpl _value,
       $Res Function(_$ClosureReason_OutdatedChannelManagerImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -2605,6 +2657,9 @@ class __$$ClosureReason_CounterpartyCoopClosedUnfundedChannelImplCopyWithImpl<
       $Res Function(_$ClosureReason_CounterpartyCoopClosedUnfundedChannelImpl)
           _then)
       : super(_value, _then);
+
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -2815,6 +2870,9 @@ class __$$ClosureReason_FundingBatchClosureImplCopyWithImpl<$Res>
       _$ClosureReason_FundingBatchClosureImpl _value,
       $Res Function(_$ClosureReason_FundingBatchClosureImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -3023,6 +3081,9 @@ class __$$ClosureReason_HTLCsTimedOutImplCopyWithImpl<$Res>
       _$ClosureReason_HTLCsTimedOutImpl _value,
       $Res Function(_$ClosureReason_HTLCsTimedOutImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of ClosureReason
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -3280,6 +3341,9 @@ class _$EntropySourceConfigCopyWithImpl<$Res, $Val extends EntropySourceConfig>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
+
+  /// Create a copy of EntropySourceConfig
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -3302,6 +3366,8 @@ class __$$EntropySourceConfig_SeedFileImplCopyWithImpl<$Res>
       $Res Function(_$EntropySourceConfig_SeedFileImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of EntropySourceConfig
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3340,7 +3406,9 @@ class _$EntropySourceConfig_SeedFileImpl extends EntropySourceConfig_SeedFile {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of EntropySourceConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$EntropySourceConfig_SeedFileImplCopyWith<
@@ -3425,7 +3493,10 @@ abstract class EntropySourceConfig_SeedFile extends EntropySourceConfig {
   const EntropySourceConfig_SeedFile._() : super._();
 
   String get field0;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of EntropySourceConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$EntropySourceConfig_SeedFileImplCopyWith<
           _$EntropySourceConfig_SeedFileImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -3451,6 +3522,8 @@ class __$$EntropySourceConfig_SeedBytesImplCopyWithImpl<$Res>
       $Res Function(_$EntropySourceConfig_SeedBytesImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of EntropySourceConfig
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3491,7 +3564,9 @@ class _$EntropySourceConfig_SeedBytesImpl
   int get hashCode =>
       Object.hash(runtimeType, const DeepCollectionEquality().hash(field0));
 
-  @JsonKey(ignore: true)
+  /// Create a copy of EntropySourceConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$EntropySourceConfig_SeedBytesImplCopyWith<
@@ -3576,7 +3651,10 @@ abstract class EntropySourceConfig_SeedBytes extends EntropySourceConfig {
   const EntropySourceConfig_SeedBytes._() : super._();
 
   U8Array64 get field0;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of EntropySourceConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$EntropySourceConfig_SeedBytesImplCopyWith<
           _$EntropySourceConfig_SeedBytesImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -3602,6 +3680,8 @@ class __$$EntropySourceConfig_Bip39MnemonicImplCopyWithImpl<$Res>
       $Res Function(_$EntropySourceConfig_Bip39MnemonicImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of EntropySourceConfig
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3653,7 +3733,9 @@ class _$EntropySourceConfig_Bip39MnemonicImpl
   @override
   int get hashCode => Object.hash(runtimeType, mnemonic, passphrase);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of EntropySourceConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$EntropySourceConfig_Bip39MnemonicImplCopyWith<
@@ -3740,7 +3822,10 @@ abstract class EntropySourceConfig_Bip39Mnemonic extends EntropySourceConfig {
 
   LdkMnemonic get mnemonic;
   String? get passphrase;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of EntropySourceConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$EntropySourceConfig_Bip39MnemonicImplCopyWith<
           _$EntropySourceConfig_Bip39MnemonicImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -3775,6 +3860,7 @@ mixin _$Event {
     required TResult Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)
         channelClosed,
+    required TResult Function(String kind) unknown,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -3804,6 +3890,7 @@ mixin _$Event {
     TResult? Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)?
         channelClosed,
+    TResult? Function(String kind)? unknown,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -3833,6 +3920,7 @@ mixin _$Event {
     TResult Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)?
         channelClosed,
+    TResult Function(String kind)? unknown,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -3845,6 +3933,7 @@ mixin _$Event {
     required TResult Function(Event_ChannelPending value) channelPending,
     required TResult Function(Event_ChannelReady value) channelReady,
     required TResult Function(Event_ChannelClosed value) channelClosed,
+    required TResult Function(Event_Unknown value) unknown,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -3856,6 +3945,7 @@ mixin _$Event {
     TResult? Function(Event_ChannelPending value)? channelPending,
     TResult? Function(Event_ChannelReady value)? channelReady,
     TResult? Function(Event_ChannelClosed value)? channelClosed,
+    TResult? Function(Event_Unknown value)? unknown,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -3867,6 +3957,7 @@ mixin _$Event {
     TResult Function(Event_ChannelPending value)? channelPending,
     TResult Function(Event_ChannelReady value)? channelReady,
     TResult Function(Event_ChannelClosed value)? channelClosed,
+    TResult Function(Event_Unknown value)? unknown,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -3887,6 +3978,9 @@ class _$EventCopyWithImpl<$Res, $Val extends Event>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
+
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -3912,6 +4006,8 @@ class __$$Event_PaymentClaimableImplCopyWithImpl<$Res>
       $Res Function(_$Event_PaymentClaimableImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3992,7 +4088,9 @@ class _$Event_PaymentClaimableImpl extends Event_PaymentClaimable {
   int get hashCode => Object.hash(
       runtimeType, paymentId, paymentHash, claimableAmountMsat, claimDeadline);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$Event_PaymentClaimableImplCopyWith<_$Event_PaymentClaimableImpl>
@@ -4027,6 +4125,7 @@ class _$Event_PaymentClaimableImpl extends Event_PaymentClaimable {
     required TResult Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)
         channelClosed,
+    required TResult Function(String kind) unknown,
   }) {
     return paymentClaimable(
         paymentId, paymentHash, claimableAmountMsat, claimDeadline);
@@ -4060,6 +4159,7 @@ class _$Event_PaymentClaimableImpl extends Event_PaymentClaimable {
     TResult? Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)?
         channelClosed,
+    TResult? Function(String kind)? unknown,
   }) {
     return paymentClaimable?.call(
         paymentId, paymentHash, claimableAmountMsat, claimDeadline);
@@ -4093,6 +4193,7 @@ class _$Event_PaymentClaimableImpl extends Event_PaymentClaimable {
     TResult Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)?
         channelClosed,
+    TResult Function(String kind)? unknown,
     required TResult orElse(),
   }) {
     if (paymentClaimable != null) {
@@ -4112,6 +4213,7 @@ class _$Event_PaymentClaimableImpl extends Event_PaymentClaimable {
     required TResult Function(Event_ChannelPending value) channelPending,
     required TResult Function(Event_ChannelReady value) channelReady,
     required TResult Function(Event_ChannelClosed value) channelClosed,
+    required TResult Function(Event_Unknown value) unknown,
   }) {
     return paymentClaimable(this);
   }
@@ -4126,6 +4228,7 @@ class _$Event_PaymentClaimableImpl extends Event_PaymentClaimable {
     TResult? Function(Event_ChannelPending value)? channelPending,
     TResult? Function(Event_ChannelReady value)? channelReady,
     TResult? Function(Event_ChannelClosed value)? channelClosed,
+    TResult? Function(Event_Unknown value)? unknown,
   }) {
     return paymentClaimable?.call(this);
   }
@@ -4140,6 +4243,7 @@ class _$Event_PaymentClaimableImpl extends Event_PaymentClaimable {
     TResult Function(Event_ChannelPending value)? channelPending,
     TResult Function(Event_ChannelReady value)? channelReady,
     TResult Function(Event_ChannelClosed value)? channelClosed,
+    TResult Function(Event_Unknown value)? unknown,
     required TResult orElse(),
   }) {
     if (paymentClaimable != null) {
@@ -4169,7 +4273,10 @@ abstract class Event_PaymentClaimable extends Event {
   /// The block height at which this payment will be failed back and will no longer be
   /// eligible for claiming.
   int? get claimDeadline;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$Event_PaymentClaimableImplCopyWith<_$Event_PaymentClaimableImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -4194,6 +4301,8 @@ class __$$Event_PaymentSuccessfulImplCopyWithImpl<$Res>
       $Res Function(_$Event_PaymentSuccessfulImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -4261,7 +4370,9 @@ class _$Event_PaymentSuccessfulImpl extends Event_PaymentSuccessful {
   int get hashCode =>
       Object.hash(runtimeType, paymentId, paymentHash, feePaidMsat);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$Event_PaymentSuccessfulImplCopyWith<_$Event_PaymentSuccessfulImpl>
@@ -4296,6 +4407,7 @@ class _$Event_PaymentSuccessfulImpl extends Event_PaymentSuccessful {
     required TResult Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)
         channelClosed,
+    required TResult Function(String kind) unknown,
   }) {
     return paymentSuccessful(paymentId, paymentHash, feePaidMsat);
   }
@@ -4328,6 +4440,7 @@ class _$Event_PaymentSuccessfulImpl extends Event_PaymentSuccessful {
     TResult? Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)?
         channelClosed,
+    TResult? Function(String kind)? unknown,
   }) {
     return paymentSuccessful?.call(paymentId, paymentHash, feePaidMsat);
   }
@@ -4360,6 +4473,7 @@ class _$Event_PaymentSuccessfulImpl extends Event_PaymentSuccessful {
     TResult Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)?
         channelClosed,
+    TResult Function(String kind)? unknown,
     required TResult orElse(),
   }) {
     if (paymentSuccessful != null) {
@@ -4378,6 +4492,7 @@ class _$Event_PaymentSuccessfulImpl extends Event_PaymentSuccessful {
     required TResult Function(Event_ChannelPending value) channelPending,
     required TResult Function(Event_ChannelReady value) channelReady,
     required TResult Function(Event_ChannelClosed value) channelClosed,
+    required TResult Function(Event_Unknown value) unknown,
   }) {
     return paymentSuccessful(this);
   }
@@ -4392,6 +4507,7 @@ class _$Event_PaymentSuccessfulImpl extends Event_PaymentSuccessful {
     TResult? Function(Event_ChannelPending value)? channelPending,
     TResult? Function(Event_ChannelReady value)? channelReady,
     TResult? Function(Event_ChannelClosed value)? channelClosed,
+    TResult? Function(Event_Unknown value)? unknown,
   }) {
     return paymentSuccessful?.call(this);
   }
@@ -4406,6 +4522,7 @@ class _$Event_PaymentSuccessfulImpl extends Event_PaymentSuccessful {
     TResult Function(Event_ChannelPending value)? channelPending,
     TResult Function(Event_ChannelReady value)? channelReady,
     TResult Function(Event_ChannelClosed value)? channelClosed,
+    TResult Function(Event_Unknown value)? unknown,
     required TResult orElse(),
   }) {
     if (paymentSuccessful != null) {
@@ -4432,7 +4549,10 @@ abstract class Event_PaymentSuccessful extends Event {
 
   /// The total fee which was spent at intermediate hops in this payment.
   BigInt? get feePaidMsat;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$Event_PaymentSuccessfulImplCopyWith<_$Event_PaymentSuccessfulImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -4457,6 +4577,8 @@ class __$$Event_PaymentFailedImplCopyWithImpl<$Res>
       $Res Function(_$Event_PaymentFailedImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -4524,7 +4646,9 @@ class _$Event_PaymentFailedImpl extends Event_PaymentFailed {
   @override
   int get hashCode => Object.hash(runtimeType, paymentId, paymentHash, reason);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$Event_PaymentFailedImplCopyWith<_$Event_PaymentFailedImpl> get copyWith =>
@@ -4559,6 +4683,7 @@ class _$Event_PaymentFailedImpl extends Event_PaymentFailed {
     required TResult Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)
         channelClosed,
+    required TResult Function(String kind) unknown,
   }) {
     return paymentFailed(paymentId, paymentHash, reason);
   }
@@ -4591,6 +4716,7 @@ class _$Event_PaymentFailedImpl extends Event_PaymentFailed {
     TResult? Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)?
         channelClosed,
+    TResult? Function(String kind)? unknown,
   }) {
     return paymentFailed?.call(paymentId, paymentHash, reason);
   }
@@ -4623,6 +4749,7 @@ class _$Event_PaymentFailedImpl extends Event_PaymentFailed {
     TResult Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)?
         channelClosed,
+    TResult Function(String kind)? unknown,
     required TResult orElse(),
   }) {
     if (paymentFailed != null) {
@@ -4641,6 +4768,7 @@ class _$Event_PaymentFailedImpl extends Event_PaymentFailed {
     required TResult Function(Event_ChannelPending value) channelPending,
     required TResult Function(Event_ChannelReady value) channelReady,
     required TResult Function(Event_ChannelClosed value) channelClosed,
+    required TResult Function(Event_Unknown value) unknown,
   }) {
     return paymentFailed(this);
   }
@@ -4655,6 +4783,7 @@ class _$Event_PaymentFailedImpl extends Event_PaymentFailed {
     TResult? Function(Event_ChannelPending value)? channelPending,
     TResult? Function(Event_ChannelReady value)? channelReady,
     TResult? Function(Event_ChannelClosed value)? channelClosed,
+    TResult? Function(Event_Unknown value)? unknown,
   }) {
     return paymentFailed?.call(this);
   }
@@ -4669,6 +4798,7 @@ class _$Event_PaymentFailedImpl extends Event_PaymentFailed {
     TResult Function(Event_ChannelPending value)? channelPending,
     TResult Function(Event_ChannelReady value)? channelReady,
     TResult Function(Event_ChannelClosed value)? channelClosed,
+    TResult Function(Event_Unknown value)? unknown,
     required TResult orElse(),
   }) {
     if (paymentFailed != null) {
@@ -4697,7 +4827,10 @@ abstract class Event_PaymentFailed extends Event {
   ///
   /// This will be `None` for events serialized by LDK Node v0.2.1 and prior.
   PaymentFailureReason? get reason;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$Event_PaymentFailedImplCopyWith<_$Event_PaymentFailedImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -4720,6 +4853,8 @@ class __$$Event_PaymentReceivedImplCopyWithImpl<$Res>
       $Res Function(_$Event_PaymentReceivedImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -4787,7 +4922,9 @@ class _$Event_PaymentReceivedImpl extends Event_PaymentReceived {
   int get hashCode =>
       Object.hash(runtimeType, paymentId, paymentHash, amountMsat);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$Event_PaymentReceivedImplCopyWith<_$Event_PaymentReceivedImpl>
@@ -4822,6 +4959,7 @@ class _$Event_PaymentReceivedImpl extends Event_PaymentReceived {
     required TResult Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)
         channelClosed,
+    required TResult Function(String kind) unknown,
   }) {
     return paymentReceived(paymentId, paymentHash, amountMsat);
   }
@@ -4854,6 +4992,7 @@ class _$Event_PaymentReceivedImpl extends Event_PaymentReceived {
     TResult? Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)?
         channelClosed,
+    TResult? Function(String kind)? unknown,
   }) {
     return paymentReceived?.call(paymentId, paymentHash, amountMsat);
   }
@@ -4886,6 +5025,7 @@ class _$Event_PaymentReceivedImpl extends Event_PaymentReceived {
     TResult Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)?
         channelClosed,
+    TResult Function(String kind)? unknown,
     required TResult orElse(),
   }) {
     if (paymentReceived != null) {
@@ -4904,6 +5044,7 @@ class _$Event_PaymentReceivedImpl extends Event_PaymentReceived {
     required TResult Function(Event_ChannelPending value) channelPending,
     required TResult Function(Event_ChannelReady value) channelReady,
     required TResult Function(Event_ChannelClosed value) channelClosed,
+    required TResult Function(Event_Unknown value) unknown,
   }) {
     return paymentReceived(this);
   }
@@ -4918,6 +5059,7 @@ class _$Event_PaymentReceivedImpl extends Event_PaymentReceived {
     TResult? Function(Event_ChannelPending value)? channelPending,
     TResult? Function(Event_ChannelReady value)? channelReady,
     TResult? Function(Event_ChannelClosed value)? channelClosed,
+    TResult? Function(Event_Unknown value)? unknown,
   }) {
     return paymentReceived?.call(this);
   }
@@ -4932,6 +5074,7 @@ class _$Event_PaymentReceivedImpl extends Event_PaymentReceived {
     TResult Function(Event_ChannelPending value)? channelPending,
     TResult Function(Event_ChannelReady value)? channelReady,
     TResult Function(Event_ChannelClosed value)? channelClosed,
+    TResult Function(Event_Unknown value)? unknown,
     required TResult orElse(),
   }) {
     if (paymentReceived != null) {
@@ -4958,7 +5101,10 @@ abstract class Event_PaymentReceived extends Event {
 
   /// The value, in thousandths of a satoshi, that has been received.
   BigInt get amountMsat;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$Event_PaymentReceivedImplCopyWith<_$Event_PaymentReceivedImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -4985,6 +5131,8 @@ class __$$Event_ChannelPendingImplCopyWithImpl<$Res>
       $Res Function(_$Event_ChannelPendingImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -5077,7 +5225,9 @@ class _$Event_ChannelPendingImpl extends Event_ChannelPending {
   int get hashCode => Object.hash(runtimeType, channelId, userChannelId,
       formerTemporaryChannelId, counterpartyNodeId, fundingTxo);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$Event_ChannelPendingImplCopyWith<_$Event_ChannelPendingImpl>
@@ -5113,6 +5263,7 @@ class _$Event_ChannelPendingImpl extends Event_ChannelPending {
     required TResult Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)
         channelClosed,
+    required TResult Function(String kind) unknown,
   }) {
     return channelPending(channelId, userChannelId, formerTemporaryChannelId,
         counterpartyNodeId, fundingTxo);
@@ -5146,6 +5297,7 @@ class _$Event_ChannelPendingImpl extends Event_ChannelPending {
     TResult? Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)?
         channelClosed,
+    TResult? Function(String kind)? unknown,
   }) {
     return channelPending?.call(channelId, userChannelId,
         formerTemporaryChannelId, counterpartyNodeId, fundingTxo);
@@ -5179,6 +5331,7 @@ class _$Event_ChannelPendingImpl extends Event_ChannelPending {
     TResult Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)?
         channelClosed,
+    TResult Function(String kind)? unknown,
     required TResult orElse(),
   }) {
     if (channelPending != null) {
@@ -5198,6 +5351,7 @@ class _$Event_ChannelPendingImpl extends Event_ChannelPending {
     required TResult Function(Event_ChannelPending value) channelPending,
     required TResult Function(Event_ChannelReady value) channelReady,
     required TResult Function(Event_ChannelClosed value) channelClosed,
+    required TResult Function(Event_Unknown value) unknown,
   }) {
     return channelPending(this);
   }
@@ -5212,6 +5366,7 @@ class _$Event_ChannelPendingImpl extends Event_ChannelPending {
     TResult? Function(Event_ChannelPending value)? channelPending,
     TResult? Function(Event_ChannelReady value)? channelReady,
     TResult? Function(Event_ChannelClosed value)? channelClosed,
+    TResult? Function(Event_Unknown value)? unknown,
   }) {
     return channelPending?.call(this);
   }
@@ -5226,6 +5381,7 @@ class _$Event_ChannelPendingImpl extends Event_ChannelPending {
     TResult Function(Event_ChannelPending value)? channelPending,
     TResult Function(Event_ChannelReady value)? channelReady,
     TResult Function(Event_ChannelClosed value)? channelClosed,
+    TResult Function(Event_Unknown value)? unknown,
     required TResult orElse(),
   }) {
     if (channelPending != null) {
@@ -5258,7 +5414,10 @@ abstract class Event_ChannelPending extends Event {
 
   /// The outpoint of the channel's funding transaction.
   OutPoint get fundingTxo;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$Event_ChannelPendingImplCopyWith<_$Event_ChannelPendingImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -5283,6 +5442,8 @@ class __$$Event_ChannelReadyImplCopyWithImpl<$Res>
       $Res Function(_$Event_ChannelReadyImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -5352,7 +5513,9 @@ class _$Event_ChannelReadyImpl extends Event_ChannelReady {
   int get hashCode =>
       Object.hash(runtimeType, channelId, userChannelId, counterpartyNodeId);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$Event_ChannelReadyImplCopyWith<_$Event_ChannelReadyImpl> get copyWith =>
@@ -5387,6 +5550,7 @@ class _$Event_ChannelReadyImpl extends Event_ChannelReady {
     required TResult Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)
         channelClosed,
+    required TResult Function(String kind) unknown,
   }) {
     return channelReady(channelId, userChannelId, counterpartyNodeId);
   }
@@ -5419,6 +5583,7 @@ class _$Event_ChannelReadyImpl extends Event_ChannelReady {
     TResult? Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)?
         channelClosed,
+    TResult? Function(String kind)? unknown,
   }) {
     return channelReady?.call(channelId, userChannelId, counterpartyNodeId);
   }
@@ -5451,6 +5616,7 @@ class _$Event_ChannelReadyImpl extends Event_ChannelReady {
     TResult Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)?
         channelClosed,
+    TResult Function(String kind)? unknown,
     required TResult orElse(),
   }) {
     if (channelReady != null) {
@@ -5469,6 +5635,7 @@ class _$Event_ChannelReadyImpl extends Event_ChannelReady {
     required TResult Function(Event_ChannelPending value) channelPending,
     required TResult Function(Event_ChannelReady value) channelReady,
     required TResult Function(Event_ChannelClosed value) channelClosed,
+    required TResult Function(Event_Unknown value) unknown,
   }) {
     return channelReady(this);
   }
@@ -5483,6 +5650,7 @@ class _$Event_ChannelReadyImpl extends Event_ChannelReady {
     TResult? Function(Event_ChannelPending value)? channelPending,
     TResult? Function(Event_ChannelReady value)? channelReady,
     TResult? Function(Event_ChannelClosed value)? channelClosed,
+    TResult? Function(Event_Unknown value)? unknown,
   }) {
     return channelReady?.call(this);
   }
@@ -5497,6 +5665,7 @@ class _$Event_ChannelReadyImpl extends Event_ChannelReady {
     TResult Function(Event_ChannelPending value)? channelPending,
     TResult Function(Event_ChannelReady value)? channelReady,
     TResult Function(Event_ChannelClosed value)? channelClosed,
+    TResult Function(Event_Unknown value)? unknown,
     required TResult orElse(),
   }) {
     if (channelReady != null) {
@@ -5523,7 +5692,10 @@ abstract class Event_ChannelReady extends Event {
   ///
   /// This will be `None` for events serialized by LDK Node v0.1.0 and prior.
   PublicKey? get counterpartyNodeId;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$Event_ChannelReadyImplCopyWith<_$Event_ChannelReadyImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -5551,6 +5723,8 @@ class __$$Event_ChannelClosedImplCopyWithImpl<$Res>
       $Res Function(_$Event_ChannelClosedImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -5579,6 +5753,8 @@ class __$$Event_ChannelClosedImplCopyWithImpl<$Res>
     ));
   }
 
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $ClosureReasonCopyWith<$Res>? get reason {
@@ -5643,7 +5819,9 @@ class _$Event_ChannelClosedImpl extends Event_ChannelClosed {
   int get hashCode => Object.hash(
       runtimeType, channelId, userChannelId, counterpartyNodeId, reason);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$Event_ChannelClosedImplCopyWith<_$Event_ChannelClosedImpl> get copyWith =>
@@ -5678,6 +5856,7 @@ class _$Event_ChannelClosedImpl extends Event_ChannelClosed {
     required TResult Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)
         channelClosed,
+    required TResult Function(String kind) unknown,
   }) {
     return channelClosed(channelId, userChannelId, counterpartyNodeId, reason);
   }
@@ -5710,6 +5889,7 @@ class _$Event_ChannelClosedImpl extends Event_ChannelClosed {
     TResult? Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)?
         channelClosed,
+    TResult? Function(String kind)? unknown,
   }) {
     return channelClosed?.call(
         channelId, userChannelId, counterpartyNodeId, reason);
@@ -5743,6 +5923,7 @@ class _$Event_ChannelClosedImpl extends Event_ChannelClosed {
     TResult Function(ChannelId channelId, UserChannelId userChannelId,
             PublicKey? counterpartyNodeId, ClosureReason? reason)?
         channelClosed,
+    TResult Function(String kind)? unknown,
     required TResult orElse(),
   }) {
     if (channelClosed != null) {
@@ -5762,6 +5943,7 @@ class _$Event_ChannelClosedImpl extends Event_ChannelClosed {
     required TResult Function(Event_ChannelPending value) channelPending,
     required TResult Function(Event_ChannelReady value) channelReady,
     required TResult Function(Event_ChannelClosed value) channelClosed,
+    required TResult Function(Event_Unknown value) unknown,
   }) {
     return channelClosed(this);
   }
@@ -5776,6 +5958,7 @@ class _$Event_ChannelClosedImpl extends Event_ChannelClosed {
     TResult? Function(Event_ChannelPending value)? channelPending,
     TResult? Function(Event_ChannelReady value)? channelReady,
     TResult? Function(Event_ChannelClosed value)? channelClosed,
+    TResult? Function(Event_Unknown value)? unknown,
   }) {
     return channelClosed?.call(this);
   }
@@ -5790,6 +5973,7 @@ class _$Event_ChannelClosedImpl extends Event_ChannelClosed {
     TResult Function(Event_ChannelPending value)? channelPending,
     TResult Function(Event_ChannelReady value)? channelReady,
     TResult Function(Event_ChannelClosed value)? channelClosed,
+    TResult Function(Event_Unknown value)? unknown,
     required TResult orElse(),
   }) {
     if (channelClosed != null) {
@@ -5820,8 +6004,245 @@ abstract class Event_ChannelClosed extends Event {
 
   /// This will be `None` for events serialized by LDK Node v0.2.1 and prior.
   ClosureReason? get reason;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$Event_ChannelClosedImplCopyWith<_$Event_ChannelClosedImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$Event_UnknownImplCopyWith<$Res> {
+  factory _$$Event_UnknownImplCopyWith(
+          _$Event_UnknownImpl value, $Res Function(_$Event_UnknownImpl) then) =
+      __$$Event_UnknownImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({String kind});
+}
+
+/// @nodoc
+class __$$Event_UnknownImplCopyWithImpl<$Res>
+    extends _$EventCopyWithImpl<$Res, _$Event_UnknownImpl>
+    implements _$$Event_UnknownImplCopyWith<$Res> {
+  __$$Event_UnknownImplCopyWithImpl(
+      _$Event_UnknownImpl _value, $Res Function(_$Event_UnknownImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? kind = null,
+  }) {
+    return _then(_$Event_UnknownImpl(
+      kind: null == kind
+          ? _value.kind
+          : kind // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$Event_UnknownImpl extends Event_Unknown {
+  const _$Event_UnknownImpl({required this.kind}) : super._();
+
+  /// Nome da variante do LDK, para diagnóstico.
+  @override
+  final String kind;
+
+  @override
+  String toString() {
+    return 'Event.unknown(kind: $kind)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$Event_UnknownImpl &&
+            (identical(other.kind, kind) || other.kind == kind));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, kind);
+
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$Event_UnknownImplCopyWith<_$Event_UnknownImpl> get copyWith =>
+      __$$Event_UnknownImplCopyWithImpl<_$Event_UnknownImpl>(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(PaymentId paymentId, PaymentHash paymentHash,
+            BigInt claimableAmountMsat, int? claimDeadline)
+        paymentClaimable,
+    required TResult Function(
+            PaymentId? paymentId, PaymentHash paymentHash, BigInt? feePaidMsat)
+        paymentSuccessful,
+    required TResult Function(PaymentId? paymentId, PaymentHash paymentHash,
+            PaymentFailureReason? reason)
+        paymentFailed,
+    required TResult Function(
+            PaymentId? paymentId, PaymentHash paymentHash, BigInt amountMsat)
+        paymentReceived,
+    required TResult Function(
+            ChannelId channelId,
+            UserChannelId userChannelId,
+            ChannelId formerTemporaryChannelId,
+            PublicKey counterpartyNodeId,
+            OutPoint fundingTxo)
+        channelPending,
+    required TResult Function(ChannelId channelId, UserChannelId userChannelId,
+            PublicKey? counterpartyNodeId)
+        channelReady,
+    required TResult Function(ChannelId channelId, UserChannelId userChannelId,
+            PublicKey? counterpartyNodeId, ClosureReason? reason)
+        channelClosed,
+    required TResult Function(String kind) unknown,
+  }) {
+    return unknown(kind);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(PaymentId paymentId, PaymentHash paymentHash,
+            BigInt claimableAmountMsat, int? claimDeadline)?
+        paymentClaimable,
+    TResult? Function(
+            PaymentId? paymentId, PaymentHash paymentHash, BigInt? feePaidMsat)?
+        paymentSuccessful,
+    TResult? Function(PaymentId? paymentId, PaymentHash paymentHash,
+            PaymentFailureReason? reason)?
+        paymentFailed,
+    TResult? Function(
+            PaymentId? paymentId, PaymentHash paymentHash, BigInt amountMsat)?
+        paymentReceived,
+    TResult? Function(
+            ChannelId channelId,
+            UserChannelId userChannelId,
+            ChannelId formerTemporaryChannelId,
+            PublicKey counterpartyNodeId,
+            OutPoint fundingTxo)?
+        channelPending,
+    TResult? Function(ChannelId channelId, UserChannelId userChannelId,
+            PublicKey? counterpartyNodeId)?
+        channelReady,
+    TResult? Function(ChannelId channelId, UserChannelId userChannelId,
+            PublicKey? counterpartyNodeId, ClosureReason? reason)?
+        channelClosed,
+    TResult? Function(String kind)? unknown,
+  }) {
+    return unknown?.call(kind);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(PaymentId paymentId, PaymentHash paymentHash,
+            BigInt claimableAmountMsat, int? claimDeadline)?
+        paymentClaimable,
+    TResult Function(
+            PaymentId? paymentId, PaymentHash paymentHash, BigInt? feePaidMsat)?
+        paymentSuccessful,
+    TResult Function(PaymentId? paymentId, PaymentHash paymentHash,
+            PaymentFailureReason? reason)?
+        paymentFailed,
+    TResult Function(
+            PaymentId? paymentId, PaymentHash paymentHash, BigInt amountMsat)?
+        paymentReceived,
+    TResult Function(
+            ChannelId channelId,
+            UserChannelId userChannelId,
+            ChannelId formerTemporaryChannelId,
+            PublicKey counterpartyNodeId,
+            OutPoint fundingTxo)?
+        channelPending,
+    TResult Function(ChannelId channelId, UserChannelId userChannelId,
+            PublicKey? counterpartyNodeId)?
+        channelReady,
+    TResult Function(ChannelId channelId, UserChannelId userChannelId,
+            PublicKey? counterpartyNodeId, ClosureReason? reason)?
+        channelClosed,
+    TResult Function(String kind)? unknown,
+    required TResult orElse(),
+  }) {
+    if (unknown != null) {
+      return unknown(kind);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(Event_PaymentClaimable value) paymentClaimable,
+    required TResult Function(Event_PaymentSuccessful value) paymentSuccessful,
+    required TResult Function(Event_PaymentFailed value) paymentFailed,
+    required TResult Function(Event_PaymentReceived value) paymentReceived,
+    required TResult Function(Event_ChannelPending value) channelPending,
+    required TResult Function(Event_ChannelReady value) channelReady,
+    required TResult Function(Event_ChannelClosed value) channelClosed,
+    required TResult Function(Event_Unknown value) unknown,
+  }) {
+    return unknown(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(Event_PaymentClaimable value)? paymentClaimable,
+    TResult? Function(Event_PaymentSuccessful value)? paymentSuccessful,
+    TResult? Function(Event_PaymentFailed value)? paymentFailed,
+    TResult? Function(Event_PaymentReceived value)? paymentReceived,
+    TResult? Function(Event_ChannelPending value)? channelPending,
+    TResult? Function(Event_ChannelReady value)? channelReady,
+    TResult? Function(Event_ChannelClosed value)? channelClosed,
+    TResult? Function(Event_Unknown value)? unknown,
+  }) {
+    return unknown?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(Event_PaymentClaimable value)? paymentClaimable,
+    TResult Function(Event_PaymentSuccessful value)? paymentSuccessful,
+    TResult Function(Event_PaymentFailed value)? paymentFailed,
+    TResult Function(Event_PaymentReceived value)? paymentReceived,
+    TResult Function(Event_ChannelPending value)? channelPending,
+    TResult Function(Event_ChannelReady value)? channelReady,
+    TResult Function(Event_ChannelClosed value)? channelClosed,
+    TResult Function(Event_Unknown value)? unknown,
+    required TResult orElse(),
+  }) {
+    if (unknown != null) {
+      return unknown(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class Event_Unknown extends Event {
+  const factory Event_Unknown({required final String kind}) =
+      _$Event_UnknownImpl;
+  const Event_Unknown._() : super._();
+
+  /// Nome da variante do LDK, para diagnóstico.
+  String get kind;
+
+  /// Create a copy of Event
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$Event_UnknownImplCopyWith<_$Event_UnknownImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -5885,6 +6306,9 @@ class _$GossipSourceConfigCopyWithImpl<$Res, $Val extends GossipSourceConfig>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
+
+  /// Create a copy of GossipSourceConfig
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -5904,6 +6328,9 @@ class __$$GossipSourceConfig_P2PNetworkImplCopyWithImpl<$Res>
       _$GossipSourceConfig_P2PNetworkImpl _value,
       $Res Function(_$GossipSourceConfig_P2PNetworkImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of GossipSourceConfig
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -6018,6 +6445,8 @@ class __$$GossipSourceConfig_RapidGossipSyncImplCopyWithImpl<$Res>
       $Res Function(_$GossipSourceConfig_RapidGossipSyncImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of GossipSourceConfig
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -6057,7 +6486,9 @@ class _$GossipSourceConfig_RapidGossipSyncImpl
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of GossipSourceConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$GossipSourceConfig_RapidGossipSyncImplCopyWith<
@@ -6136,7 +6567,10 @@ abstract class GossipSourceConfig_RapidGossipSync extends GossipSourceConfig {
   const GossipSourceConfig_RapidGossipSync._() : super._();
 
   String get field0;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of GossipSourceConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$GossipSourceConfig_RapidGossipSyncImplCopyWith<
           _$GossipSourceConfig_RapidGossipSyncImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -6296,7 +6730,9 @@ mixin _$LightningBalance {
   }) =>
       throw _privateConstructorUsedError;
 
-  @JsonKey(ignore: true)
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $LightningBalanceCopyWith<LightningBalance> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -6323,6 +6759,8 @@ class _$LightningBalanceCopyWithImpl<$Res, $Val extends LightningBalance>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -6372,6 +6810,8 @@ class __$$LightningBalance_ClaimableOnChannelCloseImplCopyWithImpl<$Res>
       $Res Function(_$LightningBalance_ClaimableOnChannelCloseImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -6441,7 +6881,9 @@ class _$LightningBalance_ClaimableOnChannelCloseImpl
   int get hashCode =>
       Object.hash(runtimeType, channelId, counterpartyNodeId, amountSatoshis);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$LightningBalance_ClaimableOnChannelCloseImplCopyWith<
@@ -6629,21 +7071,23 @@ abstract class LightningBalance_ClaimableOnChannelClose
       _$LightningBalance_ClaimableOnChannelCloseImpl;
   const LightningBalance_ClaimableOnChannelClose._() : super._();
 
-  @override
-
   /// The identifier of the channel this balance belongs to.
-  ChannelId get channelId;
   @override
+  ChannelId get channelId;
 
   /// The identifier of our channel counterparty.
-  PublicKey get counterpartyNodeId;
   @override
+  PublicKey get counterpartyNodeId;
 
   /// The amount available to claim, in satoshis, excluding the on-chain fees which will be
   /// required to do so.
-  BigInt get amountSatoshis;
   @override
-  @JsonKey(ignore: true)
+  BigInt get amountSatoshis;
+
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$LightningBalance_ClaimableOnChannelCloseImplCopyWith<
           _$LightningBalance_ClaimableOnChannelCloseImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -6678,6 +7122,8 @@ class __$$LightningBalance_ClaimableAwaitingConfirmationsImplCopyWithImpl<$Res>
           _then)
       : super(_value, _then);
 
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -6762,7 +7208,9 @@ class _$LightningBalance_ClaimableAwaitingConfirmationsImpl
   int get hashCode => Object.hash(runtimeType, channelId, counterpartyNodeId,
       amountSatoshis, confirmationHeight);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$LightningBalance_ClaimableAwaitingConfirmationsImplCopyWith<
@@ -6952,18 +7400,17 @@ abstract class LightningBalance_ClaimableAwaitingConfirmations
       _$LightningBalance_ClaimableAwaitingConfirmationsImpl;
   const LightningBalance_ClaimableAwaitingConfirmations._() : super._();
 
-  @override
-
   /// The identifier of the channel this balance belongs to.
-  ChannelId get channelId;
   @override
+  ChannelId get channelId;
 
   /// The identifier of our channel counterparty.
-  PublicKey get counterpartyNodeId;
   @override
+  PublicKey get counterpartyNodeId;
 
   /// The amount available to claim, in satoshis, possibly excluding the on-chain fees which
   /// were spent in broadcasting the transaction.
+  @override
   BigInt get amountSatoshis;
 
   /// The height at which an [`Event::SpendableOutputs`] event will be generated for this
@@ -6971,8 +7418,11 @@ abstract class LightningBalance_ClaimableAwaitingConfirmations
   ///
   /// [`Event::SpendableOutputs`]: lightning::events::Event::SpendableOutputs
   int get confirmationHeight;
+
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$LightningBalance_ClaimableAwaitingConfirmationsImplCopyWith<
           _$LightningBalance_ClaimableAwaitingConfirmationsImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -7006,6 +7456,8 @@ class __$$LightningBalance_ContentiousClaimableImplCopyWithImpl<$Res>
       $Res Function(_$LightningBalance_ContentiousClaimableImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -7112,7 +7564,9 @@ class _$LightningBalance_ContentiousClaimableImpl
   int get hashCode => Object.hash(runtimeType, channelId, counterpartyNodeId,
       amountSatoshis, timeoutHeight, paymentHash, paymentPreimage);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$LightningBalance_ContentiousClaimableImplCopyWith<
@@ -7301,18 +7755,17 @@ abstract class LightningBalance_ContentiousClaimable extends LightningBalance {
       _$LightningBalance_ContentiousClaimableImpl;
   const LightningBalance_ContentiousClaimable._() : super._();
 
-  @override
-
   /// The identifier of the channel this balance belongs to.
-  ChannelId get channelId;
   @override
+  ChannelId get channelId;
 
   /// The identifier of our channel counterparty.
-  PublicKey get counterpartyNodeId;
   @override
+  PublicKey get counterpartyNodeId;
 
   /// The amount available to claim, in satoshis, excluding the on-chain fees which will be
   /// required to do so.
+  @override
   BigInt get amountSatoshis;
 
   /// The height at which the counterparty may be able to claim the balance if we have not
@@ -7324,8 +7777,11 @@ abstract class LightningBalance_ContentiousClaimable extends LightningBalance {
 
   /// The preimage that can be used to claim this HTLC.
   PaymentPreimage get paymentPreimage;
+
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$LightningBalance_ContentiousClaimableImplCopyWith<
           _$LightningBalance_ContentiousClaimableImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -7359,6 +7815,8 @@ class __$$LightningBalance_MaybeTimeoutClaimableHTLCImplCopyWithImpl<$Res>
       $Res Function(_$LightningBalance_MaybeTimeoutClaimableHTLCImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -7453,7 +7911,9 @@ class _$LightningBalance_MaybeTimeoutClaimableHTLCImpl
   int get hashCode => Object.hash(runtimeType, channelId, counterpartyNodeId,
       amountSatoshis, claimableHeight, paymentHash);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$LightningBalance_MaybeTimeoutClaimableHTLCImplCopyWith<
@@ -7644,18 +8104,17 @@ abstract class LightningBalance_MaybeTimeoutClaimableHTLC
       _$LightningBalance_MaybeTimeoutClaimableHTLCImpl;
   const LightningBalance_MaybeTimeoutClaimableHTLC._() : super._();
 
-  @override
-
   /// The identifier of the channel this balance belongs to.
-  ChannelId get channelId;
   @override
+  ChannelId get channelId;
 
   /// The identifier of our channel counterparty.
-  PublicKey get counterpartyNodeId;
   @override
+  PublicKey get counterpartyNodeId;
 
   /// The amount potentially available to claim, in satoshis, excluding the on-chain fees
   /// which will be required to do so.
+  @override
   BigInt get amountSatoshis;
 
   /// The height at which we will be able to claim the balance if our counterparty has not
@@ -7664,8 +8123,11 @@ abstract class LightningBalance_MaybeTimeoutClaimableHTLC
 
   /// The payment hash whose preimage our counterparty needs to claim this HTLC.
   PaymentHash get paymentHash;
+
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$LightningBalance_MaybeTimeoutClaimableHTLCImplCopyWith<
           _$LightningBalance_MaybeTimeoutClaimableHTLCImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -7700,6 +8162,8 @@ class __$$LightningBalance_MaybePreimageClaimableHTLCImplCopyWithImpl<$Res>
       $Res Function(_$LightningBalance_MaybePreimageClaimableHTLCImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -7794,7 +8258,9 @@ class _$LightningBalance_MaybePreimageClaimableHTLCImpl
   int get hashCode => Object.hash(runtimeType, channelId, counterpartyNodeId,
       amountSatoshis, expiryHeight, paymentHash);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$LightningBalance_MaybePreimageClaimableHTLCImplCopyWith<
@@ -7985,18 +8451,17 @@ abstract class LightningBalance_MaybePreimageClaimableHTLC
       _$LightningBalance_MaybePreimageClaimableHTLCImpl;
   const LightningBalance_MaybePreimageClaimableHTLC._() : super._();
 
-  @override
-
   /// The identifier of the channel this balance belongs to.
-  ChannelId get channelId;
   @override
+  ChannelId get channelId;
 
   /// The identifier of our channel counterparty.
-  PublicKey get counterpartyNodeId;
   @override
+  PublicKey get counterpartyNodeId;
 
   /// The amount potentially available to claim, in satoshis, excluding the on-chain fees
   /// which will be required to do so.
+  @override
   BigInt get amountSatoshis;
 
   /// The height at which our counterparty will be able to claim the balance if we have not
@@ -8005,8 +8470,11 @@ abstract class LightningBalance_MaybePreimageClaimableHTLC
 
   /// The payment hash whose preimage we need to claim this HTLC.
   PaymentHash get paymentHash;
+
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$LightningBalance_MaybePreimageClaimableHTLCImplCopyWith<
           _$LightningBalance_MaybePreimageClaimableHTLCImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -8044,6 +8512,8 @@ class __$$LightningBalance_CounterpartyRevokedOutputClaimableImplCopyWithImpl<
           _then)
       : super(_value, _then);
 
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -8113,7 +8583,9 @@ class _$LightningBalance_CounterpartyRevokedOutputClaimableImpl
   int get hashCode =>
       Object.hash(runtimeType, channelId, counterpartyNodeId, amountSatoshis);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$LightningBalance_CounterpartyRevokedOutputClaimableImplCopyWith<
@@ -8302,20 +8774,22 @@ abstract class LightningBalance_CounterpartyRevokedOutputClaimable
       _$LightningBalance_CounterpartyRevokedOutputClaimableImpl;
   const LightningBalance_CounterpartyRevokedOutputClaimable._() : super._();
 
-  @override
-
   /// The identifier of the channel this balance belongs to.
-  ChannelId get channelId;
   @override
+  ChannelId get channelId;
 
   /// The identifier of our channel counterparty.
-  PublicKey get counterpartyNodeId;
   @override
+  PublicKey get counterpartyNodeId;
 
   /// The amount, in satoshis, of the output which we can claim.
-  BigInt get amountSatoshis;
   @override
-  @JsonKey(ignore: true)
+  BigInt get amountSatoshis;
+
+  /// Create a copy of LightningBalance
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$LightningBalance_CounterpartyRevokedOutputClaimableImplCopyWith<
           _$LightningBalance_CounterpartyRevokedOutputClaimableImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -8367,7 +8841,9 @@ mixin _$MaxDustHTLCExposure {
   }) =>
       throw _privateConstructorUsedError;
 
-  @JsonKey(ignore: true)
+  /// Create a copy of MaxDustHTLCExposure
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $MaxDustHTLCExposureCopyWith<MaxDustHTLCExposure> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -8391,6 +8867,8 @@ class _$MaxDustHTLCExposureCopyWithImpl<$Res, $Val extends MaxDustHTLCExposure>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of MaxDustHTLCExposure
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -8427,6 +8905,8 @@ class __$$MaxDustHTLCExposure_FixedLimitMsatImplCopyWithImpl<$Res>
       $Res Function(_$MaxDustHTLCExposure_FixedLimitMsatImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of MaxDustHTLCExposure
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -8466,7 +8946,9 @@ class _$MaxDustHTLCExposure_FixedLimitMsatImpl
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of MaxDustHTLCExposure
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$MaxDustHTLCExposure_FixedLimitMsatImplCopyWith<
@@ -8548,8 +9030,11 @@ abstract class MaxDustHTLCExposure_FixedLimitMsat extends MaxDustHTLCExposure {
 
   @override
   BigInt get field0;
+
+  /// Create a copy of MaxDustHTLCExposure
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$MaxDustHTLCExposure_FixedLimitMsatImplCopyWith<
           _$MaxDustHTLCExposure_FixedLimitMsatImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -8577,6 +9062,8 @@ class __$$MaxDustHTLCExposure_FeeRateMultiplierImplCopyWithImpl<$Res>
       $Res Function(_$MaxDustHTLCExposure_FeeRateMultiplierImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of MaxDustHTLCExposure
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -8616,7 +9103,9 @@ class _$MaxDustHTLCExposure_FeeRateMultiplierImpl
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of MaxDustHTLCExposure
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$MaxDustHTLCExposure_FeeRateMultiplierImplCopyWith<
@@ -8699,8 +9188,11 @@ abstract class MaxDustHTLCExposure_FeeRateMultiplier
 
   @override
   BigInt get field0;
+
+  /// Create a copy of MaxDustHTLCExposure
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$MaxDustHTLCExposure_FeeRateMultiplierImplCopyWith<
           _$MaxDustHTLCExposure_FeeRateMultiplierImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -8813,6 +9305,9 @@ class _$PaymentKindCopyWithImpl<$Res, $Val extends PaymentKind>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
+
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -8829,6 +9324,9 @@ class __$$PaymentKind_OnchainImplCopyWithImpl<$Res>
   __$$PaymentKind_OnchainImplCopyWithImpl(_$PaymentKind_OnchainImpl _value,
       $Res Function(_$PaymentKind_OnchainImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -8986,6 +9484,8 @@ class __$$PaymentKind_Bolt11ImplCopyWithImpl<$Res>
       $Res Function(_$PaymentKind_Bolt11Impl) _then)
       : super(_value, _then);
 
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -9048,7 +9548,9 @@ class _$PaymentKind_Bolt11Impl extends PaymentKind_Bolt11 {
   @override
   int get hashCode => Object.hash(runtimeType, hash, preimage, secret);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$PaymentKind_Bolt11ImplCopyWith<_$PaymentKind_Bolt11Impl> get copyWith =>
@@ -9182,7 +9684,10 @@ abstract class PaymentKind_Bolt11 extends PaymentKind {
 
   /// The secret used by the payment.
   PaymentSecret? get secret;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PaymentKind_Bolt11ImplCopyWith<_$PaymentKind_Bolt11Impl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -9209,6 +9714,8 @@ class __$$PaymentKind_Bolt11JitImplCopyWithImpl<$Res>
       $Res Function(_$PaymentKind_Bolt11JitImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -9290,7 +9797,9 @@ class _$PaymentKind_Bolt11JitImpl extends PaymentKind_Bolt11Jit {
   int get hashCode =>
       Object.hash(runtimeType, hash, preimage, secret, lspFeeLimits);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$PaymentKind_Bolt11JitImplCopyWith<_$PaymentKind_Bolt11JitImpl>
@@ -9432,7 +9941,10 @@ abstract class PaymentKind_Bolt11Jit extends PaymentKind {
   /// channel opening fees.
   ///
   LSPFeeLimits get lspFeeLimits;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PaymentKind_Bolt11JitImplCopyWith<_$PaymentKind_Bolt11JitImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -9456,6 +9968,8 @@ class __$$PaymentKind_SpontaneousImplCopyWithImpl<$Res>
       $Res Function(_$PaymentKind_SpontaneousImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -9507,7 +10021,9 @@ class _$PaymentKind_SpontaneousImpl extends PaymentKind_Spontaneous {
   @override
   int get hashCode => Object.hash(runtimeType, hash, preimage);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$PaymentKind_SpontaneousImplCopyWith<_$PaymentKind_SpontaneousImpl>
@@ -9637,7 +10153,10 @@ abstract class PaymentKind_Spontaneous extends PaymentKind {
 
   /// The pre-image used by the payment.
   PaymentPreimage? get preimage;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PaymentKind_SpontaneousImplCopyWith<_$PaymentKind_SpontaneousImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -9665,6 +10184,8 @@ class __$$PaymentKind_Bolt12OfferImplCopyWithImpl<$Res>
       $Res Function(_$PaymentKind_Bolt12OfferImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -9737,7 +10258,9 @@ class _$PaymentKind_Bolt12OfferImpl extends PaymentKind_Bolt12Offer {
   @override
   int get hashCode => Object.hash(runtimeType, hash, preimage, secret, offerId);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$PaymentKind_Bolt12OfferImplCopyWith<_$PaymentKind_Bolt12OfferImpl>
@@ -9875,7 +10398,10 @@ abstract class PaymentKind_Bolt12Offer extends PaymentKind {
 
   /// The ID of the offer this payment is for.
   OfferId get offerId;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PaymentKind_Bolt12OfferImplCopyWith<_$PaymentKind_Bolt12OfferImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -9900,6 +10426,8 @@ class __$$PaymentKind_Bolt12RefundImplCopyWithImpl<$Res>
       $Res Function(_$PaymentKind_Bolt12RefundImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -9961,7 +10489,9 @@ class _$PaymentKind_Bolt12RefundImpl extends PaymentKind_Bolt12Refund {
   @override
   int get hashCode => Object.hash(runtimeType, hash, preimage, secret);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$PaymentKind_Bolt12RefundImplCopyWith<_$PaymentKind_Bolt12RefundImpl>
@@ -10095,7 +10625,10 @@ abstract class PaymentKind_Bolt12Refund extends PaymentKind {
 
   /// The secret used by the payment.
   PaymentSecret? get secret;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of PaymentKind
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PaymentKind_Bolt12RefundImplCopyWith<_$PaymentKind_Bolt12RefundImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -10190,7 +10723,9 @@ mixin _$PendingSweepBalance {
   }) =>
       throw _privateConstructorUsedError;
 
-  @JsonKey(ignore: true)
+  /// Create a copy of PendingSweepBalance
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $PendingSweepBalanceCopyWith<PendingSweepBalance> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -10214,6 +10749,8 @@ class _$PendingSweepBalanceCopyWithImpl<$Res, $Val extends PendingSweepBalance>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of PendingSweepBalance
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -10255,6 +10792,8 @@ class __$$PendingSweepBalance_PendingBroadcastImplCopyWithImpl<$Res>
       $Res Function(_$PendingSweepBalance_PendingBroadcastImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of PendingSweepBalance
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -10309,7 +10848,9 @@ class _$PendingSweepBalance_PendingBroadcastImpl
   @override
   int get hashCode => Object.hash(runtimeType, channelId, amountSatoshis);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of PendingSweepBalance
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$PendingSweepBalance_PendingBroadcastImplCopyWith<
@@ -10431,16 +10972,18 @@ abstract class PendingSweepBalance_PendingBroadcast
       _$PendingSweepBalance_PendingBroadcastImpl;
   const PendingSweepBalance_PendingBroadcast._() : super._();
 
-  @override
-
   /// The identifier of the channel this balance belongs to.
-  ChannelId? get channelId;
   @override
+  ChannelId? get channelId;
 
   /// The amount, in satoshis, of the output being swept.
-  BigInt get amountSatoshis;
   @override
-  @JsonKey(ignore: true)
+  BigInt get amountSatoshis;
+
+  /// Create a copy of PendingSweepBalance
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PendingSweepBalance_PendingBroadcastImplCopyWith<
           _$PendingSweepBalance_PendingBroadcastImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -10477,6 +11020,8 @@ class __$$PendingSweepBalance_BroadcastAwaitingConfirmationImplCopyWithImpl<
           _then)
       : super(_value, _then);
 
+  /// Create a copy of PendingSweepBalance
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -10557,7 +11102,9 @@ class _$PendingSweepBalance_BroadcastAwaitingConfirmationImpl
   int get hashCode => Object.hash(runtimeType, channelId, latestBroadcastHeight,
       latestSpendingTxid, amountSatoshis);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of PendingSweepBalance
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$PendingSweepBalance_BroadcastAwaitingConfirmationImplCopyWith<
@@ -10687,9 +11234,8 @@ abstract class PendingSweepBalance_BroadcastAwaitingConfirmation
       _$PendingSweepBalance_BroadcastAwaitingConfirmationImpl;
   const PendingSweepBalance_BroadcastAwaitingConfirmation._() : super._();
 
-  @override
-
   /// The identifier of the channel this balance belongs to.
+  @override
   ChannelId? get channelId;
 
   /// The best height when we last broadcast a transaction spending the output being swept.
@@ -10697,12 +11243,15 @@ abstract class PendingSweepBalance_BroadcastAwaitingConfirmation
 
   /// The identifier of the transaction spending the swept output we last broadcast.
   Txid get latestSpendingTxid;
-  @override
 
   /// The amount, in satoshis, of the output being swept.
-  BigInt get amountSatoshis;
   @override
-  @JsonKey(ignore: true)
+  BigInt get amountSatoshis;
+
+  /// Create a copy of PendingSweepBalance
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PendingSweepBalance_BroadcastAwaitingConfirmationImplCopyWith<
           _$PendingSweepBalance_BroadcastAwaitingConfirmationImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -10742,6 +11291,8 @@ class __$$PendingSweepBalance_AwaitingThresholdConfirmationsImplCopyWithImpl<
           _then)
       : super(_value, _then);
 
+  /// Create a copy of PendingSweepBalance
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -10834,7 +11385,9 @@ class _$PendingSweepBalance_AwaitingThresholdConfirmationsImpl
   int get hashCode => Object.hash(runtimeType, channelId, latestSpendingTxid,
       confirmationHash, confirmationHeight, amountSatoshis);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of PendingSweepBalance
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$PendingSweepBalance_AwaitingThresholdConfirmationsImplCopyWith<
@@ -10965,9 +11518,8 @@ abstract class PendingSweepBalance_AwaitingThresholdConfirmations
       _$PendingSweepBalance_AwaitingThresholdConfirmationsImpl;
   const PendingSweepBalance_AwaitingThresholdConfirmations._() : super._();
 
-  @override
-
   /// The identifier of the channel this balance belongs to.
+  @override
   ChannelId? get channelId;
 
   /// The identifier of the confirmed transaction spending the swept output.
@@ -10978,12 +11530,15 @@ abstract class PendingSweepBalance_AwaitingThresholdConfirmations
 
   /// The height at which the spending transaction was confirmed.
   int get confirmationHeight;
-  @override
 
   /// The amount, in satoshis, of the output being swept.
-  BigInt get amountSatoshis;
   @override
-  @JsonKey(ignore: true)
+  BigInt get amountSatoshis;
+
+  /// Create a copy of PendingSweepBalance
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PendingSweepBalance_AwaitingThresholdConfirmationsImplCopyWith<
           _$PendingSweepBalance_AwaitingThresholdConfirmationsImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -11071,6 +11626,9 @@ class _$SocketAddressCopyWithImpl<$Res, $Val extends SocketAddress>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
+
+  /// Create a copy of SocketAddress
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -11091,6 +11649,8 @@ class __$$SocketAddress_TcpIpV4ImplCopyWithImpl<$Res>
       $Res Function(_$SocketAddress_TcpIpV4Impl) _then)
       : super(_value, _then);
 
+  /// Create a copy of SocketAddress
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -11139,7 +11699,9 @@ class _$SocketAddress_TcpIpV4Impl extends SocketAddress_TcpIpV4 {
   int get hashCode =>
       Object.hash(runtimeType, const DeepCollectionEquality().hash(addr), port);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of SocketAddress
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$SocketAddress_TcpIpV4ImplCopyWith<_$SocketAddress_TcpIpV4Impl>
@@ -11241,7 +11803,10 @@ abstract class SocketAddress_TcpIpV4 extends SocketAddress {
 
   U8Array4 get addr;
   int get port;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of SocketAddress
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$SocketAddress_TcpIpV4ImplCopyWith<_$SocketAddress_TcpIpV4Impl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -11264,6 +11829,8 @@ class __$$SocketAddress_TcpIpV6ImplCopyWithImpl<$Res>
       $Res Function(_$SocketAddress_TcpIpV6Impl) _then)
       : super(_value, _then);
 
+  /// Create a copy of SocketAddress
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -11312,7 +11879,9 @@ class _$SocketAddress_TcpIpV6Impl extends SocketAddress_TcpIpV6 {
   int get hashCode =>
       Object.hash(runtimeType, const DeepCollectionEquality().hash(addr), port);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of SocketAddress
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$SocketAddress_TcpIpV6ImplCopyWith<_$SocketAddress_TcpIpV6Impl>
@@ -11414,7 +11983,10 @@ abstract class SocketAddress_TcpIpV6 extends SocketAddress {
 
   U8Array16 get addr;
   int get port;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of SocketAddress
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$SocketAddress_TcpIpV6ImplCopyWith<_$SocketAddress_TcpIpV6Impl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -11437,6 +12009,8 @@ class __$$SocketAddress_OnionV2ImplCopyWithImpl<$Res>
       $Res Function(_$SocketAddress_OnionV2Impl) _then)
       : super(_value, _then);
 
+  /// Create a copy of SocketAddress
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -11476,7 +12050,9 @@ class _$SocketAddress_OnionV2Impl extends SocketAddress_OnionV2 {
   int get hashCode =>
       Object.hash(runtimeType, const DeepCollectionEquality().hash(field0));
 
-  @JsonKey(ignore: true)
+  /// Create a copy of SocketAddress
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$SocketAddress_OnionV2ImplCopyWith<_$SocketAddress_OnionV2Impl>
@@ -11576,7 +12152,10 @@ abstract class SocketAddress_OnionV2 extends SocketAddress {
   const SocketAddress_OnionV2._() : super._();
 
   U8Array12 get field0;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of SocketAddress
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$SocketAddress_OnionV2ImplCopyWith<_$SocketAddress_OnionV2Impl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -11599,6 +12178,8 @@ class __$$SocketAddress_OnionV3ImplCopyWithImpl<$Res>
       $Res Function(_$SocketAddress_OnionV3Impl) _then)
       : super(_value, _then);
 
+  /// Create a copy of SocketAddress
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -11673,7 +12254,9 @@ class _$SocketAddress_OnionV3Impl extends SocketAddress_OnionV3 {
       version,
       port);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of SocketAddress
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$SocketAddress_OnionV3ImplCopyWith<_$SocketAddress_OnionV3Impl>
@@ -11779,7 +12362,10 @@ abstract class SocketAddress_OnionV3 extends SocketAddress {
   int get checksum;
   int get version;
   int get port;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of SocketAddress
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$SocketAddress_OnionV3ImplCopyWith<_$SocketAddress_OnionV3Impl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -11803,6 +12389,8 @@ class __$$SocketAddress_HostnameImplCopyWithImpl<$Res>
       $Res Function(_$SocketAddress_HostnameImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of SocketAddress
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -11850,7 +12438,9 @@ class _$SocketAddress_HostnameImpl extends SocketAddress_Hostname {
   @override
   int get hashCode => Object.hash(runtimeType, addr, port);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of SocketAddress
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$SocketAddress_HostnameImplCopyWith<_$SocketAddress_HostnameImpl>
@@ -11952,7 +12542,10 @@ abstract class SocketAddress_Hostname extends SocketAddress {
 
   String get addr;
   int get port;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of SocketAddress
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$SocketAddress_HostnameImplCopyWith<_$SocketAddress_HostnameImpl>
       get copyWith => throw _privateConstructorUsedError;
 }

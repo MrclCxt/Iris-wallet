@@ -105,6 +105,9 @@ class _$Bolt12ParseErrorCopyWithImpl<$Res, $Val extends Bolt12ParseError>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
+
+  /// Create a copy of Bolt12ParseError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -124,6 +127,9 @@ class __$$Bolt12ParseError_InvalidContinuationImplCopyWithImpl<$Res>
       _$Bolt12ParseError_InvalidContinuationImpl _value,
       $Res Function(_$Bolt12ParseError_InvalidContinuationImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of Bolt12ParseError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -266,6 +272,9 @@ class __$$Bolt12ParseError_InvalidBech32HrpImplCopyWithImpl<$Res>
       _$Bolt12ParseError_InvalidBech32HrpImpl _value,
       $Res Function(_$Bolt12ParseError_InvalidBech32HrpImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of Bolt12ParseError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -410,6 +419,8 @@ class __$$Bolt12ParseError_Bech32ImplCopyWithImpl<$Res>
       $Res Function(_$Bolt12ParseError_Bech32Impl) _then)
       : super(_value, _then);
 
+  /// Create a copy of Bolt12ParseError
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -448,7 +459,9 @@ class _$Bolt12ParseError_Bech32Impl extends Bolt12ParseError_Bech32 {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of Bolt12ParseError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$Bolt12ParseError_Bech32ImplCopyWith<_$Bolt12ParseError_Bech32Impl>
@@ -557,7 +570,10 @@ abstract class Bolt12ParseError_Bech32 extends Bolt12ParseError {
   const Bolt12ParseError_Bech32._() : super._();
 
   String get field0;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of Bolt12ParseError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$Bolt12ParseError_Bech32ImplCopyWith<_$Bolt12ParseError_Bech32Impl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -583,6 +599,8 @@ class __$$Bolt12ParseError_DecodeImplCopyWithImpl<$Res>
       $Res Function(_$Bolt12ParseError_DecodeImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of Bolt12ParseError
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -596,6 +614,8 @@ class __$$Bolt12ParseError_DecodeImplCopyWithImpl<$Res>
     ));
   }
 
+  /// Create a copy of Bolt12ParseError
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $DecodeErrorCopyWith<$Res> get field0 {
@@ -629,7 +649,9 @@ class _$Bolt12ParseError_DecodeImpl extends Bolt12ParseError_Decode {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of Bolt12ParseError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$Bolt12ParseError_DecodeImplCopyWith<_$Bolt12ParseError_DecodeImpl>
@@ -738,7 +760,10 @@ abstract class Bolt12ParseError_Decode extends Bolt12ParseError {
   const Bolt12ParseError_Decode._() : super._();
 
   DecodeError get field0;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of Bolt12ParseError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$Bolt12ParseError_DecodeImplCopyWith<_$Bolt12ParseError_DecodeImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -763,6 +788,8 @@ class __$$Bolt12ParseError_InvalidSemanticsImplCopyWithImpl<$Res>
       $Res Function(_$Bolt12ParseError_InvalidSemanticsImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of Bolt12ParseError
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -802,7 +829,9 @@ class _$Bolt12ParseError_InvalidSemanticsImpl
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of Bolt12ParseError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$Bolt12ParseError_InvalidSemanticsImplCopyWith<
@@ -912,7 +941,10 @@ abstract class Bolt12ParseError_InvalidSemantics extends Bolt12ParseError {
   const Bolt12ParseError_InvalidSemantics._() : super._();
 
   String get field0;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of Bolt12ParseError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$Bolt12ParseError_InvalidSemanticsImplCopyWith<
           _$Bolt12ParseError_InvalidSemanticsImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -938,6 +970,8 @@ class __$$Bolt12ParseError_InvalidSignatureImplCopyWithImpl<$Res>
       $Res Function(_$Bolt12ParseError_InvalidSignatureImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of Bolt12ParseError
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -977,7 +1011,9 @@ class _$Bolt12ParseError_InvalidSignatureImpl
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of Bolt12ParseError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$Bolt12ParseError_InvalidSignatureImplCopyWith<
@@ -1087,7 +1123,10 @@ abstract class Bolt12ParseError_InvalidSignature extends Bolt12ParseError {
   const Bolt12ParseError_InvalidSignature._() : super._();
 
   String get field0;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of Bolt12ParseError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$Bolt12ParseError_InvalidSignatureImplCopyWith<
           _$Bolt12ParseError_InvalidSignatureImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -1196,6 +1235,9 @@ class _$DecodeErrorCopyWithImpl<$Res, $Val extends DecodeError>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
+
+  /// Create a copy of DecodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -1214,6 +1256,9 @@ class __$$DecodeError_UnknownVersionImplCopyWithImpl<$Res>
       _$DecodeError_UnknownVersionImpl _value,
       $Res Function(_$DecodeError_UnknownVersionImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of DecodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -1366,6 +1411,9 @@ class __$$DecodeError_UnknownRequiredFeatureImplCopyWithImpl<$Res>
       _$DecodeError_UnknownRequiredFeatureImpl _value,
       $Res Function(_$DecodeError_UnknownRequiredFeatureImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of DecodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -1519,6 +1567,9 @@ class __$$DecodeError_InvalidValueImplCopyWithImpl<$Res>
       _$DecodeError_InvalidValueImpl _value,
       $Res Function(_$DecodeError_InvalidValueImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of DecodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -1669,6 +1720,9 @@ class __$$DecodeError_ShortReadImplCopyWithImpl<$Res>
   __$$DecodeError_ShortReadImplCopyWithImpl(_$DecodeError_ShortReadImpl _value,
       $Res Function(_$DecodeError_ShortReadImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of DecodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -1821,6 +1875,9 @@ class __$$DecodeError_BadLengthDescriptorImplCopyWithImpl<$Res>
       _$DecodeError_BadLengthDescriptorImpl _value,
       $Res Function(_$DecodeError_BadLengthDescriptorImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of DecodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -1975,6 +2032,8 @@ class __$$DecodeError_IoImplCopyWithImpl<$Res>
       _$DecodeError_IoImpl _value, $Res Function(_$DecodeError_IoImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of DecodeError
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2013,7 +2072,9 @@ class _$DecodeError_IoImpl extends DecodeError_Io {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of DecodeError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$DecodeError_IoImplCopyWith<_$DecodeError_IoImpl> get copyWith =>
@@ -2133,7 +2194,10 @@ abstract class DecodeError_Io extends DecodeError {
   const DecodeError_Io._() : super._();
 
   String get field0;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of DecodeError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$DecodeError_IoImplCopyWith<_$DecodeError_IoImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -2155,6 +2219,9 @@ class __$$DecodeError_UnsupportedCompressionImplCopyWithImpl<$Res>
       _$DecodeError_UnsupportedCompressionImpl _value,
       $Res Function(_$DecodeError_UnsupportedCompressionImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of DecodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -2308,6 +2375,9 @@ class __$$DecodeError_DangerousValueImplCopyWithImpl<$Res>
       _$DecodeError_DangerousValueImpl _value,
       $Res Function(_$DecodeError_DangerousValueImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of DecodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -2866,6 +2936,9 @@ class _$LdkNodeErrorCopyWithImpl<$Res, $Val extends LdkNodeError>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -2884,6 +2957,9 @@ class __$$LdkNodeError_InvalidTxidImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidTxidImpl _value,
       $Res Function(_$LdkNodeError_InvalidTxidImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -3355,6 +3431,9 @@ class __$$LdkNodeError_AlreadyRunningImplCopyWithImpl<$Res>
       _$LdkNodeError_AlreadyRunningImpl _value,
       $Res Function(_$LdkNodeError_AlreadyRunningImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -3827,6 +3906,9 @@ class __$$LdkNodeError_NotRunningImplCopyWithImpl<$Res>
       _$LdkNodeError_NotRunningImpl _value,
       $Res Function(_$LdkNodeError_NotRunningImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -4299,6 +4381,9 @@ class __$$LdkNodeError_OnchainTxCreationFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_OnchainTxCreationFailedImpl _value,
       $Res Function(_$LdkNodeError_OnchainTxCreationFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -4773,6 +4858,9 @@ class __$$LdkNodeError_ConnectionFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_ConnectionFailedImpl _value,
       $Res Function(_$LdkNodeError_ConnectionFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -5247,6 +5335,9 @@ class __$$LdkNodeError_InvoiceCreationFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_InvoiceCreationFailedImpl _value,
       $Res Function(_$LdkNodeError_InvoiceCreationFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -5721,6 +5812,9 @@ class __$$LdkNodeError_PaymentSendingFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_PaymentSendingFailedImpl _value,
       $Res Function(_$LdkNodeError_PaymentSendingFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -6195,6 +6289,9 @@ class __$$LdkNodeError_ProbeSendingFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_ProbeSendingFailedImpl _value,
       $Res Function(_$LdkNodeError_ProbeSendingFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -6669,6 +6766,9 @@ class __$$LdkNodeError_ChannelCreationFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_ChannelCreationFailedImpl _value,
       $Res Function(_$LdkNodeError_ChannelCreationFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -7143,6 +7243,9 @@ class __$$LdkNodeError_ChannelClosingFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_ChannelClosingFailedImpl _value,
       $Res Function(_$LdkNodeError_ChannelClosingFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -7617,6 +7720,9 @@ class __$$LdkNodeError_ChannelConfigUpdateFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_ChannelConfigUpdateFailedImpl _value,
       $Res Function(_$LdkNodeError_ChannelConfigUpdateFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -8091,6 +8197,9 @@ class __$$LdkNodeError_PersistenceFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_PersistenceFailedImpl _value,
       $Res Function(_$LdkNodeError_PersistenceFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -8565,6 +8674,9 @@ class __$$LdkNodeError_WalletOperationFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_WalletOperationFailedImpl _value,
       $Res Function(_$LdkNodeError_WalletOperationFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -9039,6 +9151,9 @@ class __$$LdkNodeError_OnchainTxSigningFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_OnchainTxSigningFailedImpl _value,
       $Res Function(_$LdkNodeError_OnchainTxSigningFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -9513,6 +9628,9 @@ class __$$LdkNodeError_MessageSigningFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_MessageSigningFailedImpl _value,
       $Res Function(_$LdkNodeError_MessageSigningFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -9986,6 +10104,9 @@ class __$$LdkNodeError_TxSyncFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_TxSyncFailedImpl _value,
       $Res Function(_$LdkNodeError_TxSyncFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -10458,6 +10579,9 @@ class __$$LdkNodeError_GossipUpdateFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_GossipUpdateFailedImpl _value,
       $Res Function(_$LdkNodeError_GossipUpdateFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -10931,6 +11055,9 @@ class __$$LdkNodeError_InvalidAddressImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidAddressImpl _value,
       $Res Function(_$LdkNodeError_InvalidAddressImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -11404,6 +11531,9 @@ class __$$LdkNodeError_InvalidSocketAddressImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidSocketAddressImpl _value,
       $Res Function(_$LdkNodeError_InvalidSocketAddressImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -11878,6 +12008,9 @@ class __$$LdkNodeError_InvalidPublicKeyImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidPublicKeyImpl _value,
       $Res Function(_$LdkNodeError_InvalidPublicKeyImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -12352,6 +12485,9 @@ class __$$LdkNodeError_InvalidSecretKeyImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidSecretKeyImpl _value,
       $Res Function(_$LdkNodeError_InvalidSecretKeyImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -12826,6 +12962,9 @@ class __$$LdkNodeError_InvalidPaymentHashImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidPaymentHashImpl _value,
       $Res Function(_$LdkNodeError_InvalidPaymentHashImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -13300,6 +13439,9 @@ class __$$LdkNodeError_InvalidPaymentPreimageImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidPaymentPreimageImpl _value,
       $Res Function(_$LdkNodeError_InvalidPaymentPreimageImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -13774,6 +13916,9 @@ class __$$LdkNodeError_InvalidPaymentSecretImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidPaymentSecretImpl _value,
       $Res Function(_$LdkNodeError_InvalidPaymentSecretImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -14247,6 +14392,9 @@ class __$$LdkNodeError_InvalidAmountImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidAmountImpl _value,
       $Res Function(_$LdkNodeError_InvalidAmountImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -14718,6 +14866,9 @@ class __$$LdkNodeError_InvalidInvoiceImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidInvoiceImpl _value,
       $Res Function(_$LdkNodeError_InvalidInvoiceImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -15191,6 +15342,9 @@ class __$$LdkNodeError_InvalidChannelIdImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidChannelIdImpl _value,
       $Res Function(_$LdkNodeError_InvalidChannelIdImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -15664,6 +15818,9 @@ class __$$LdkNodeError_InvalidNetworkImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidNetworkImpl _value,
       $Res Function(_$LdkNodeError_InvalidNetworkImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -16137,6 +16294,9 @@ class __$$LdkNodeError_DuplicatePaymentImplCopyWithImpl<$Res>
       _$LdkNodeError_DuplicatePaymentImpl _value,
       $Res Function(_$LdkNodeError_DuplicatePaymentImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -16611,6 +16771,9 @@ class __$$LdkNodeError_InsufficientFundsImplCopyWithImpl<$Res>
       _$LdkNodeError_InsufficientFundsImpl _value,
       $Res Function(_$LdkNodeError_InsufficientFundsImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -17086,6 +17249,9 @@ class __$$LdkNodeError_FeerateEstimationUpdateFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_FeerateEstimationUpdateFailedImpl _value,
       $Res Function(_$LdkNodeError_FeerateEstimationUpdateFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -17560,6 +17726,9 @@ class __$$LdkNodeError_LiquidityRequestFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_LiquidityRequestFailedImpl _value,
       $Res Function(_$LdkNodeError_LiquidityRequestFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -18034,6 +18203,9 @@ class __$$LdkNodeError_LiquiditySourceUnavailableImplCopyWithImpl<$Res>
       _$LdkNodeError_LiquiditySourceUnavailableImpl _value,
       $Res Function(_$LdkNodeError_LiquiditySourceUnavailableImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -18508,6 +18680,9 @@ class __$$LdkNodeError_LiquidityFeeTooHighImplCopyWithImpl<$Res>
       _$LdkNodeError_LiquidityFeeTooHighImpl _value,
       $Res Function(_$LdkNodeError_LiquidityFeeTooHighImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -18982,6 +19157,9 @@ class __$$LdkNodeError_InvalidPaymentIdImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidPaymentIdImpl _value,
       $Res Function(_$LdkNodeError_InvalidPaymentIdImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -19458,6 +19636,8 @@ class __$$LdkNodeError_DecodeImplCopyWithImpl<$Res>
       $Res Function(_$LdkNodeError_DecodeImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -19471,6 +19651,8 @@ class __$$LdkNodeError_DecodeImplCopyWithImpl<$Res>
     ));
   }
 
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $DecodeErrorCopyWith<$Res> get field0 {
@@ -19504,7 +19686,9 @@ class _$LdkNodeError_DecodeImpl extends LdkNodeError_Decode {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$LdkNodeError_DecodeImplCopyWith<_$LdkNodeError_DecodeImpl> get copyWith =>
@@ -19945,7 +20129,10 @@ abstract class LdkNodeError_Decode extends LdkNodeError {
   const LdkNodeError_Decode._() : super._();
 
   DecodeError get field0;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$LdkNodeError_DecodeImplCopyWith<_$LdkNodeError_DecodeImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -19971,6 +20158,8 @@ class __$$LdkNodeError_Bolt12ParseImplCopyWithImpl<$Res>
       $Res Function(_$LdkNodeError_Bolt12ParseImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -19984,6 +20173,8 @@ class __$$LdkNodeError_Bolt12ParseImplCopyWithImpl<$Res>
     ));
   }
 
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $Bolt12ParseErrorCopyWith<$Res> get field0 {
@@ -20017,7 +20208,9 @@ class _$LdkNodeError_Bolt12ParseImpl extends LdkNodeError_Bolt12Parse {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$LdkNodeError_Bolt12ParseImplCopyWith<_$LdkNodeError_Bolt12ParseImpl>
@@ -20458,7 +20651,10 @@ abstract class LdkNodeError_Bolt12Parse extends LdkNodeError {
   const LdkNodeError_Bolt12Parse._() : super._();
 
   Bolt12ParseError get field0;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$LdkNodeError_Bolt12ParseImplCopyWith<_$LdkNodeError_Bolt12ParseImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -20480,6 +20676,9 @@ class __$$LdkNodeError_InvoiceRequestCreationFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_InvoiceRequestCreationFailedImpl _value,
       $Res Function(_$LdkNodeError_InvoiceRequestCreationFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -20954,6 +21153,9 @@ class __$$LdkNodeError_OfferCreationFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_OfferCreationFailedImpl _value,
       $Res Function(_$LdkNodeError_OfferCreationFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -21428,6 +21630,9 @@ class __$$LdkNodeError_RefundCreationFailedImplCopyWithImpl<$Res>
       _$LdkNodeError_RefundCreationFailedImpl _value,
       $Res Function(_$LdkNodeError_RefundCreationFailedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -21905,6 +22110,9 @@ class __$$LdkNodeError_FeerateEstimationUpdateTimeoutImplCopyWithImpl<$Res>
       _$LdkNodeError_FeerateEstimationUpdateTimeoutImpl _value,
       $Res Function(_$LdkNodeError_FeerateEstimationUpdateTimeoutImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -22380,6 +22588,9 @@ class __$$LdkNodeError_WalletOperationTimeoutImplCopyWithImpl<$Res>
       _$LdkNodeError_WalletOperationTimeoutImpl _value,
       $Res Function(_$LdkNodeError_WalletOperationTimeoutImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -22853,6 +23064,9 @@ class __$$LdkNodeError_TxSyncTimeoutImplCopyWithImpl<$Res>
       _$LdkNodeError_TxSyncTimeoutImpl _value,
       $Res Function(_$LdkNodeError_TxSyncTimeoutImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -23325,6 +23539,9 @@ class __$$LdkNodeError_GossipUpdateTimeoutImplCopyWithImpl<$Res>
       _$LdkNodeError_GossipUpdateTimeoutImpl _value,
       $Res Function(_$LdkNodeError_GossipUpdateTimeoutImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -23798,6 +24015,9 @@ class __$$LdkNodeError_InvalidOfferIdImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidOfferIdImpl _value,
       $Res Function(_$LdkNodeError_InvalidOfferIdImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -24270,6 +24490,9 @@ class __$$LdkNodeError_InvalidNodeIdImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidNodeIdImpl _value,
       $Res Function(_$LdkNodeError_InvalidNodeIdImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -24741,6 +24964,9 @@ class __$$LdkNodeError_InvalidOfferImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidOfferImpl _value,
       $Res Function(_$LdkNodeError_InvalidOfferImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -25212,6 +25438,9 @@ class __$$LdkNodeError_InvalidRefundImplCopyWithImpl<$Res>
       _$LdkNodeError_InvalidRefundImpl _value,
       $Res Function(_$LdkNodeError_InvalidRefundImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -25684,6 +25913,9 @@ class __$$LdkNodeError_UnsupportedCurrencyImplCopyWithImpl<$Res>
       _$LdkNodeError_UnsupportedCurrencyImpl _value,
       $Res Function(_$LdkNodeError_UnsupportedCurrencyImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of LdkNodeError
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc

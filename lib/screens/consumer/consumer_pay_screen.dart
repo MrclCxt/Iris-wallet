@@ -11,6 +11,7 @@ import '../../core/brcode.dart';
 import '../../core/lnurl.dart';
 import '../../core/tx_policy.dart';
 import '../../services/wallet_service.dart';
+import '../../services/pix_service.dart';
 import 'package:provider/provider.dart';
 import '../../widgets/currency_toggle_btn.dart';
 import 'pay_confirm_screen.dart';
@@ -311,7 +312,13 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
     setState(() => _isResolving = true);
     try {
       if (BrCode.looksLikeBrCode(input)) {
-        // QR PIX (BR Code EMV): decodifica chave, nome e valor reais
+        // QR PIX (BR Code EMV): exige Pix ativo (conta DePix própria).
+        if (!context.read<PixService>().isPixEnabled) {
+          _showError('Este é um QR PIX. Ative o Pix em Configurações › Ativar '
+              'Pix (requer conta DePix) para pagar em Reais.');
+          return;
+        }
+        // decodifica chave, nome e valor reais
         final decoded = BrCode.decode(input);
         if (!mounted) return;
         Navigator.push(
@@ -331,7 +338,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
       } else if (Bolt11.looksLikeInvoice(input)) {
         final parsed = Bolt11.decode(input);
         if (!parsed.isTestnet) {
-          _showError('Fatura da mainnet detectada — este protótipo opera apenas na testnet.');
+          _showError('Fatura da mainnet detectada — este app opera apenas na testnet4.');
           return;
         }
         if (parsed.isExpired) {
@@ -402,6 +409,11 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
           );
         }
       } else if (_looksLikePixKey(input)) {
+        if (!context.read<PixService>().isPixEnabled) {
+          _showError('Isto parece uma chave PIX. Ative o Pix em Configurações › '
+              'Ativar Pix (requer conta DePix) para enviar em Reais.');
+          return;
+        }
         if (!mounted) return;
         Navigator.push(
           context,
@@ -464,7 +476,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
                     letterSpacing: 0.5,
                   ),
                 ),
-                CurrencyToggleBtn(),
+                CurrencyToggleBtn(ocultarSemPix: true),
               ],
             ),
             const SizedBox(height: 24),

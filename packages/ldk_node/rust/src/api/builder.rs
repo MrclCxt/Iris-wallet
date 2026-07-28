@@ -29,7 +29,7 @@ impl From<ldk_node::bip39::Mnemonic> for LdkMnemonic {
 }
 impl LdkMnemonic {
     pub fn generate() -> LdkMnemonic {
-        ldk_node::generate_entropy_mnemonic().into()
+        ldk_node::generate_entropy_mnemonic(None).into()
     }
 }
 
@@ -50,7 +50,11 @@ impl NodeBuilder {
         if let Some(source) = entropy_source_config {
             match source {
                 EntropySourceConfig::SeedFile(e) => builder.set_entropy_seed_path(e),
-                EntropySourceConfig::SeedBytes(e) => builder.set_entropy_seed_bytes(e.encode())?,
+                EntropySourceConfig::SeedBytes(e) => {
+                    let bytes: [u8; 64] = e.encode().try_into()
+                        .map_err(|_| LdkBuilderError::InvalidSeedBytes)?;
+                    builder.set_entropy_seed_bytes(bytes)
+                }
                 EntropySourceConfig::Bip39Mnemonic {
                     mnemonic,
                     passphrase,
@@ -62,7 +66,7 @@ impl NodeBuilder {
         }
         if let Some(source) = chain_data_source_config {
             match source {
-                ChainDataSourceConfig::Esplora(e) => builder.set_esplora_server(e),
+                ChainDataSourceConfig::Esplora(e) => builder.set_chain_source_esplora(e, None),
             };
         }
         if let Some(source) = gossip_source_config {
@@ -72,13 +76,22 @@ impl NodeBuilder {
             };
         }
         if let Some(liquidity) = liquidity_source_config {
+            // PORTE 0.7.0: a ordem dos argumentos INVERTEU — agora é
+            // (node_id, address, token); antes era (address, node_id, token).
+            // A tupla `lsps2_service` mantém a ordem antiga (.0 = endereço,
+            // .1 = node_id), então trocamos aqui em vez de mexer no tipo que
+            // o Dart envia.
             builder.set_liquidity_source_lsps2(
-                liquidity.lsps2_service.0.try_into()?,
                 liquidity
                     .lsps2_service
                     .1
                     .try_into()
                     .map_err(|_| LdkBuilderError::InvalidPublicKey)?,
+                liquidity
+                    .lsps2_service
+                    .0
+                    .try_into()
+                    .map_err(|_| LdkBuilderError::SocketAddressParseError)?,
                 liquidity.lsps2_service.2,
             );
         }

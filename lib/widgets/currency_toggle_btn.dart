@@ -2,12 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/theme.dart';
 import '../services/exchange_rate_service.dart';
+import '../services/pix_service.dart';
 
 class CurrencyToggleBtn extends StatelessWidget {
-  const CurrencyToggleBtn({super.key});
+  /// Esconde o botão quando o Pix não está ativado nesta conta.
+  ///
+  /// Usado nas telas de ENVIAR e RECEBER: sem Pix, a conta opera só em sats e
+  /// oferecer a troca para Reais ali sugere um trilho de pagamento que não
+  /// existe. Nas telas de saldo/histórico o Real segue disponível, porque lá
+  /// ele é só uma referência de valor, não uma forma de pagar.
+  final bool ocultarSemPix;
+
+  const CurrencyToggleBtn({super.key, this.ocultarSemPix = false});
 
   @override
   Widget build(BuildContext context) {
+    if (ocultarSemPix && !context.watch<PixService>().isPixEnabled) {
+      return const SizedBox.shrink();
+    }
     final exchangeRate = context.watch<ExchangeRateService>();
     final isSats = exchangeRate.isSatsDisplay;
 

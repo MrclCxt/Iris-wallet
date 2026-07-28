@@ -1821,8 +1821,9 @@ impl CstDecode<crate::api::types::Network> for i32 {
         match self {
             0 => crate::api::types::Network::Bitcoin,
             1 => crate::api::types::Network::Testnet,
-            2 => crate::api::types::Network::Signet,
-            3 => crate::api::types::Network::Regtest,
+            2 => crate::api::types::Network::Testnet4,
+            3 => crate::api::types::Network::Signet,
+            4 => crate::api::types::Network::Regtest,
             _ => unreachable!("Invalid variant for Network: {}", self),
         }
     }
@@ -2496,6 +2497,10 @@ impl SseDecode for crate::api::types::Event {
                     reason: var_reason,
                 };
             }
+            7 => {
+                let mut var_kind = <String>::sse_decode(deserializer);
+                return crate::api::types::Event::Unknown { kind: var_kind };
+            }
             _ => {
                 unimplemented!("");
             }
@@ -3071,8 +3076,9 @@ impl SseDecode for crate::api::types::Network {
         return match inner {
             0 => crate::api::types::Network::Bitcoin,
             1 => crate::api::types::Network::Testnet,
-            2 => crate::api::types::Network::Signet,
-            3 => crate::api::types::Network::Regtest,
+            2 => crate::api::types::Network::Testnet4,
+            3 => crate::api::types::Network::Signet,
+            4 => crate::api::types::Network::Regtest,
             _ => unreachable!("Invalid variant for Network: {}", inner),
         };
     }
@@ -4530,6 +4536,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::types::Event {
                 reason.into_into_dart().into_dart(),
             ]
             .into_dart(),
+            crate::api::types::Event::Unknown { kind } => {
+                [7.into_dart(), kind.into_into_dart().into_dart()].into_dart()
+            }
             _ => {
                 unimplemented!("");
             }
@@ -5007,8 +5016,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::types::Network {
         match self {
             Self::Bitcoin => 0.into_dart(),
             Self::Testnet => 1.into_dart(),
-            Self::Signet => 2.into_dart(),
-            Self::Regtest => 3.into_dart(),
+            Self::Testnet4 => 2.into_dart(),
+            Self::Signet => 3.into_dart(),
+            Self::Regtest => 4.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -6099,6 +6109,10 @@ impl SseEncode for crate::api::types::Event {
                 );
                 <Option<crate::api::types::ClosureReason>>::sse_encode(reason, serializer);
             }
+            crate::api::types::Event::Unknown { kind } => {
+                <i32>::sse_encode(7, serializer);
+                <String>::sse_encode(kind, serializer);
+            }
             _ => {
                 unimplemented!("");
             }
@@ -6619,8 +6633,9 @@ impl SseEncode for crate::api::types::Network {
             match self {
                 crate::api::types::Network::Bitcoin => 0,
                 crate::api::types::Network::Testnet => 1,
-                crate::api::types::Network::Signet => 2,
-                crate::api::types::Network::Regtest => 3,
+                crate::api::types::Network::Testnet4 => 2,
+                crate::api::types::Network::Signet => 3,
+                crate::api::types::Network::Regtest => 4,
                 _ => {
                     unimplemented!("");
                 }

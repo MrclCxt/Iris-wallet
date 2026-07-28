@@ -4,10 +4,13 @@ import '../../core/theme.dart';
 import '../../core/currency_format.dart';
 import '../../services/wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
+import '../../services/chroma_service.dart';
 import '../../widgets/currency_toggle_btn.dart';
-import '../../widgets/area_switcher_btn.dart';
+import '../../widgets/account_avatar.dart';
 import '../../widgets/product_thumb.dart';
+import '../../widgets/tx_status.dart';
 import 'merchant_product_qr_screen.dart';
+import '../consumer/explore_wallets_screen.dart';
 
 class MerchantDashboard extends StatefulWidget {
   final Function(int)? onNavigateTab;
@@ -22,12 +25,19 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
   Widget build(BuildContext context) {
     final wallet = context.watch<WalletService>();
     final exchangeRate = context.watch<ExchangeRateService>();
+    final chroma = context.watch<ChromaService>();
     final txs = wallet.merchantTransactions;
-    final todaySats = txs.where((t) => t.date.day == DateTime.now().day).fold(0, (sum, t) => sum + t.amountSats);
-    final weekSats = txs.where((t) => DateTime.now().difference(t.date).inDays <= 7).fold(0, (sum, t) => sum + t.amountSats);
+    final todaySats = txs
+        .where((t) => t.date.day == DateTime.now().day)
+        .fold(0, (sum, t) => sum + t.amountSats);
+    final weekSats = txs
+        .where((t) => DateTime.now().difference(t.date).inDays <= 7)
+        .fold(0, (sum, t) => sum + t.amountSats);
     final totalSats = wallet.merchantBalance;
-    final todaySales = txs.where((t) => t.date.day == DateTime.now().day).length;
-    final weekSales = txs.where((t) => DateTime.now().difference(t.date).inDays <= 7).length;
+    final todaySales =
+        txs.where((t) => t.date.day == DateTime.now().day).length;
+    final weekSales =
+        txs.where((t) => DateTime.now().difference(t.date).inDays <= 7).length;
 
     return SafeArea(
       child: Column(
@@ -38,15 +48,9 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
             child: Row(
               children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: IrisTheme.primary.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Center(child: Text('🏪', style: TextStyle(fontSize: 17))),
-                ),
+                // Avatar da loja: foto (se houver) ou o ícone do app. Toque
+                // abre o Perfil para editar ou adicionar a personalização.
+                const AccountAvatar(isMerchant: true, size: 36),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -54,24 +58,39 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                     children: [
                       Text(
                         wallet.merchantName ?? 'Minha Loja',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyLarge
+                            ?.copyWith(fontWeight: FontWeight.w700),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 1),
-                      const Text('Lojista · ⚡ Ativo', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
+                      const Text('Lojista · ⚡ Ativo',
+                          style: TextStyle(
+                              fontSize: 11, color: IrisTheme.textSecondary)),
                     ],
                   ),
                 ),
+                IconButton(
+                  onPressed: () => wallet.setHideBalance(!wallet.hideBalance),
+                  tooltip:
+                      wallet.hideBalance ? 'Mostrar saldo' : 'Esconder saldo',
+                  icon: Icon(
+                    wallet.hideBalance
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    size: 20,
+                    color: IrisTheme.textSecondary,
+                  ),
+                ),
                 const CurrencyToggleBtn(),
-                if (MediaQuery.of(context).size.width < 850) ...[
-                  const SizedBox(width: 6),
-                  const AreaSwitcherBtn(isCurrentlyConsumer: false, showText: true),
-                ],
+                // Troca loja <-> pessoal fica em Configurações (ver
+                // consumer_dashboard: mesma decisão dos dois lados).
               ],
             ),
           ),
-          
+
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -79,19 +98,23 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
-                  
+
                   // Row 1: Hoje / Semana
                   Row(
                     children: [
                       Expanded(
                         child: _buildStatCard(
                           'Hoje',
-                          exchangeRate.isSatsDisplay
-                              ? '+${CurrencyFormatter.formatBtcOrSats(todaySats)}'
-                              : '+R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(todaySats))}',
-                          exchangeRate.isSatsDisplay
-                              ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(todaySats))} · $todaySales vendas'
-                              : '≈ ${CurrencyFormatter.formatBtcOrSats(todaySats)} · $todaySales vendas',
+                          wallet.hideBalance
+                              ? '••••••'
+                              : (exchangeRate.isSatsDisplay
+                                  ? '+${CurrencyFormatter.formatBtcOrSats(todaySats)}'
+                                  : '+R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(todaySats))}'),
+                          wallet.hideBalance
+                              ? '$todaySales vendas'
+                              : (exchangeRate.isSatsDisplay
+                                  ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(todaySats))} · $todaySales vendas'
+                                  : '≈ ${CurrencyFormatter.formatBtcOrSats(todaySats)} · $todaySales vendas'),
                           IrisTheme.success,
                         ),
                       ),
@@ -99,102 +122,141 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                       Expanded(
                         child: _buildStatCard(
                           'Semana',
-                          exchangeRate.isSatsDisplay
-                              ? CurrencyFormatter.formatBtcOrSats(weekSats)
-                              : 'R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(weekSats))}',
-                          exchangeRate.isSatsDisplay
-                              ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(weekSats))} · $weekSales vendas'
-                              : '≈ ${CurrencyFormatter.formatBtcOrSats(weekSats)} · $weekSales vendas',
+                          wallet.hideBalance
+                              ? '••••••'
+                              : (exchangeRate.isSatsDisplay
+                                  ? CurrencyFormatter.formatBtcOrSats(weekSats)
+                                  : 'R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(weekSats))}'),
+                          wallet.hideBalance
+                              ? '$weekSales vendas'
+                              : (exchangeRate.isSatsDisplay
+                                  ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(weekSats))} · $weekSales vendas'
+                                  : '≈ ${CurrencyFormatter.formatBtcOrSats(weekSats)} · $weekSales vendas'),
                           IrisTheme.textPrimary,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
+                  PendingBanner(
+                    pendingSats: wallet.merchantPendingOnchainSats,
+                    hide: wallet.hideBalance,
+                    format: CurrencyFormatter.formatBtcOrSats,
+                  ),
                   // Row 2: Saldo loja / Taxa paga
                   Row(
                     children: [
                       Expanded(
-                        child: _buildStatCard(
-                          'Saldo loja',
-                          exchangeRate.isSatsDisplay
-                              ? CurrencyFormatter.formatBtcOrSats(totalSats)
-                              : 'R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(totalSats))}',
-                          exchangeRate.isSatsDisplay
-                              ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(totalSats))}'
-                              : '≈ ${CurrencyFormatter.formatBtcOrSats(totalSats)}',
-                          IrisTheme.primary,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => showExploreWalletsSheet(context,
+                              isMerchant: true),
+                          child: _buildStatCard(
+                            'Saldo loja',
+                            wallet.hideBalance
+                                ? '••••••'
+                                : (exchangeRate.isSatsDisplay
+                                    ? CurrencyFormatter.formatBtcOrSats(
+                                        totalSats)
+                                    : 'R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(totalSats))}'),
+                            wallet.hideBalance
+                                ? 'Toque para explorar'
+                                : (exchangeRate.isSatsDisplay
+                                    ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(totalSats))}'
+                                    : '≈ ${CurrencyFormatter.formatBtcOrSats(totalSats)}'),
+                            IrisTheme.primary,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: _buildStatCard(
                           'Taxa paga',
-                          exchangeRate.isSatsDisplay ? '0 SATS' : 'R\$ 0,00',
-                          'vs R\$ 31 maquininha',
+                          wallet.hideBalance
+                              ? '••••••'
+                              : (exchangeRate.isSatsDisplay
+                                  ? '0 SATS'
+                                  : 'R\$ 0,00'),
+                          'sem taxa de maquininha',
                           IrisTheme.success,
                         ),
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Charge Now button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      // Atalho para a aba Cobrar, onde o lojista escolhe o
-                      // trilho (Lightning / on-chain / PIX) e o valor.
-                      onPressed: () {
-                        if (wallet.cartTotal > 0) {
-                          wallet.setPendingCharge(wallet.cartTotal);
-                          wallet.clearCart();
-                        }
-                        widget.onNavigateTab?.call(2);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: Text(
-                        wallet.cartTotal > 0
-                            ? (exchangeRate.isSatsDisplay
-                                ? '⚡ Cobrar ${CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(wallet.cartTotal))}'
-                                : '⚡ Cobrar R\$ ${CurrencyFormatter.formatBrlCompact(wallet.cartTotal)}')
-                            : '⚡ Cobrar',
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: chroma.buttonGradient,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (wallet.cartTotal > 0) {
+                            wallet.setPendingCharge(wallet.cartTotal);
+                            wallet.clearCart();
+                          }
+                          widget.onNavigateTab?.call(2);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: Text(
+                          wallet.cartTotal > 0
+                              ? (exchangeRate.isSatsDisplay
+                                  ? '⚡ Cobrar ${CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(wallet.cartTotal))}'
+                                  : '⚡ Cobrar R\$ ${CurrencyFormatter.formatBrlCompact(wallet.cartTotal)}')
+                              : '⚡ Cobrar',
+                        ),
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 24),
                   const Divider(color: IrisTheme.bdr, height: 1),
                   const SizedBox(height: 24),
-                  
+
                   // Produtos Ativos
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Produtos ativos', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      const Text('Produtos ativos',
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w600)),
                       GestureDetector(
                         onTap: () {
                           if (widget.onNavigateTab != null) {
                             widget.onNavigateTab!(1);
                           }
                         },
-                        child: const Text('Gerenciar →', style: TextStyle(fontSize: 12, color: IrisTheme.primary, fontWeight: FontWeight.w600)),
+                        child: const Text('Gerenciar →',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: IrisTheme.primary,
+                                fontWeight: FontWeight.w600)),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Dynamic Products row
                   if (wallet.merchantProducts.isEmpty)
-                    const Text('Nenhum produto cadastrado.', style: TextStyle(color: IrisTheme.textSecondary))
+                    const Text('Nenhum produto cadastrado.',
+                        style: TextStyle(color: IrisTheme.textSecondary))
                   else
                     Column(
-                      children: wallet.merchantProducts.where((p) => p.isActive).map((p) => _buildProductRow(p)).toList(),
+                      children: wallet.merchantProducts
+                          .where((p) => p.isActive)
+                          .map((p) => _buildProductRow(p))
+                          .toList(),
                     ),
-                  
+
                   const SizedBox(height: 32),
                 ],
               ),
@@ -205,7 +267,8 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
     );
   }
 
-  Widget _buildStatCard(String label, String value, String unit, Color valueColor) {
+  Widget _buildStatCard(
+      String label, String value, String unit, Color valueColor) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -216,11 +279,20 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 11, color: IrisTheme.textSecondary)),
           const SizedBox(height: 4),
-          Text(value, style: TextStyle(fontFamily: 'monospace', fontSize: 13, fontWeight: FontWeight.w700, color: valueColor)),
+          Text(value,
+              style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: valueColor)),
           const SizedBox(height: 2),
-          Text(unit, style: const TextStyle(fontSize: 10, color: IrisTheme.textTertiary)),
+          Text(unit,
+              style:
+                  const TextStyle(fontSize: 10, color: IrisTheme.textTertiary)),
         ],
       ),
     );
@@ -262,14 +334,20 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(p.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(p.name,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
                   Text(
                     exchangeRate.isSatsDisplay
-                        ? CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(p.price))
+                        ? CurrencyFormatter.formatBtcOrSats(
+                            exchangeRate.brlToSats(p.price))
                         : 'R\$ ${CurrencyFormatter.formatBrlCompact(p.price)}',
-                    style: const TextStyle(fontSize: 11, color: IrisTheme.textSecondary),
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 11, color: IrisTheme.textSecondary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

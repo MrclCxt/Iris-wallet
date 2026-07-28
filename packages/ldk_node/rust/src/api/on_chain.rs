@@ -26,13 +26,13 @@ impl LdkOnChainPayment {
         amount_sats: u64,
     ) -> Result<Txid, LdkNodeError> {
         self.ptr
-            .send_to_address(&(address.try_into()?), amount_sats)
+            .send_to_address(&(address.try_into()?), amount_sats, None)
             .map_err(|e| e.into())
             .map(|e| e.into())
     }
     pub fn send_all_to_address(&self, address: Address) -> Result<Txid, LdkNodeError> {
         self.ptr
-            .send_all_to_address(&(address.try_into()?))
+            .send_all_to_address(&(address.try_into()?), true, None)
             .map_err(|e| e.into())
             .map(|e| e.into())
     }

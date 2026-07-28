@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../services/wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
 import '../../widgets/currency_toggle_btn.dart';
+import '../../widgets/tx_status.dart';
 
 class MerchantHistoryScreen extends StatelessWidget {
   const MerchantHistoryScreen({super.key});
@@ -45,6 +46,7 @@ class MerchantHistoryScreen extends StatelessWidget {
                             '${tx.date.day.toString().padLeft(2, '0')}/${tx.date.month.toString().padLeft(2, '0')} - ${tx.date.hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')}',
                             tx.amountSats,
                             exchangeRate,
+                            status: tx.status,
                           );
                         },
                       ),
@@ -92,15 +94,7 @@ class MerchantHistoryScreen extends StatelessWidget {
                           ? '+${CurrencyFormatter.formatBtcOrSats(tx.amountSats)}'
                           : '+R\$ ${CurrencyFormatter.formatBrlCompact(brl)}',
                       style: const TextStyle(color: IrisTheme.success, fontFamily: 'monospace', fontWeight: FontWeight.bold))),
-                  DataCell(Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: IrisTheme.success.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: IrisTheme.success.withOpacity(0.3)),
-                    ),
-                    child: const Text('Concluído', style: TextStyle(color: IrisTheme.success, fontSize: 12, fontWeight: FontWeight.bold)),
-                  )),
+                  DataCell(TxStatusChip(status: tx.status)),
                 ],
               );
             }).toList(),
@@ -112,7 +106,7 @@ class MerchantHistoryScreen extends StatelessWidget {
 
 
 
-  Widget _buildTxItem(String title, String time, int sats, ExchangeRateService exchangeRate) {
+  Widget _buildTxItem(String title, String time, int sats, ExchangeRateService exchangeRate, {String status = 'confirmed'}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(16),
@@ -135,7 +129,15 @@ class MerchantHistoryScreen extends StatelessWidget {
               children: [
                 Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
-                Text(time, style: const TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
+                Row(
+                  children: [
+                    Text(time, style: const TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
+                    if (status != 'confirmed') ...[
+                      const SizedBox(width: 6),
+                      Flexible(child: TxStatusChip(status: status, compact: true)),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),

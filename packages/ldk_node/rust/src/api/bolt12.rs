@@ -89,7 +89,7 @@ impl LdkBolt12Payment {
         payer_note: Option<String>,
     ) -> Result<PaymentId, LdkNodeError> {
         self.ptr
-            .send(&(offer.try_into()?), payer_note)
+            .send(&(offer.try_into()?), None, payer_note, None)
             .map_err(|e| e.into())
             .map(|e| e.into())
     }
@@ -100,7 +100,7 @@ impl LdkBolt12Payment {
         amount_msat: u64,
     ) -> anyhow::Result<PaymentId, LdkNodeError> {
         self.ptr
-            .send_using_amount(&(offer.try_into()?), payer_note, amount_msat)
+            .send_using_amount(&(offer.try_into()?), amount_msat, None, payer_note, None)
             .map_err(|e| e.into())
             .map(|e| e.into())
     }
@@ -110,7 +110,7 @@ impl LdkBolt12Payment {
         description: String,
     ) -> anyhow::Result<Offer, LdkNodeError> {
         self.ptr
-            .receive(amount_msat, description.as_str())
+            .receive(amount_msat, description.as_str(), None, None)
             .map_err(|e| e.into())
             .map(|e| e.into())
     }
@@ -119,7 +119,7 @@ impl LdkBolt12Payment {
         description: String,
     ) -> anyhow::Result<Offer, LdkNodeError> {
         self.ptr
-            .receive_variable_amount(description.as_str())
+            .receive_variable_amount(description.as_str(), None)
             .map_err(|e| e.into())
             .map(|e| e.into())
     }
@@ -140,7 +140,7 @@ impl LdkBolt12Payment {
         expiry_secs: u32,
     ) -> anyhow::Result<Refund, LdkNodeError> {
         self.ptr
-            .initiate_refund(amount_msat, expiry_secs)
+            .initiate_refund(amount_msat, expiry_secs, None, None, None)
             .map_err(|e| e.into())
             .map(|e| e.into())
     }

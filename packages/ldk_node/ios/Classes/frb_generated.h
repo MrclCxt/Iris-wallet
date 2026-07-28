@@ -388,6 +388,10 @@ typedef struct wire_cst_Event_ChannelClosed {
   struct wire_cst_closure_reason *reason;
 } wire_cst_Event_ChannelClosed;
 
+typedef struct wire_cst_Event_Unknown {
+  struct wire_cst_list_prim_u_8_strict *kind;
+} wire_cst_Event_Unknown;
+
 typedef union EventKind {
   struct wire_cst_Event_PaymentClaimable PaymentClaimable;
   struct wire_cst_Event_PaymentSuccessful PaymentSuccessful;
@@ -396,6 +400,7 @@ typedef union EventKind {
   struct wire_cst_Event_ChannelPending ChannelPending;
   struct wire_cst_Event_ChannelReady ChannelReady;
   struct wire_cst_Event_ChannelClosed ChannelClosed;
+  struct wire_cst_Event_Unknown Unknown;
 } EventKind;
 
 typedef struct wire_cst_event {

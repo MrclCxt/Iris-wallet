@@ -23,6 +23,15 @@ const DEFAULT_ANCHOR_PER_CHANNEL_RESERVE_SATS: u64 = 25_000;
 pub(crate) const BDK_CLIENT_STOP_GAP: usize = 20;
 
 // The number of concurrent requests made against the API provider.
+//
+// MEDIDO no aparelho, NÃO alterar sem repetir a medição:
+//   - concorrência 4  -> "Sync of on-chain wallet finished in 18226ms" (OK)
+//   - concorrência 10 -> HTTP 429 do provedor, sync abortado
+// Uma carteira restaurada tem ~205 endereços em cache e o BDK consulta um
+// endpoint por endereço; a 10 em paralelo isso vira uma rajada que o
+// mempool.space bloqueia. Subir a concorrência foi uma tentativa de vencer o
+// antigo timeout de 90s — que deixou de importar quando
+// BDK_WALLET_SYNC_TIMEOUT_SECS passou para 240. Devagar e sempre ganha aqui.
 pub(crate) const BDK_CLIENT_CONCURRENCY: u8 = 4;
 
 // The default Esplora server we're using.
@@ -50,13 +59,23 @@ pub(crate) const NODE_ANN_BCAST_INTERVAL: Duration = Duration::from_secs(60 * 60
 pub(crate) const WALLET_SYNC_INTERVAL_MINIMUM_SECS: u64 = 10;
 
 // The timeout after which we abort a wallet syncing operation.
-pub(crate) const BDK_WALLET_SYNC_TIMEOUT_SECS: u64 = 90;
+// PATCH Iris: 90 -> 240. Carteira grande + rede móvel + provedor único de
+// testnet4 chegavam perto do limite; abortar no meio joga fora todo o trabalho
+// já feito e ainda dispara a recuperação por nó degradado. Melhor deixar
+// terminar: o app não bloqueia esperando (o saldo em tela vem do último valor
+// verificado enquanto isso).
+pub(crate) const BDK_WALLET_SYNC_TIMEOUT_SECS: u64 = 240;
 
 // The timeout after which we abort a wallet syncing operation.
 pub(crate) const LDK_WALLET_SYNC_TIMEOUT_SECS: u64 = 30;
 
 // The timeout after which we abort a fee rate cache update operation.
-pub(crate) const FEE_RATE_CACHE_UPDATE_TIMEOUT_SECS: u64 = 30;
+// PATCH Iris: 30 -> 45. Este é o único passo que BLOQUEIA o start do nó, então
+// há um equilíbrio: curto demais e o nó não sobe em rede móvel; longo demais e
+// a tela de receber fica "carregando" sem endereço enquanto se espera. Com o
+// fee_estimator corrigido é UMA requisição (era sete), então 45s é folga
+// grande — e o pior caso total virou 2 tentativas x 45s em vez de 3 x 75s.
+pub(crate) const FEE_RATE_CACHE_UPDATE_TIMEOUT_SECS: u64 = 45;
 
 // The timeout after which we abort a transaction broadcast operation.
 pub(crate) const TX_BROADCAST_TIMEOUT_SECS: u64 = 25;

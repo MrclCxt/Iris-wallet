@@ -120,8 +120,8 @@ pub struct NodeAnnouncementInfo {
 impl From<ldk_node::lightning::routing::gossip::NodeAnnouncementInfo> for NodeAnnouncementInfo {
     fn from(value: ldk_node::lightning::routing::gossip::NodeAnnouncementInfo) -> Self {
         Self {
-            last_update: value.last_update,
-            alias: value.alias.to_string(),
+            last_update: value.last_update(),
+            alias: value.alias().to_string(),
             addresses: value
                 .addresses()
                 .iter()

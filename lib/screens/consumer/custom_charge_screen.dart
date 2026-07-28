@@ -119,7 +119,7 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Center(child: CurrencyToggleBtn()),
+                  const Center(child: CurrencyToggleBtn(ocultarSemPix: true)),
                   const SizedBox(height: 20),
                   // Mesmo card do valor específico do PIX: rótulo + valor + numpad.
                   Container(

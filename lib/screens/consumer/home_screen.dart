@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
-import '../../widgets/area_switcher_btn.dart';
 import '../../widgets/iris_widgets.dart';
 import '../../services/chroma_service.dart';
+import '../../services/wallet_service.dart';
 import 'consumer_dashboard.dart';
 import 'consumer_pay_screen.dart';
 import 'receive_qr_screen.dart';
@@ -18,7 +18,7 @@ class ConsumerHomeScreen extends StatefulWidget {
 }
 
 class _ConsumerHomeScreenState extends State<ConsumerHomeScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
   bool _isRailExtended = true;
 
   late final List<Widget> _pagesWithArgs = [
@@ -28,10 +28,18 @@ class _ConsumerHomeScreenState extends State<ConsumerHomeScreen> {
     const ConsumerConfigScreen(),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    // Restaura a última aba (persiste ao travar/reabrir; zerada na troca de conta).
+    _currentIndex = context.read<WalletService>().consumerTab;
+  }
+
   void _onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
     });
+    context.read<WalletService>().setConsumerTab(index);
   }
 
   @override
@@ -55,49 +63,51 @@ class _ConsumerHomeScreenState extends State<ConsumerHomeScreen> {
                         _isRailExtended ? Icons.menu_open : Icons.menu,
                         color: context.watch<ChromaService>().primary,
                       ),
-                      onPressed: () => setState(() => _isRailExtended = !_isRailExtended),
+                      onPressed: () =>
+                          setState(() => _isRailExtended = !_isRailExtended),
                     ),
                     if (_isRailExtended) const IrisAppBarTitle(),
                   ],
                 ),
               ),
-              trailing: Expanded(
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 24.0),
-                    child: AreaSwitcherBtn(isCurrentlyConsumer: true, showText: _isRailExtended),
-                  ),
-                ),
-              ),
+              // Sem troca de área aqui: ela mora em Configurações, para o
+              // mesmo caminho valer no celular e no desktop.
               selectedIconTheme: const IconThemeData(color: IrisTheme.primary),
-              unselectedIconTheme: const IconThemeData(color: IrisTheme.textTertiary),
+              unselectedIconTheme:
+                  const IconThemeData(color: IrisTheme.textTertiary),
               destinations: const [
                 NavigationRailDestination(
                   icon: Text('🏠', style: TextStyle(fontSize: 20)),
-                  label: Text('Início', style: TextStyle(fontWeight: FontWeight.w600)),
+                  label: Text('Início',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
                 NavigationRailDestination(
                   icon: Text('💸', style: TextStyle(fontSize: 20)),
-                  label: Text('Enviar', style: TextStyle(fontWeight: FontWeight.w600)),
+                  label: Text('Enviar',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
                 NavigationRailDestination(
                   icon: Text('⬇', style: TextStyle(fontSize: 20)),
-                  label: Text('Receber', style: TextStyle(fontWeight: FontWeight.w600)),
+                  label: Text('Receber',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
                 NavigationRailDestination(
                   icon: Text('⚙️', style: TextStyle(fontSize: 20)),
-                  label: Text('Config.', style: TextStyle(fontWeight: FontWeight.w600)),
+                  label: Text('Config.',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
             const VerticalDivider(thickness: 1, width: 1, color: IrisTheme.bdr),
-            Expanded(child: _pagesWithArgs[_currentIndex]),
+            Expanded(
+              child:
+                  IndexedStack(index: _currentIndex, children: _pagesWithArgs),
+            ),
           ],
         ),
       ),
       mobile: Scaffold(
-        body: _pagesWithArgs[_currentIndex],
+        body: IndexedStack(index: _currentIndex, children: _pagesWithArgs),
         bottomNavigationBar: _IrisBottomNav(
           currentIndex: _currentIndex,
           onTap: _onTabTapped,
@@ -126,13 +136,15 @@ class _IrisBottomNav extends StatelessWidget {
     ];
 
     // Tab accent colors — each 90° apart from the current chroma hue
-    final tabColors = List.generate(4, (i) =>
-      HSLColor.fromAHSL(1.0, (hue + i * 90) % 360, 0.85, 0.60).toColor(),
+    final tabColors = List.generate(
+      4,
+      (i) => HSLColor.fromAHSL(1.0, (hue + i * 90) % 360, 0.85, 0.60).toColor(),
     );
 
     // Animated rainbow that starts at current hue and spans full spectrum
-    final rainbowColors = List.generate(9, (i) =>
-      HSLColor.fromAHSL(1.0, (hue + i * 45) % 360, 0.88, 0.58).toColor(),
+    final rainbowColors = List.generate(
+      9,
+      (i) => HSLColor.fromAHSL(1.0, (hue + i * 45) % 360, 0.88, 0.58).toColor(),
     );
 
     return Container(
@@ -164,7 +176,8 @@ class _IrisBottomNav extends StatelessWidget {
                     onTap: () => onTap(i),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? tabColors[i].withOpacity(0.12)
@@ -174,7 +187,8 @@ class _IrisBottomNav extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(items[i].$1, style: TextStyle(fontSize: isSelected ? 20 : 18)),
+                          Text(items[i].$1,
+                              style: TextStyle(fontSize: isSelected ? 20 : 18)),
                           const SizedBox(height: 2),
                           Text(
                             items[i].$2,
@@ -183,7 +197,9 @@ class _IrisBottomNav extends StatelessWidget {
                               fontSize: 9,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.5,
-                              color: isSelected ? tabColors[i] : IrisTheme.textTertiary,
+                              color: isSelected
+                                  ? tabColors[i]
+                                  : IrisTheme.textTertiary,
                             ),
                           ),
                         ],

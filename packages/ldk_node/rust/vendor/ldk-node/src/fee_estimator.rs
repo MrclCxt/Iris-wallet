@@ -46,6 +46,39 @@ where
 			ConfirmationTarget::ChannelCloseMinimum,
 			ConfirmationTarget::OutputSpendingFee,
 		];
+
+		// PATCH Iris: buscar as estimativas UMA vez, fora do laço.
+		//
+		// O original chamava `get_fee_estimates()` dentro do `for`, ou seja,
+		// SETE requisições HTTP idênticas ao mesmo `/fee-estimates` — a
+		// resposta é uma tabela global, igual para todos os alvos. Em rede
+		// móvel isso era 7x a latência e 7 chances de estourar o timeout de
+		// 30s; a primeira que falhasse abortava o start inteiro do nó, que era
+		// exatamente o `feerateEstimationUpdateFailed` em ciclo observado num
+		// aparelho real. Uma requisição serve todos os alvos.
+		let estimates = tokio::time::timeout(
+			Duration::from_secs(FEE_RATE_CACHE_UPDATE_TIMEOUT_SECS),
+			self.esplora_client.get_fee_estimates(),
+		)
+		.await
+		.map_err(|e| {
+			log_error!(self.logger, "Updating fee rate estimates timed out: {}", e);
+			Error::FeerateEstimationUpdateTimeout
+		})?
+		.map_err(|e| {
+			log_error!(self.logger, "Failed to retrieve fee rate estimates: {}", e);
+			Error::FeerateEstimationUpdateFailed
+		})?;
+
+		if estimates.is_empty() && self.config.network == Network::Bitcoin {
+			// Ensure we fail if we didn't receive any estimates.
+			log_error!(
+				self.logger,
+				"Failed to retrieve fee rate estimates: empty fee estimates are dissallowed on Mainnet.",
+			);
+			return Err(Error::FeerateEstimationUpdateFailed);
+		}
+
 		for target in confirmation_targets {
 			let num_blocks = match target {
 				ConfirmationTarget::OnChainSweep => 6,
@@ -57,39 +90,7 @@ where
 				ConfirmationTarget::OutputSpendingFee => 12,
 			};
 
-			let estimates = tokio::time::timeout(
-				Duration::from_secs(FEE_RATE_CACHE_UPDATE_TIMEOUT_SECS),
-				self.esplora_client.get_fee_estimates(),
-			)
-			.await
-			.map_err(|e| {
-				log_error!(
-					self.logger,
-					"Updating fee rate estimates for {:?} timed out: {}",
-					target,
-					e
-				);
-				Error::FeerateEstimationUpdateTimeout
-			})?
-			.map_err(|e| {
-				log_error!(
-					self.logger,
-					"Failed to retrieve fee rate estimates for {:?}: {}",
-					target,
-					e
-				);
-				Error::FeerateEstimationUpdateFailed
-			})?;
-
-			if estimates.is_empty() && self.config.network == Network::Bitcoin {
-				// Ensure we fail if we didn't receive any estimates.
-				log_error!(
-					self.logger,
-					"Failed to retrieve fee rate estimates for {:?}: empty fee estimates are dissallowed on Mainnet.",
-					target,
-				);
-				return Err(Error::FeerateEstimationUpdateFailed);
-			}
+			let estimates = estimates.clone();
 
 			let converted_estimates = esplora_client::convert_fee_rate(num_blocks, estimates)
 				.map_err(|e| {

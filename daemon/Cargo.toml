@@ -6,10 +6,22 @@ description = "Daemon local do nó Lightning do Iris Wallet (LDK Node + REST em 
 
 [dependencies]
 ldk-node = "0.3"
+# Pino direto para forçar o resolvedor do Cargo a ficar na MESMA versão que o
+# ldk-node 0.3.0 foi de fato construído contra (ver Cargo.toml dele). Sem
+# isto, o Cargo resolve a lightning-liquidity 0.1.0 (estável, mais nova), que
+# depende de uma lightning 0.1.11 incompatível com a lightning 0.0.123 que o
+# ldk-node usa direto — dá erro de trait duplicado (duas versões da mesma
+# lightning na árvore) e o daemon não compila. O plugin embarcado (mesmo
+# ldk-node, via cargokit) já resolve para 0.1.0-alpha.4 e funciona; aqui é
+# só deixar isso explícito em vez de depender do Cargo escolher certo sozinho.
+lightning-liquidity = "=0.1.0-alpha.4"
 tiny_http = "0.12"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 clap = { version = "4", features = ["derive"] }
+# Cliente HTTP síncrono e leve só para o pré-voo de escolha de Esplora no
+# boot (ver escolher_esplora) — não precisa do runtime async completo.
+ureq = "2"
 
 [profile.release]
 opt-level = "s"

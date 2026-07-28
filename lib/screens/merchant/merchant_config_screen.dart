@@ -1,216 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../core/theme.dart';
-import '../../services/wallet_service.dart';
 import '../../widgets/max_width_container.dart';
-import '../pin_screen.dart';
+import '../consumer/security_screen.dart';
+import '../consumer/profile_screen.dart';
+import '../../widgets/area_switcher_btn.dart';
 
 class MerchantConfigScreen extends StatelessWidget {
   const MerchantConfigScreen({super.key});
-
-  void _showSeed(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PinScreen(
-          mode: PinMode.unlock,
-          isMerchant: true,
-          onSuccess: () {
-            Navigator.pop(context); // pop PIN
-            final seed = context.read<WalletService>().merchantSeed ?? 'Semente da loja não encontrada';
-            _showSeedDialog(context, seed);
-          },
-        ),
-      ),
-    );
-  }
-
-  void _showSeedDialog(BuildContext context, String seed) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: IrisTheme.s1,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: IrisTheme.bdr)),
-        title: const Text('Frase da Loja', style: TextStyle(color: IrisTheme.danger, fontSize: 16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Anotou no papel? Nunca compartilhe isso com ninguém.',
-              style: TextStyle(color: IrisTheme.textSecondary, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: IrisTheme.bg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: IrisTheme.bdr),
-              ),
-              child: Text(
-                seed,
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 14,
-                  height: 1.5,
-                  color: IrisTheme.textPrimary,
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fechar', style: TextStyle(color: IrisTheme.textPrimary)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _handleLogout(BuildContext context) {
-    final wallet = context.read<WalletService>();
-    wallet.lock();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const PinScreen(mode: PinMode.unlock, isMerchant: true),
-      ),
-      (route) => false,
-    );
-  }
-
-  void _handleWipe(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: IrisTheme.s1,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: IrisTheme.bdr)),
-        title: const Text('Apagar Loja Atual?', style: TextStyle(color: IrisTheme.danger)),
-        content: const Text(
-          'Isso apagará o perfil e saldo desta loja do dispositivo. Tenha certeza que você anotou sua Semente antes de continuar.',
-          style: TextStyle(color: IrisTheme.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar', style: TextStyle(color: IrisTheme.textPrimary)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: IrisTheme.danger, foregroundColor: Colors.white),
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-              final wallet = context.read<WalletService>();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (ctx) => PinScreen(
-                    mode: PinMode.unlock,
-                    isMerchant: true,
-                    onSuccess: () async {
-                      await wallet.deleteActiveMerchant();
-                      if (ctx.mounted) {
-                        if (wallet.merchantAccounts.isEmpty) {
-                          Navigator.pushNamedAndRemoveUntil(ctx, '/', (route) => false);
-                        } else {
-                          Navigator.push(
-                            ctx,
-                            MaterialPageRoute(
-                              builder: (context) => const PinScreen(mode: PinMode.unlock, isMerchant: true),
-                            ),
-                          );
-                        }
-                      }
-                    },
-                  ),
-                ),
-              );
-            },
-            child: const Text('Apagar Loja'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _handleCreateNew(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: IrisTheme.s1,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: IrisTheme.bdr)),
-        title: const Text('Criar Nova Loja?', style: TextStyle(color: IrisTheme.primary)),
-        content: const Text(
-          'Isso criará uma nova loja independente. Você poderá alternar entre suas lojas pelo menu Trocar de Loja.',
-          style: TextStyle(color: IrisTheme.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar', style: TextStyle(color: IrisTheme.textPrimary)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: IrisTheme.primary, foregroundColor: Colors.white),
-            onPressed: () {
-              Navigator.pushNamedAndRemoveUntil(context, '/merchant_setup', (route) => false);
-            },
-            child: const Text('Continuar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAccountSwitcher(BuildContext context) {
-    final wallet = context.read<WalletService>();
-    final accounts = wallet.merchantAccounts;
-    
-    showDialog(
-      context: context,
-      builder: (context) {
-        return Dialog(
-          backgroundColor: IrisTheme.bg,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Minhas Lojas', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: IrisTheme.textPrimary)),
-                  const SizedBox(height: 16),
-                  ...accounts.map((acc) {
-                    final isActive = acc.id == wallet.activeMerchant?.id;
-                    return ListTile(
-                      leading: const Icon(Icons.store_mall_directory, color: IrisTheme.primary),
-                      title: Text(acc.name, style: TextStyle(color: isActive ? IrisTheme.primary : IrisTheme.textPrimary, fontWeight: isActive ? FontWeight.w700 : FontWeight.w500)),
-                      trailing: isActive ? const Icon(Icons.check, color: IrisTheme.primary) : null,
-                      onTap: () async {
-                        if (!isActive) {
-                          Navigator.pop(context); // fechar modal
-                          await wallet.switchMerchantAccount(acc.id);
-                          if (context.mounted) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const PinScreen(mode: PinMode.unlock, isMerchant: true),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                    );
-                  }),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -220,81 +16,71 @@ class MerchantConfigScreen extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Column(
-          children: [
-            const Text(
-              'Configurações PDV',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-            const SizedBox(height: 32),
-            
-            _buildActionItem(
-              icon: Icons.person,
-              title: 'Voltar para Consumidor',
-              subtitle: 'Acesse sua conta pessoal',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const PinScreen(mode: PinMode.unlock, isMerchant: false),
+              children: [
+                const Text(
+                  'Configurações PDV',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
                   ),
-                );
-              },
+                ),
+                const SizedBox(height: 32),
+                _buildActionItem(
+                  icon: Icons.person,
+                  title: 'Voltar para Consumidor',
+                  subtitle: 'Acesse sua conta pessoal',
+                  // Mesma rotina do antigo botão das telas iniciais, com o
+                  // seletor de contas quando há mais de uma carteira pessoal.
+                  onTap: () => AreaSwitcherBtn.trocarArea(context,
+                      isCurrentlyConsumer: false),
+                ),
+                const SizedBox(height: 16),
+                _buildActionItem(
+                  icon: Icons.person_outline,
+                  title: 'Perfil da loja',
+                  subtitle: 'Nome, avatar, moeda, lojas',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const ProfileScreen(isMerchant: true)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildActionItem(
+                  icon: Icons.shield_outlined,
+                  title: 'Segurança',
+                  subtitle: 'Bloqueio automático, semente, apagar loja',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const SecurityScreen(isMerchant: true)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildActionItem(
+                  icon: Icons.hub,
+                  title: 'Carteira Bitcoin e Canais ⚡',
+                  subtitle: 'Saldo on-chain, endereço e canais',
+                  onTap: () => Navigator.pushNamed(context, '/node_manager'),
+                ),
+                const SizedBox(height: 16),
+                _buildActionItem(
+                  icon: Icons.pix,
+                  title: 'Pix / Reais · em breve',
+                  subtitle: 'Em desenvolvimento e testes de integração',
+                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'Pix/Reais chega em breve. Por enquanto, a loja recebe '
+                          'em Bitcoin — Lightning e on-chain.'),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            _buildActionItem(
-              icon: Icons.store_mall_directory,
-              title: 'Ver Semente da Loja',
-              subtitle: 'Faça backup do PDV',
-              onTap: () => _showSeed(context),
-            ),
-            const SizedBox(height: 16),
-            _buildActionItem(
-              icon: Icons.hub,
-              title: 'Gestão do Nó Nativo ⚡',
-              subtitle: 'Cofre On-chain e Canais Lightning',
-              onTap: () => Navigator.pushNamed(context, '/node_manager'),
-            ),
-            const SizedBox(height: 16),
-            _buildActionItem(
-              icon: Icons.lock_outline,
-              title: 'Bloquear Aplicativo',
-              subtitle: 'Sair e exigir PIN novamente',
-              onTap: () => _handleLogout(context),
-            ),
-            const SizedBox(height: 32),
-            
-            const Divider(color: IrisTheme.bdr),
-            
-            const SizedBox(height: 16),
-            _buildActionItem(
-              icon: Icons.switch_account,
-              title: 'Trocar de Loja',
-              subtitle: 'Alternar entre perfis de lojas',
-              onTap: () => _showAccountSwitcher(context),
-            ),
-            const SizedBox(height: 16),
-            _buildActionItem(
-              icon: Icons.add_business,
-              title: 'Criar Nova Loja',
-              subtitle: 'Cria uma nova loja independente',
-              onTap: () => _handleCreateNew(context),
-            ),
-            const SizedBox(height: 16),
-            _buildActionItem(
-              icon: Icons.delete_forever,
-              title: 'Apagar Loja Atual',
-              subtitle: 'Remove a loja selecionada do dispositivo',
-              color: IrisTheme.danger,
-              onTap: () => _handleWipe(context),
-            ),
-          ],
+          ),
         ),
-      ),
-      ),
       ),
     );
   }
@@ -324,9 +110,17 @@ class MerchantConfigScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: color == IrisTheme.danger ? color : IrisTheme.textPrimary)),
+                  Text(title,
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: color == IrisTheme.danger
+                              ? color
+                              : IrisTheme.textPrimary)),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: const TextStyle(fontSize: 12, color: IrisTheme.textSecondary)),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          fontSize: 12, color: IrisTheme.textSecondary)),
                 ],
               ),
             ),
@@ -337,4 +131,3 @@ class MerchantConfigScreen extends StatelessWidget {
     );
   }
 }
-

@@ -539,7 +539,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
         actions: const [
           Padding(
             padding: EdgeInsets.only(right: 16.0),
-            child: CurrencyToggleBtn(),
+            child: CurrencyToggleBtn(ocultarSemPix: true),
           ),
         ],
       ),
@@ -568,7 +568,9 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                     children: [
                       _buildMethodBtn('⚡ Lightning', ReceiveMethod.lightning),
                       _buildMethodBtn('₿ On-chain', ReceiveMethod.onchain),
-                      _buildMethodBtn('🇧🇷 PIX', ReceiveMethod.pix),
+                      // PIX é opt-in: só aparece quando o usuário ativou uma
+                      // conta DePix (ou o modo dev/testnet).
+                      if (pix.isPixEnabled) _buildMethodBtn('🇧🇷 PIX', ReceiveMethod.pix),
                     ],
                   ),
                 ),
@@ -610,7 +612,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
-                    'Endereço Bitcoin testnet — confirmação em ~10 min por bloco',
+                    'Endereço Bitcoin testnet4 — confirmação em ~10 min por bloco',
                     style: TextStyle(color: IrisTheme.primary, fontSize: 11, fontWeight: FontWeight.w600),
                     textAlign: TextAlign.center,
                   ),

@@ -754,6 +754,12 @@ impl CstDecode<crate::api::types::Event> for wire_cst_event {
                     reason: ans.reason.cst_decode(),
                 }
             }
+            7 => {
+                let ans = unsafe { self.kind.Unknown };
+                crate::api::types::Event::Unknown {
+                    kind: ans.kind.cst_decode(),
+                }
+            }
             _ => unreachable!(),
         }
     }
@@ -3722,6 +3728,7 @@ pub union EventKind {
     ChannelPending: wire_cst_Event_ChannelPending,
     ChannelReady: wire_cst_Event_ChannelReady,
     ChannelClosed: wire_cst_Event_ChannelClosed,
+    Unknown: wire_cst_Event_Unknown,
     nil__: (),
 }
 #[repr(C)]
@@ -3776,6 +3783,11 @@ pub struct wire_cst_Event_ChannelClosed {
     user_channel_id: *mut wire_cst_user_channel_id,
     counterparty_node_id: *mut wire_cst_public_key,
     reason: *mut wire_cst_closure_reason,
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct wire_cst_Event_Unknown {
+    kind: *mut wire_cst_list_prim_u_8_strict,
 }
 #[repr(C)]
 #[derive(Clone, Copy)]

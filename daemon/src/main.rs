@@ -7,18 +7,19 @@
 //!
 //! Uso:
 //!   iris-noded --mnemonic-file ./seed.txt --data-dir ./iris_node_data \
-//!              --port 8380 --esplora https://mempool.space/testnet/api
+//!              --port 8380 --esplora https://mempool.space/testnet4/api
 //!
 //! A API espelha o contrato do `RemoteNodeApi` do app:
 //!   GET  /health           GET  /node_id         GET  /balances
 //!   POST /invoice          POST /pay             GET  /onchain_address
 //!   GET  /channels         POST /open_channel    POST /sync
-//!   GET  /event            POST /event_handled
+//!   POST /set_forwarding_fee                     GET  /event
+//!   POST /event_handled
 
 use clap::Parser;
 use ldk_node::bitcoin::Network;
 use ldk_node::lightning_invoice::Bolt11Invoice;
-use ldk_node::{Builder, Event, Node};
+use ldk_node::{Builder, ChannelConfig, Event, Node, UserChannelId};
 use serde_json::{json, Value};
 use std::fs;
 use std::io::Read;
@@ -40,8 +41,8 @@ struct Args {
     #[arg(long, default_value_t = 8380)]
     port: u16,
 
-    /// Servidor Esplora (testnet por padrão)
-    #[arg(long, default_value = "https://blockstream.info/testnet/api")]
+    /// Servidor Esplora (testnet4 por padrão)
+    #[arg(long, default_value = "https://mempool.space/testnet4/api")]
     esplora: String,
 }
 
@@ -142,7 +143,16 @@ fn handle(node: &Arc<Node>, method: &str, path: &str, body: Value) -> Result<Val
                         "inbound_sats": ch.inbound_capacity_msat / 1000,
                         "outbound_sats": ch.outbound_capacity_msat / 1000,
                         "usable": ch.is_usable,
+                        "public": ch.is_public,
                         "counterparty": ch.counterparty_node_id.to_string(),
+                        // Necessários para /set_forwarding_fee mirar este canal.
+                        "user_channel_id": ch.user_channel_id.0.to_string(),
+                        // Taxa de roteamento HOJE deste canal — 100% do usuário,
+                        // creditada pelo próprio protocolo Lightning quando este
+                        // nó encaminha um pagamento de terceiros. O daemon/app
+                        // nunca retêm nada disso.
+                        "forwarding_fee_proportional_ppm": ch.config.forwarding_fee_proportional_millionths(),
+                        "forwarding_fee_base_msat": ch.config.forwarding_fee_base_msat(),
                     })
                 })
                 .collect();
@@ -161,6 +171,45 @@ fn handle(node: &Arc<Node>, method: &str, path: &str, body: Value) -> Result<Val
                 .map_err(|e| e.to_string())?;
             Ok(json!({}))
         }
+        ("POST", "/set_forwarding_fee") => {
+            // Define a taxa de roteamento QUE ESTE USUÁRIO cobra quando o
+            // próprio nó dele encaminha um pagamento de outra pessoa pela
+            // rede. É nativo do protocolo Lightning: o LDK credita o valor
+            // direto no saldo deste nó — nunca passa pelo Iris, nunca vira
+            // receita do app. O usuário decide a taxa (ou deixa 0 para
+            // priorizar ser escolhido em rotas, já que taxa menor atrai mais
+            // roteamento).
+            let user_channel_id_str = body["user_channel_id"]
+                .as_str()
+                .ok_or("user_channel_id ausente")?;
+            let user_channel_id: u128 = user_channel_id_str
+                .parse()
+                .map_err(|_| "user_channel_id inválido")?;
+            let counterparty_str = body["counterparty_node_id"]
+                .as_str()
+                .ok_or("counterparty_node_id ausente")?;
+            let counterparty = counterparty_str
+                .parse()
+                .map_err(|_| "counterparty_node_id inválido")?;
+            let proportional_ppm = body["forwarding_fee_proportional_ppm"]
+                .as_u64()
+                .unwrap_or(0) as u32;
+            let base_msat = body["forwarding_fee_base_msat"]
+                .as_u64()
+                .unwrap_or(1000) as u32;
+
+            let config = ChannelConfig::new();
+            config.set_forwarding_fee_proportional_millionths(proportional_ppm);
+            config.set_forwarding_fee_base_msat(base_msat);
+
+            node.update_channel_config(
+                &UserChannelId(user_channel_id),
+                counterparty,
+                Arc::new(config),
+            )
+            .map_err(|e| e.to_string())?;
+            Ok(json!({}))
+        }
         ("POST", "/sync") => {
             node.sync_wallets().map_err(|e| e.to_string())?;
             Ok(json!({}))
@@ -177,6 +226,84 @@ fn handle(node: &Arc<Node>, method: &str, path: &str, body: Value) -> Result<Val
     }
 }
 
+/// Backends Esplora candidatos, na ordem de preferência: o passado por
+/// `--esplora` primeiro (respeita a escolha explícita do usuário), depois os
+/// mesmos dois usados pelo nó embarcado (ver `escolherEsplora` em
+/// `node_backend.dart`). Servidores públicos de testnet oscilam (429 de
+/// rate-limit, timeout) — sem isto, uma falha transitória de UM servidor
+/// derrubava o daemon inteiro com panic (`FeerateEstimationUpdateFailed`),
+/// já observado na prática.
+fn escolher_esplora(preferido: &str) -> String {
+    // Testnet4: só o mempool.space serve API HTTP nessa rede (o
+    // blockstream.info devolve HTML nesse caminho). Sem fallback real.
+    let fallback = ["https://mempool.space/testnet4/api"];
+    let mut candidatos: Vec<&str> = vec![preferido];
+    candidatos.extend(fallback.iter().filter(|&&u| u != preferido));
+
+    for base in candidatos {
+        let url = format!("{base}/blocks/tip/height");
+        match ureq::get(&url).timeout(std::time::Duration::from_secs(6)).call() {
+            Ok(resp) if resp.status() == 200 => {
+                println!("iris-noded: Esplora escolhido: {base}");
+                return base.to_string();
+            }
+            Ok(resp) => println!(
+                "iris-noded: Esplora {base} respondeu HTTP {}; tentando outro.",
+                resp.status()
+            ),
+            Err(e) => println!("iris-noded: Esplora {base} indisponível ({e}); tentando outro."),
+        }
+    }
+    println!("iris-noded: nenhum Esplora respondeu; usando {preferido} mesmo assim.");
+    preferido.to_string()
+}
+
+/// Constrói e inicia o nó, tentando de novo (com uma nova escolha de Esplora
+/// a cada tentativa) se a primeira falhar — a causa mais comum é o backend
+/// escolhido ter degradado bem no momento do boot, não um problema real da
+/// carteira. Só desiste (panic) depois de esgotar as tentativas.
+fn construir_e_iniciar(mnemonic: &str, args: &Args) -> Node {
+    const TENTATIVAS: u32 = 3;
+    let mut ultimo_erro = None;
+
+    for tentativa in 1..=TENTATIVAS {
+        let esplora = escolher_esplora(&args.esplora);
+        let mut builder = Builder::new();
+        builder.set_entropy_bip39_mnemonic(
+            mnemonic.parse().expect("mnemônica inválida"),
+            None,
+        );
+        // ldk-node 0.3 não conhece Testnet4 (depende do crate bitcoin 0.30;
+        // testnet4 só existe a partir do 0.32). Os dados da cadeia vêm da
+        // testnet4 pelo Esplora acima e os endereços são iguais nas duas
+        // redes; o que fica na testnet3 é só o ChainHash anunciado no
+        // Lightning. Ver a mesma nota em `node_backend.dart`.
+        builder.set_network(Network::Testnet);
+        builder.set_storage_dir_path(args.data_dir.clone());
+        builder.set_esplora_server(esplora);
+
+        // build() e start() erram com tipos diferentes (BuildError vs Error);
+        // normaliza os dois para String antes de encadear.
+        let build_result = builder
+            .build()
+            .map_err(|e| e.to_string())
+            .and_then(|node| node.start().map_err(|e| e.to_string()).map(|_| node));
+        match build_result {
+            Ok(node) => return node,
+            Err(e) => {
+                println!(
+                    "iris-noded: tentativa {tentativa}/{TENTATIVAS} de iniciar o nó falhou: {e}"
+                );
+                ultimo_erro = Some(e);
+                if tentativa < TENTATIVAS {
+                    std::thread::sleep(std::time::Duration::from_secs(3));
+                }
+            }
+        }
+    }
+    panic!("falha ao iniciar o nó após {TENTATIVAS} tentativas: {ultimo_erro:?}");
+}
+
 fn main() {
     let args = Args::parse();
 
@@ -185,16 +312,9 @@ fn main() {
         .trim()
         .to_string();
 
-    let mut builder = Builder::new();
-    builder.set_entropy_bip39_mnemonic(mnemonic.parse().expect("mnemônica inválida"), None);
-    builder.set_network(Network::Testnet);
-    builder.set_storage_dir_path(args.data_dir.clone());
-    builder.set_esplora_server(args.esplora.clone());
+    let node = Arc::new(construir_e_iniciar(&mnemonic, &args));
 
-    let node = Arc::new(builder.build().expect("falha ao construir o nó"));
-    node.start().expect("falha ao iniciar o nó");
-
-    println!("iris-noded: nó {} rodando (testnet)", node.node_id());
+    println!("iris-noded: nó {} rodando (testnet4)", node.node_id());
     // Bind exclusivamente no loopback: o daemon nunca é exposto à rede.
     let server = tiny_http::Server::http(("127.0.0.1", args.port))
         .expect("falha ao abrir a porta local");

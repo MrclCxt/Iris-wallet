@@ -3017,6 +3017,10 @@ class coreApiImpl extends coreApiImplPlatform implements coreApi {
           counterpartyNodeId: dco_decode_opt_box_autoadd_public_key(raw[3]),
           reason: dco_decode_opt_box_autoadd_closure_reason(raw[4]),
         );
+      case 7:
+        return Event_Unknown(
+          kind: dco_decode_String(raw[1]),
+        );
       default:
         throw Exception("unreachable");
     }
@@ -4869,6 +4873,9 @@ class coreApiImpl extends coreApiImplPlatform implements coreApi {
             userChannelId: var_userChannelId,
             counterpartyNodeId: var_counterpartyNodeId,
             reason: var_reason);
+      case 7:
+        var var_kind = sse_decode_String(deserializer);
+        return Event_Unknown(kind: var_kind);
       default:
         throw UnimplementedError('');
     }
@@ -6970,6 +6977,9 @@ class coreApiImpl extends coreApiImplPlatform implements coreApi {
         sse_encode_box_autoadd_user_channel_id(userChannelId, serializer);
         sse_encode_opt_box_autoadd_public_key(counterpartyNodeId, serializer);
         sse_encode_opt_box_autoadd_closure_reason(reason, serializer);
+      case Event_Unknown(kind: final kind):
+        sse_encode_i_32(7, serializer);
+        sse_encode_String(kind, serializer);
       default:
         throw UnimplementedError('');
     }

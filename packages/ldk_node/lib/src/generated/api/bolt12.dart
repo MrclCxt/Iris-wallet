@@ -9,7 +9,7 @@ import '../utils/error.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `eq`, `fmt`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `eq`, `fmt`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
 
 // Rust type: RustOpaqueNom<Arc < ldk_node :: payment :: Bolt12Payment >>
 abstract class ArcBolt12Payment implements RustOpaqueInterface {}

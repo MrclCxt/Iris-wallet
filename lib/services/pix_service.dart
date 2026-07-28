@@ -439,8 +439,26 @@ class PixService extends ChangeNotifier {
   final SwapService swapService;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
+  // Provedor interno padrão: um simulado inócuo evita crashes de null enquanto
+  // o Pix está DESLIGADO. O Pix só aparece na UI quando [isPixEnabled] é true.
   PixProvider _provider = SimulatedPixProvider();
   PixProvider get provider => _provider;
+
+  // Pix é opt-in: o núcleo da carteira (sats/BTC) funciona sem provedor nenhum.
+  // Só habilita quando há um provedor real onboardado, ou quando o modo
+  // simulado é escolhido explicitamente (dev/testnet).
+  bool _devSimEnabled = false;
+
+  /// Verdadeiro apenas quando o usuário ativou o Pix — seja com um provedor
+  /// real (DePix/REST), seja ligando o modo simulado de dev/testnet. Enquanto
+  /// falso, toda a UI de Pix/Reais fica escondida e o usuário opera só em sats.
+  bool get isPixEnabled =>
+      _provider is DepixAppProvider ||
+      _provider is RestPixProvider ||
+      (_provider is SimulatedPixProvider && _devSimEnabled);
+
+  /// Modo dev/testnet ativo (provedor simulado escolhido de propósito).
+  bool get isDevSimulated => _provider is SimulatedPixProvider && _devSimEnabled;
 
   PixCharge? activeCharge;
   PixCharge? staticCharge; // QR fixo da carteira (sem valor)
@@ -480,11 +498,18 @@ class PixService extends ChangeNotifier {
       _provider = DepixAppProvider(apiKey: key);
     } else if (type == 'rest' && url != null && url.isNotEmpty && key != null) {
       _provider = RestPixProvider(baseUrl: url, apiKey: key);
+    } else if (type == 'sim') {
+      // Modo dev/testnet: Pix visível com provedor simulado, escolhido de propósito.
+      _devSimEnabled = true;
     }
+    // Sem type persistido (padrão): Pix fica DESLIGADO — só sats/BTC.
     notifyListeners();
   }
 
-  /// Configura o provedor. type: 'sim' | 'depixapp' | 'rest'.
+  /// Configura o provedor. type: 'off' | 'sim' | 'depixapp' | 'rest'.
+  /// - 'off':      desliga o Pix (padrão). A carteira opera só em sats/BTC.
+  /// - 'sim':      modo dev/testnet (provedor simulado, sem mover BRL real).
+  /// - 'depixapp'/'rest': provedor real onboardado.
   Future<void> configureProvider({
     required String type,
     String? baseUrl,
@@ -502,6 +527,7 @@ class PixService extends ChangeNotifier {
         await _storage.write(key: 'pix_provider_key', value: key);
         await _storage.delete(key: 'pix_provider_url');
         _provider = DepixAppProvider(apiKey: key);
+        _devSimEnabled = false;
         break;
       case 'rest':
         final url = (baseUrl ?? '').trim();
@@ -510,12 +536,22 @@ class PixService extends ChangeNotifier {
         await _storage.write(key: 'pix_provider_url', value: url);
         await _storage.write(key: 'pix_provider_key', value: (apiKey ?? '').trim());
         _provider = RestPixProvider(baseUrl: url, apiKey: (apiKey ?? '').trim());
+        _devSimEnabled = false;
         break;
-      default:
+      case 'sim':
+        // Ativação de dev/testnet: Pix visível, mas sem mover Reais de verdade.
+        await _storage.write(key: 'pix_provider_type', value: 'sim');
+        await _storage.delete(key: 'pix_provider_url');
+        await _storage.delete(key: 'pix_provider_key');
+        _provider = SimulatedPixProvider();
+        _devSimEnabled = true;
+        break;
+      default: // 'off' e qualquer valor desconhecido: desliga o Pix.
         await _storage.delete(key: 'pix_provider_type');
         await _storage.delete(key: 'pix_provider_url');
         await _storage.delete(key: 'pix_provider_key');
         _provider = SimulatedPixProvider();
+        _devSimEnabled = false;
     }
     notifyListeners();
   }

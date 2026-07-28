@@ -5,14 +5,26 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
-// Chave de assinatura permanente. O arquivo key.properties e o keystore ficam
-// FORA do controle de versão (ver .gitignore) — a chave é o que garante que o
-// app possa ser ATUALIZADO no aparelho sem desinstalar (sem perder a carteira).
+// Segredos de assinatura — NUNCA embutidos no código nem exigidos em arquivo.
+// Resolução modular: variável de AMBIENTE primeiro (recomendado — nada fica em
+// disco), depois key.properties (gitignorado) como fallback local. O keystore
+// em si vive fora do repo. A chave é o que permite ATUALIZAR o app no aparelho
+// sem desinstalar (sem perder a carteira).
 def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
+
+def resolveSecret = { String envName, String propName ->
+    def v = System.getenv(envName)
+    return (v != null && !v.isEmpty()) ? v : keystoreProperties[propName]
+}
+def signingKeyAlias = resolveSecret("IRIS_KEY_ALIAS", "keyAlias")
+def signingKeyPassword = resolveSecret("IRIS_KEY_PASSWORD", "keyPassword")
+def signingStoreFile = resolveSecret("IRIS_STORE_FILE", "storeFile")
+def signingStorePassword = resolveSecret("IRIS_STORE_PASSWORD", "storePassword")
+def hasReleaseSigning = signingStoreFile != null && signingStorePassword != null
 
 android {
     namespace = "com.example.iris_wallet"
@@ -20,6 +32,10 @@ android {
     ndkVersion = "26.1.10909125"
 
     compileOptions {
+        // Exigido pelo flutter_local_notifications: ele usa APIs de data/hora
+        // do Java 8 que só existem nativamente em APIs recentes, então o
+        // desugaring as reescreve para funcionar no minSdk do projeto.
+        coreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
@@ -30,11 +46,11 @@ android {
 
     signingConfigs {
         release {
-            if (keystorePropertiesFile.exists()) {
-                keyAlias = keystoreProperties["keyAlias"]
-                keyPassword = keystoreProperties["keyPassword"]
-                storeFile = file(keystoreProperties["storeFile"])
-                storePassword = keystoreProperties["storePassword"]
+            if (hasReleaseSigning) {
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+                storeFile = file(signingStoreFile)
+                storePassword = signingStorePassword
             }
         }
     }
@@ -63,14 +79,14 @@ android {
             // Assina o debug com a MESMA chave permanente do release: assim o
             // app no aparelho pode ser atualizado sempre, sem desinstalar (o
             // debug.keystore é regenerável e quebrava a atualização).
-            signingConfig = keystorePropertiesFile.exists()
+            signingConfig = hasReleaseSigning
                 ? signingConfigs.release
                 : signingConfigs.debug
         }
         release {
             // Assina com a chave permanente quando existir key.properties; sem
             // ela cai no debug (só para não travar o build de quem clonar).
-            signingConfig = keystorePropertiesFile.exists()
+            signingConfig = hasReleaseSigning
                 ? signingConfigs.release
                 : signingConfigs.debug
 
@@ -95,4 +111,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Companheira obrigatória de `coreLibraryDesugaringEnabled` acima.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

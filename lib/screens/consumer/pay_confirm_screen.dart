@@ -432,8 +432,8 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
         : _isLiquid
             ? 'Liquid (testnet)'
             : _isOnchain
-                ? 'Bitcoin on-chain (testnet)'
-                : 'Lightning (testnet)';
+                ? 'Bitcoin on-chain (testnet4)'
+                : 'Lightning (testnet4)';
 
     // Saldo do trilho x valor: bloqueia o envio quando não há saldo suficiente.
     final availableSats = _availableSats(wallet, liquid);
@@ -462,7 +462,7 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
         actions: const [
           Padding(
             padding: EdgeInsets.only(right: 16.0),
-            child: CurrencyToggleBtn(),
+            child: CurrencyToggleBtn(ocultarSemPix: true),
           ),
         ],
       ),
@@ -580,7 +580,7 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                     const SizedBox(height: 12),
                     const Divider(color: IrisTheme.bdr),
                     const SizedBox(height: 12),
-                    _buildRow('Para', widget.destination, isBold: true),
+                    _buildEnderecos(wallet),
                     const SizedBox(height: 8),
                     _buildRow('Rede', networkLabel),
                     const SizedBox(height: 8),
@@ -781,6 +781,110 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
         ),
       ],
       ),
+    );
+  }
+
+  /// Quebra o endereço em grupos de 4 para conferência visual — ler
+  /// `tb1q pty5 chec ...` é muito mais confiável do que uma tira única de 42
+  /// caracteres, que é onde erros de destino passam despercebidos.
+  String _agrupar(String endereco) {
+    final buf = StringBuffer();
+    for (var i = 0; i < endereco.length; i += 4) {
+      if (i > 0) buf.write(' ');
+      buf.write(endereco.substring(
+          i, i + 4 > endereco.length ? endereco.length : i + 4));
+    }
+    return buf.toString();
+  }
+
+  /// Bloco de conferência: de qual carteira sai, para onde vai, e o alerta se
+  /// os dois forem a mesma carteira.
+  Widget _buildEnderecos(WalletService wallet) {
+    final destino = widget.btcAddress ?? widget.destination;
+    final nomeDestino =
+        _isOnchain ? wallet.nomeDaCarteiraDoEndereco(destino) : null;
+    final ehMinha = nomeDestino != null;
+    final origem = wallet.activeConsumer?.name ?? 'Carteira pessoal';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildRow('Saindo de', origem, isBold: true),
+        const SizedBox(height: 8),
+        // Identidade do destino: nome quando é uma carteira deste aparelho,
+        // "externa" quando não reconhecemos. É o que o usuário confere antes
+        // de assinar.
+        _buildRow(
+          'Indo para',
+          ehMinha ? 'Sua carteira: $nomeDestino' : 'Carteira externa',
+          valueColor: ehMinha ? IrisTheme.warning : IrisTheme.textPrimary,
+          isBold: true,
+        ),
+        const SizedBox(height: 10),
+        const Text('Endereço de destino',
+            style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
+        const SizedBox(height: 4),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: IrisTheme.bg,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+                color: ehMinha ? IrisTheme.warning : IrisTheme.bdr),
+          ),
+          child: SelectableText(
+            _isOnchain ? _agrupar(destino) : destino,
+            style: const TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 12,
+              height: 1.45,
+              color: IrisTheme.textPrimary,
+            ),
+          ),
+        ),
+        if (ehMinha) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: IrisTheme.warning.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: IrisTheme.warning.withOpacity(0.45)),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.warning_amber_rounded,
+                    color: IrisTheme.warning, size: 18),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Este endereço é de uma carteira SUA',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: IrisTheme.warning),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        'Seus perfis compartilham a mesma frase semente, então '
+                        'enviar aqui não move o dinheiro para outro lugar: o '
+                        'saldo continua seu e você paga a taxa de mineração à toa.',
+                        style: TextStyle(
+                            fontSize: 11, color: IrisTheme.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 

@@ -12,14 +12,22 @@ anyhow = "1.0.68"
 [dependencies]
 flutter_rust_bridge = "=2.0.0"
 anyhow = { version = "1.0.71"}
-ldk-node = { version = "= 0.3.0"  }
-# ldk-node = {git = 'https://github.com/lightningdevkit/ldk-node.git', rev = "246775d04dbb2e99528a6a1aa0bc04ad7378e900"}
+# PORTE EM ANDAMENTO: 0.3.0 -> 0.7.0, para ter Network::Testnet4 nativo.
+# A 0.3.0 não conhece testnet4, então o nó anunciava o ChainHash da testnet3
+# enquanto as transações caíam na testnet4 — nenhum nó real aceitava os canais.
+#
+# A cópia local (vendor/ldk-node) era a 0.3.0 com patches nossos; ela sai de
+# cena aqui. Os patches estão registrados na memória do projeto e precisam ser
+# reavaliados contra a 0.7.0 (vários podem já estar corrigidos upstream).
+ldk-node = { version = "0.7.0" }
 
-# Cópia local do ldk-node 0.3.0 com um único patch: fee_estimator.rs usa
-# saturating_sub para não estourar (panic "subtract with overflow" -> abort do
-# app) quando o Esplora reporta fees de testnet abaixo de 1 sat/vB.
+# Cópia local do lightning-invoice 0.34.1 com UM patch: `From<Network> for
+# Currency` não conhecia `Network::Testnet4` e caía num `_` com
+# `debug_assert!` — em debug, panic ao criar qualquer fatura; em release, pior
+# ainda: gerava fatura como Regtest (`lnbcrt`), inválida para o pagador.
+# Testnet4 usa o mesmo HRP `lntb` da testnet3 no BOLT11.
 [patch.crates-io]
-ldk-node = { path = "vendor/ldk-node" }
+lightning-invoice = { path = "vendor/lightning-invoice" }
 
 
 [profile.release]

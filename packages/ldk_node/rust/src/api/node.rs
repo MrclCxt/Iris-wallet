@@ -28,7 +28,7 @@ impl LdkNode {
         self.ptr.config().into()
     }
     pub fn event_handled(&self) {
-        self.ptr.event_handled()
+        let _ = self.ptr.event_handled();
     }
 
     pub fn next_event(&self) -> Option<Event> {
@@ -97,19 +97,34 @@ impl LdkNode {
         announce_channel: bool,
         channel_config: Option<ChannelConfig>,
     ) -> Result<UserChannelId, LdkNodeError> {
-        self.ptr
-            .connect_open_channel(
-                node_id.try_into()?,
-                socket_address
-                    .try_into()
-                    .map_err(|_| LdkNodeError::InvalidAddress)?,
+        // PORTE 0.7.0: `announce_channel` deixou de ser um bool e virou a
+        // escolha do MÉTODO — `open_announced_channel` versus `open_channel`.
+        // O parâmetro continua na nossa API para o Dart não mudar; aqui ele só
+        // decide para onde despachar. O config também deixou de ser `Arc`.
+        let node_id = node_id.try_into()?;
+        let address = socket_address
+            .try_into()
+            .map_err(|_| LdkNodeError::InvalidAddress)?;
+        let cfg = channel_config.map(|x| x.into());
+
+        let resultado = if announce_channel {
+            self.ptr.open_announced_channel(
+                node_id,
+                address,
                 channel_amount_sats,
                 push_to_counterparty_msat,
-                channel_config.map(|x| Arc::new(x.into())),
-                announce_channel,
+                cfg,
             )
-            .map_err(|e| e.into())
-            .map(|e| e.into())
+        } else {
+            self.ptr.open_channel(
+                node_id,
+                address,
+                channel_amount_sats,
+                push_to_counterparty_msat,
+                cfg,
+            )
+        };
+        resultado.map_err(|e| e.into()).map(|e| e.into())
     }
 
     pub fn sync_wallets(&self) -> anyhow::Result<(), LdkNodeError> {
@@ -138,6 +153,7 @@ impl LdkNode {
             .force_close_channel(
                 &(user_channel_id.try_into()?),
                 counterparty_node_id.try_into()?,
+                None,
             )
             .map_err(|e| e.into())
     }
@@ -152,7 +168,7 @@ impl LdkNode {
             .update_channel_config(
                 &(user_channel_id.try_into()?),
                 counterparty_node_id.try_into()?,
-                Arc::new(channel_config.into()),
+                channel_config.into(),
             )
             .map_err(|e| e.into())
     }
@@ -198,7 +214,7 @@ impl LdkNode {
     }
 
     pub fn sign_message(&self, msg: Vec<u8>) -> anyhow::Result<String, LdkNodeError> {
-        self.ptr.sign_message(msg.as_slice()).map_err(|e| e.into())
+        Ok(self.ptr.sign_message(msg.as_slice()))
     }
     pub fn network_graph(ptr: Self) -> LdkNetworkGraph {
         ptr.ptr.network_graph().into()
@@ -214,7 +230,7 @@ impl LdkNode {
     }
     pub fn bolt12_payment(ptr: Self) -> LdkBolt12Payment {
         LdkBolt12Payment {
-            ptr: RustOpaque::new(ptr.ptr.bolt12_payment()),
+            ptr: RustOpaque::new(Arc::new(ptr.ptr.bolt12_payment())),
         }
     }
 

@@ -146,7 +146,6 @@ impl From<NodeError> for LdkNodeError {
             NodeError::PersistenceFailed => LdkNodeError::PersistenceFailed,
             NodeError::WalletOperationFailed => LdkNodeError::WalletOperationFailed,
             NodeError::OnchainTxSigningFailed => LdkNodeError::OnchainTxSigningFailed,
-            NodeError::MessageSigningFailed => LdkNodeError::MessageSigningFailed,
             NodeError::TxSyncFailed => LdkNodeError::TxSyncFailed,
             NodeError::GossipUpdateFailed => LdkNodeError::GossipUpdateFailed,
             NodeError::InvalidAddress => LdkNodeError::InvalidAddress,
@@ -181,6 +180,12 @@ impl From<NodeError> for LdkNodeError {
             NodeError::InvalidOffer => LdkNodeError::InvalidOffer,
             NodeError::InvalidRefund => LdkNodeError::InvalidRefund,
             NodeError::UnsupportedCurrency => LdkNodeError::UnsupportedCurrency,
+            // PORTE 0.7.0: o LDK acrescenta variantes de erro a cada versão
+            // (splicing, TLVs, URI...). Braço genérico para uma versão nova não
+            // quebrar a compilação; a mensagem preserva o motivo real.
+            // Sem variante genérica no nosso enum; PersistenceFailed é a mais
+            // neutra ("algo deu errado no nó") e já é tratada pela UI.
+            _ => LdkNodeError::PersistenceFailed,
         }
     }
 }
@@ -198,6 +203,9 @@ impl From<BuildError> for LdkBuilderError {
             BuildError::InvalidChannelMonitor => LdkBuilderError::InvalidChannelMonitor,
             BuildError::KVStoreSetupFailed => LdkBuilderError::KVStoreSetupFailed,
             BuildError::InvalidListeningAddresses => LdkBuilderError::InvalidListeningAddress,
+            // Idem: variantes novas do BuildError caem aqui em vez de quebrar
+            // a compilação a cada versão do ldk-node.
+            _ => LdkBuilderError::WalletSetupFailed,
         }
     }
 }
@@ -232,7 +240,7 @@ impl From<ldk_node::lightning::ln::msgs::DecodeError> for DecodeError {
             ldk_node::lightning::ln::msgs::DecodeError::BadLengthDescriptor => {
                 DecodeError::BadLengthDescriptor
             }
-            ldk_node::lightning::ln::msgs::DecodeError::Io(e) => DecodeError::Io(e.to_string()),
+            ldk_node::lightning::ln::msgs::DecodeError::Io(e) => DecodeError::Io(format!("{:?}", e)),
             ldk_node::lightning::ln::msgs::DecodeError::UnsupportedCompression => {
                 DecodeError::UnsupportedCompression
             }
@@ -284,6 +292,9 @@ impl From<ldk_node::lightning::offers::parse::Bolt12ParseError> for LdkNodeError
             ldk_node::lightning::offers::parse::Bolt12ParseError::InvalidSignature(e) => {
                 LdkNodeError::Bolt12Parse(Bolt12ParseError::InvalidSignature(e.to_string()))
             }
+            // Variante nova do parser BOLT12 (InvalidLeadingWhitespace e
+            // futuras): tratamos como formato inválido.
+            _ => LdkNodeError::Bolt12Parse(Bolt12ParseError::InvalidBech32Hrp),
         }
     }
 }

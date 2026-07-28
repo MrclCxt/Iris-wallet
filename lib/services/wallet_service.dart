@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:cryptography/cryptography.dart' show SecretKey;
 
+import '../core/address_validator.dart';
 import '../core/bolt11.dart';
 import '../core/seed_crypto.dart';
 import '../core/vault_crypto.dart';
@@ -753,6 +754,48 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
     lista.sort((a, b) => b.date.compareTo(a.date));
     unawaited(_salvarHistorico(isMerchant));
+  }
+
+  void _removerTransacao(String txid, {required bool isMerchant}) {
+    final lista = isMerchant ? _merchantTransactions : _consumerTransactions;
+    final antes = lista.length;
+    lista.removeWhere((t) => t.id == txid);
+    if (lista.length == antes) return;
+
+    unawaited(_salvarHistorico(isMerchant));
+    notifyListeners();
+  }
+
+  Future<int> limparTransacoesFantasma({bool forMerchant = false}) async {
+    final base = EmbeddedNodeApi.esploraEmUso;
+    if (base == null) return 0;
+
+    final lista =
+        forMerchant ? _merchantTransactions : _consumerTransactions;
+    final limite = DateTime.now().subtract(const Duration(minutes: 3));
+
+    final suspeitas = lista
+        .where((t) =>
+            !t.isIncoming &&
+            t.id.length == 64 &&
+            t.date.isBefore(limite))
+        .toList();
+
+    var removidas = 0;
+    for (final t in suspeitas) {
+      try {
+        final r = await http
+            .get(Uri.parse('$base/tx/${t.id}'))
+            .timeout(const Duration(seconds: 10));
+        if (r.statusCode == 404) {
+          debugPrint('Transação fantasma removida: ${t.id} (nunca chegou à rede).');
+          _removerTransacao(t.id, isMerchant: forMerchant);
+          removidas++;
+        }
+      } catch (_) {}
+      await Future.delayed(const Duration(milliseconds: 400));
+    }
+    return removidas;
   }
 
 
@@ -2578,8 +2621,14 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _varrerSePendente(_NodeHandle handle,
       {required bool isMerchant}) async {
-    if (!await _precisaVarredura(handle)) return;
     if (!handle.isRunning || handle.api == null) return;
+
+    final fantasmas = await limparTransacoesFantasma(forMerchant: isMerchant);
+    if (fantasmas > 0) {
+      debugPrint('$fantasmas transação(ões) fantasma removida(s) do histórico.');
+    }
+
+    if (!await _precisaVarredura(handle)) return;
 
     debugPrint('Varredura completa pendente para este nó — executando.');
     final delta = await deepScan(forMerchant: isMerchant);
@@ -2711,12 +2760,64 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     };
   }
 
+  Future<void> validarAntesDeEnviar(
+      {required String address, required int sats}) async {
+    final handle = _consumerNode;
+
+    final endereco = AddressValidator.validarTestnet(address);
+    if (!endereco.valido) {
+      throw Exception(endereco.motivo);
+    }
+
+    if (!handle.isRunning || handle.api == null) {
+      throw Exception(
+          'A carteira ainda não conectou à rede. Aguarde a sincronização.');
+    }
+
+    if (sats <= 0) {
+      throw Exception('Informe um valor maior que zero.');
+    }
+    if (sats > handle.onchainBalanceSats) {
+      throw Exception(
+          'Saldo on-chain insuficiente: você tem ${handle.onchainBalanceSats} sats disponíveis.');
+    }
+
+    final base = EmbeddedNodeApi.esploraEmUso;
+    if (base == null) {
+      throw Exception('Nenhum servidor da rede configurado.');
+    }
+
+    try {
+      final r = await http
+          .get(Uri.parse('$base/blocks/tip/height'))
+          .timeout(const Duration(seconds: 12));
+      if (r.statusCode != 200) {
+        throw Exception(
+            'O servidor da rede respondeu com erro ${r.statusCode}. '
+            'Tente de novo em instantes.');
+      }
+      final altura = int.tryParse(r.body.trim());
+      if (altura == null || altura <= 0) {
+        throw Exception('O servidor da rede devolveu uma resposta inválida.');
+      }
+      debugPrint('Rede verificada antes do envio — bloco $altura.');
+    } on TimeoutException {
+      throw Exception(
+          'Sem resposta da rede Bitcoin. O envio foi cancelado para não '
+          'debitar seu saldo sem a transação sair.');
+    } on Exception catch (e) {
+      if (e.toString().contains('servidor da rede')) rethrow;
+      throw Exception(
+          'Não foi possível falar com a rede Bitcoin. Verifique sua conexão.');
+    }
+  }
+
   Future<String> sendOnchain(
       {required String address, required int sats}) async {
     final handle = _consumerNode;
-    if (!handle.isRunning || handle.api == null) {
-      throw Exception('Nó não está rodando.');
-    }
+
+    await validarAntesDeEnviar(address: address, sats: sats);
+
     final txid = await handle.api!.sendOnchain(address: address, sats: sats);
 
     final tx = Transaction(
@@ -2756,8 +2857,8 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     }
 
     debugPrint(
-        'Transação $txid não apareceu na rede após ${tentativas * 6}s — marcando como não validada.');
-    _atualizarStatusTx(txid, 'failed', isMerchant: isMerchant);
+        'Transação $txid não apareceu na rede após ${tentativas * 6}s — removendo do histórico.');
+    _removerTransacao(txid, isMerchant: isMerchant);
   }
 
   void _atualizarStatusTx(String txid, String status,

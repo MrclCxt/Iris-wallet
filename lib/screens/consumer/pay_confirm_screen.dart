@@ -225,9 +225,16 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: IrisTheme.danger),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: IrisTheme.danger,
+        duration: const Duration(seconds: 7),
+      ),
     );
   }
+
+  static String _mensagemLimpa(Object e) =>
+      e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
 
   Future<void> _executePayment() async {
     final wallet = context.read<WalletService>();
@@ -316,6 +323,13 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
     } else if (_isOnchain) {
       if (wallet.consumerOnchainSats < _satsAmount) {
         _showError('Saldo on-chain insuficiente!');
+        return;
+      }
+      try {
+        await wallet.validarAntesDeEnviar(
+            address: widget.btcAddress!, sats: _satsAmount);
+      } catch (e) {
+        _showError(_mensagemLimpa(e));
         return;
       }
     } else if (wallet.consumerLightningSats < _satsAmount) {

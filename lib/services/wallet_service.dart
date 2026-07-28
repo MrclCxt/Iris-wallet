@@ -503,7 +503,28 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       codigo != null && codigo.trim().toLowerCase().startsWith('lno');
 
 
+  // Cada fase de um recebimento Lightning pode ser anunciada UMA vez. O hash do
+  // pagamento é identidade de verdade (não se repete), então travar por ele não
+  // corre o risco de esconder um segundo pagamento legítimo — ao contrário do
+  // que aconteceria filtrando por valor.
+  //
+  // On-chain fica de fora justamente por não ter esse identificador aqui: lá a
+  // unicidade é garantida na origem, deixando só o `_refreshBalances` anunciar.
+  final Set<String> _recebimentosAnunciados = {};
+
+  static String _faseDoRecebimento(ReceivedPayment p) => p.isConfirmation
+      ? 'confirmado'
+      : (p.isPending ? 'pendente' : 'recebido');
+
   void _emitirRecebimento(ReceivedPayment p) {
+    if (!p.isOnchain && p.paymentHashHex.isNotEmpty) {
+      final chave = '${p.paymentHashHex}:${_faseDoRecebimento(p)}';
+      if (!_recebimentosAnunciados.add(chave)) {
+        debugPrint('Recebimento Lightning já anunciado ($chave) — ignorando.');
+        return;
+      }
+    }
+
     _paymentsCtrl.add(p);
     unawaited(_notificarNoSistema(p));
   }
@@ -705,9 +726,37 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       destino
         ..clear()
         ..addAll(lista);
+
+      // A faxina roda AQUI, e não só depois de um sync: ela é puramente local —
+      // compara o que já está gravado — e prender a limpeza a `sync()` significa
+      // que um aparelho sem rede, ou com o Esplora recusando, fica exibindo a
+      // duplicata indefinidamente. Era o que estava acontecendo.
+      if (_removerProvisoriosJaCobertos(isMerchant: isMerchant) > 0 ||
+          _corrigirTitulosIncoerentes(isMerchant: isMerchant) > 0) {
+        await _salvarHistorico(isMerchant);
+        notifyListeners();
+      }
     } catch (e) {
       debugPrint('Falha ao carregar histórico: $e');
     }
+  }
+
+  // Uma linha dizendo "Recebido on-chain (Bitcoin)" com o selo "Aguardando
+  // confirmação" afirma duas coisas contrárias. Títulos assim já estão gravados
+  // no disco de quem usou as versões anteriores, então corrigir só na escrita
+  // não basta.
+  int _corrigirTitulosIncoerentes({required bool isMerchant}) {
+    final lista = isMerchant ? _merchantTransactions : _consumerTransactions;
+    var corrigidos = 0;
+    for (final t in lista) {
+      if (!t.isIncoming || t.emoji != '₿') continue;
+      final correto = tituloEntradaOnchain(t.status);
+      if (t.title != correto) {
+        t.title = correto;
+        corrigidos++;
+      }
+    }
+    return corrigidos;
   }
 
   Future<void> _salvarHistorico(bool isMerchant) async {
@@ -751,10 +800,17 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
         if (indice >= 0) {
           if (lista[indice].status != p.status) {
             lista[indice].status = p.status;
-            if (p.isOnchain && p.isIncoming) {
-              lista[indice].title = tituloEntradaOnchain(p.status);
-            }
             statusMudou = true;
+          }
+          // Fora do `if` acima de propósito: o título podia estar errado desde
+          // que a linha foi criada, sem nenhuma mudança de status para
+          // disparar a correção.
+          if (p.isOnchain && p.isIncoming) {
+            final correto = tituloEntradaOnchain(lista[indice].status);
+            if (lista[indice].title != correto) {
+              lista[indice].title = correto;
+              statusMudou = true;
+            }
           }
           continue;
         }
@@ -2244,14 +2300,20 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
             'Vigia rápida: recebimento de $chegando sats detectado em $addr — sincronizando já.');
         _ultimoTotalVisto = total;
 
+        // A vigia NÃO anuncia. Ela existe para encurtar a espera, e para isso
+        // basta forçar o sync abaixo — quem anuncia é o `_refreshBalances`, que
+        // é a fonte autoritativa (lê o nó, não o Esplora).
+        //
+        // Antes as duas anunciavam o mesmo dinheiro: a vigia na hora, e o
+        // `_refreshBalances` logo depois, ao ver o saldo subir por causa do sync
+        // que a própria vigia disparou. Duas notificações, duas linhas somando
+        // no banner de pendente.
+        //
+        // Filtrar por valor seria pior: dois recebimentos on-chain iguais em
+        // sequência são normais numa loja, e um filtro assim esconderia dinheiro
+        // de verdade. Remover a fonte dupla não tem esse risco.
         if (aindaNoMempool && chegando > 0) {
-          _emitirRecebimento(ReceivedPayment(
-            paymentHashHex: '',
-            amountSats: chegando,
-            isOnchain: true,
-            isMerchant: handle.isMerchant,
-            isPending: true,
-          ));
+          debugPrint('Vigia rápida: anúncio deixado para o sync (fonte única).');
         }
 
         await _dispararSync?.call();

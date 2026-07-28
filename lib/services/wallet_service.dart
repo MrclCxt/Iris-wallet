@@ -471,7 +471,6 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   static bool ehOfferBolt12(String? codigo) =>
       codigo != null && codigo.trim().toLowerCase().startsWith('lno');
 
-  bool get qrLightningEhReutilizavel => ehOfferBolt12(_deviceNode.fixedInvoice);
 
   void _emitirRecebimento(ReceivedPayment p) {
     _paymentsCtrl.add(p);
@@ -791,7 +790,8 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     unawaited(_salvarHistorico(isMerchant));
   }
 
-  List<Transaction> pendingTransactions({required bool isMerchant}) =>
+
+  List<Transaction> _pendingTransactions({required bool isMerchant}) =>
       (isMerchant ? _merchantTransactions : _consumerTransactions)
           .where((t) => t.status == 'pending')
           .toList();
@@ -1689,7 +1689,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
       if (!handle.balancesInitialized && newTotal > newSpendable) {
         final pendente = newTotal - newSpendable;
-        final jaRegistrado = pendingTransactions(isMerchant: handle.isMerchant)
+        final jaRegistrado = _pendingTransactions(isMerchant: handle.isMerchant)
                 .fold<int>(0, (s, t) => s + t.amountSats) >=
             pendente;
         final semCanais = (await handle.api!.channels()).isEmpty;
@@ -2201,8 +2201,6 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     return _enderecosProprios[endereco.trim().toLowerCase()];
   }
 
-  bool enderecoEhDaMinhaCarteira(String endereco) =>
-      nomeDaCarteiraDoEndereco(endereco) != null;
 
   Future<String?> _loadFixedInvoice(bool isMerchant) async {
     final id = isMerchant ? _activeMerchantId : _activeConsumerId;
@@ -2521,18 +2519,6 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     return novo;
   }
 
-  Future<String> rotateOnchainAddress({bool forMerchant = false}) async {
-    final handle = forMerchant ? _merchantNode : _consumerNode;
-    if (!handle.isRunning || handle.api == null) {
-      throw Exception('Nó indisponível — não é possível gerar endereço real.');
-    }
-    final novo = await handle.api!.newOnchainAddress();
-    handle.cachedOnchainAddress = novo;
-    await _saveOnchainAddress(forMerchant, novo);
-    await _registrarEnderecoProprio(novo);
-    notifyListeners();
-    return novo;
-  }
 
   Future<String> getMyNodeId({bool forMerchant = false}) async {
     final handle = forMerchant ? _merchantNode : _consumerNode;

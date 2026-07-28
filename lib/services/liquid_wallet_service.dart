@@ -4,20 +4,15 @@ import 'package:lwk/lwk.dart' as lwk;
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 
-/// Integração com a sidechain Liquid (testnet) via LWK.
-/// Cumpre o requisito de Sidechain do projeto: recebimento, saldo real
-/// e envio de L-BTC com transação construída, assinada e transmitida
-/// localmente (não-custodial).
 class LiquidWalletService extends ChangeNotifier {
   static const String _electrumUrl = 'blockstream.info:465';
 
-  /// Asset ID do L-BTC na Liquid testnet.
   static const String lbtcTestnetAssetId =
       '144c654344aa716d6f3abcc1ca90e5641e4e2a7f633bc09fe3baf64585819a49';
 
   lwk.Wallet? _wallet;
-  String? _mnemonic; // mantida em memória apenas para assinar (não-custodial)
-  String? _accountId; // de qual conta é a carteira que está carregada
+  String? _mnemonic;
+  String? _accountId;
   bool _isRunning = false;
   bool _isMock = false;
   Timer? _syncTimer;
@@ -28,16 +23,12 @@ class LiquidWalletService extends ChangeNotifier {
   int _balanceSats = 0;
   int get balanceSats => _balanceSats;
 
-  /// Notifica quando L-BTC/DEPIX chega na carteira (detectado por sync).
   final StreamController<int> _receivedCtrl = StreamController<int>.broadcast();
   Stream<int> get lbtcReceived => _receivedCtrl.stream;
 
   String? _receiveAddress;
   String? get receiveAddress => _receiveAddress;
 
-  /// Descarta a carteira Liquid carregada. Necessário ao trocar de conta: são
-  /// carteiras separadas, e manter a anterior faria o endereço de recebimento
-  /// (e o saldo exibido) pertencerem à conta errada.
   void resetForAccountSwitch() {
     _syncTimer?.cancel();
     _syncTimer = null;
@@ -51,15 +42,11 @@ class LiquidWalletService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// [accountId] separa os dados em disco por conta. Sem isso todas as contas
-  /// dividiriam a mesma base do LWK.
-  Future<void> initLiquidWallet(String mnemonic, {String accountId = 'default'}) async {
-    // Já rodando para ESTA conta: nada a fazer. Para outra conta, recarrega.
+  Future<void> initLiquidWallet(String mnemonic,
+      {String accountId = 'default'}) async {
     if (_isRunning && _accountId == accountId) return;
     if (_isRunning) resetForAccountSwitch();
     try {
-      // Inicializa a ponte flutter_rust_bridge do LWK antes de qualquer chamada
-      // nativa (sem isto: "flutter_rust_bridge has not been initialized").
       await lwk.LibLwk.init();
 
       final directory = await getApplicationDocumentsDirectory();
@@ -84,9 +71,6 @@ class LiquidWalletService extends ChangeNotifier {
       _mnemonic = mnemonic;
       _accountId = accountId;
 
-      // validateDomain: true faz o cliente TLS enviar o SNI (blockstream.info
-      // fica atrás de CDN que exige SNI). Com false, o servidor recusava o
-      // handshake com AlertReceived(DecodeError) e a Liquid não sincronizava.
       await _wallet!.sync(
         electrumUrl: _electrumUrl,
         validateDomain: true,
@@ -100,7 +84,6 @@ class LiquidWalletService extends ChangeNotifier {
       _isRunning = true;
       _isMock = false;
 
-      // Sync periódico: detecta DEPIX/L-BTC chegando (ex.: QR PIX fixo pago)
       _syncTimer?.cancel();
       _syncTimer = Timer.periodic(const Duration(seconds: 45), (_) async {
         final before = _balanceSats;
@@ -111,7 +94,8 @@ class LiquidWalletService extends ChangeNotifier {
       });
 
       notifyListeners();
-      debugPrint('Liquid Wallet iniciada (testnet). Saldo: $_balanceSats sats L-BTC');
+      debugPrint(
+          'Liquid Wallet iniciada (testnet). Saldo: $_balanceSats sats L-BTC');
     } catch (e) {
       debugPrint('Erro ao iniciar Liquid Wallet: $e');
       if (Platform.isWindows) {
@@ -160,9 +144,8 @@ class LiquidWalletService extends ChangeNotifier {
     return addr.confidential;
   }
 
-  /// Envia L-BTC (testnet): constrói o PSET, assina localmente com a
-  /// mnemônica e transmite via Electrum. Retorna o txid.
-  Future<String> sendLbtc({required String toAddress, required int sats}) async {
+  Future<String> sendLbtc(
+      {required String toAddress, required int sats}) async {
     if (!_isRunning || _wallet == null || _mnemonic == null) {
       throw Exception('Carteira Liquid não está pronta.');
     }
@@ -172,7 +155,7 @@ class LiquidWalletService extends ChangeNotifier {
     final pset = await _wallet!.buildLbtcTx(
       sats: BigInt.from(sats),
       outAddress: toAddress,
-      feeRate: 0.1, // sats/vbyte típico da Liquid
+      feeRate: 0.1,
       drain: false,
     );
 

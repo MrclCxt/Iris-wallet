@@ -31,7 +31,7 @@ class _ConsumerHomeScreenState extends State<ConsumerHomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Restaura a última aba (persiste ao travar/reabrir; zerada na troca de conta).
+
     _currentIndex = context.read<WalletService>().consumerTab;
   }
 
@@ -70,8 +70,6 @@ class _ConsumerHomeScreenState extends State<ConsumerHomeScreen> {
                   ],
                 ),
               ),
-              // Sem troca de área aqui: ela mora em Configurações, para o
-              // mesmo caminho valer no celular e no desktop.
               selectedIconTheme: const IconThemeData(color: IrisTheme.primary),
               unselectedIconTheme:
                   const IconThemeData(color: IrisTheme.textTertiary),
@@ -135,13 +133,11 @@ class _IrisBottomNav extends StatelessWidget {
       ('⚙️', 'CONFIG'),
     ];
 
-    // Tab accent colors — each 90° apart from the current chroma hue
     final tabColors = List.generate(
       4,
       (i) => HSLColor.fromAHSL(1.0, (hue + i * 90) % 360, 0.85, 0.60).toColor(),
     );
 
-    // Animated rainbow that starts at current hue and spans full spectrum
     final rainbowColors = List.generate(
       9,
       (i) => HSLColor.fromAHSL(1.0, (hue + i * 45) % 360, 0.88, 0.58).toColor(),
@@ -155,7 +151,6 @@ class _IrisBottomNav extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Animated rainbow bar at top — shifts with ChromaService
           AnimatedContainer(
             duration: const Duration(seconds: 3),
             curve: Curves.easeInOut,

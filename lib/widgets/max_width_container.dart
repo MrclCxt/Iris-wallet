@@ -7,7 +7,7 @@ class MaxWidthContainer extends StatelessWidget {
   const MaxWidthContainer({
     super.key,
     required this.child,
-    this.maxWidth = 700, // Default width suitable for settings and forms
+    this.maxWidth = 700,
   });
 
   @override

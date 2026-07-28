@@ -41,9 +41,6 @@ class ConsumerConfigScreen extends StatelessWidget {
                   icon: Icons.storefront,
                   title: 'Modo Lojista / PDV',
                   subtitle: 'Receba pagamentos no seu comércio',
-                  // Usa a mesma rotina do antigo botão das telas iniciais —
-                  // inclusive o seletor quando existe mais de uma loja, que
-                  // esta tela não oferecia antes.
                   onTap: () => AreaSwitcherBtn.trocarArea(context,
                       isCurrentlyConsumer: true),
                 ),

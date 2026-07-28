@@ -3,14 +3,6 @@ use crate::frb_generated::RustOpaque;
 use crate::utils::error::LdkNodeError;
 use std::str::FromStr;
 
-/// PORTE 0.7.0: os métodos `receive*` passaram a exigir
-/// `&Bolt11InvoiceDescription` no lugar de `&str`. Este helper faz a ponte a
-/// partir da String que a API Dart continua enviando, para a assinatura
-/// pública do pacote não mudar.
-///
-/// Descrição inválida (acima do limite do BOLT11) vira descrição vazia em vez
-/// de derrubar a criação da fatura — sem descrição a fatura ainda é válida e
-/// pagável, que é o que importa para quem está cobrando.
 fn descricao_bolt11(s: &str) -> ldk_node::lightning_invoice::Bolt11InvoiceDescription {
     use ldk_node::lightning_invoice::{Bolt11InvoiceDescription, Description};
     let d = Description::new(s.to_string())
@@ -29,8 +21,7 @@ impl From<ldk_node::payment::Bolt11Payment> for LdkBolt11Payment {
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
-///Represents a syntactically and semantically correct lightning BOLT11 invoice.
-///
+
 pub struct Bolt11Invoice {
     pub signed_raw_invoice: String,
 }

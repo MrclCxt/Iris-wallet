@@ -11,10 +11,6 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/theme.dart';
 import '../../services/wallet_service.dart';
 
-/// Exportação e importação do catálogo da loja, para replicar os mesmos
-/// produtos em vários dispositivos. Só o catálogo trafega — seed e PIN nunca
-/// saem do aparelho.
-
 Future<void> showCatalogExportSheet(BuildContext context) async {
   final wallet = context.read<WalletService>();
 
@@ -24,7 +20,6 @@ Future<void> showCatalogExportSheet(BuildContext context) async {
     return;
   }
 
-  // Ler as fotos do disco e embutir em base64 leva um instante.
   final String conteudo;
   try {
     conteudo = await wallet.exportMerchantCatalog();
@@ -76,7 +71,7 @@ Future<void> showCatalogExportSheet(BuildContext context) async {
           onTap: () async {
             await Clipboard.setData(ClipboardData(text: conteudo));
             if (ctx.mounted) Navigator.of(ctx).pop();
-            // O Android 13+ já exibe seu próprio aviso de cópia.
+
             if (!Platform.isAndroid && context.mounted) {
               _aviso(context, 'Catálogo copiado. Cole no outro aparelho.');
             }
@@ -95,9 +90,6 @@ String _nomeArquivo(String? nomeLoja) {
   return 'catalogo-${slug.isEmpty ? 'loja' : slug}.json';
 }
 
-/// Abre o seletor do sistema para o lojista escolher onde salvar (Downloads,
-/// Drive, pendrive...). No Android o próprio file_picker grava os bytes; no
-/// desktop ele só devolve o caminho escolhido e a escrita é nossa.
 Future<void> _baixarArquivo(
     BuildContext context, String conteudo, String? nomeLoja) async {
   try {
@@ -107,7 +99,7 @@ Future<void> _baixarArquivo(
       fileName: _nomeArquivo(nomeLoja),
       bytes: bytes,
     );
-    if (caminho == null) return; // usuário cancelou
+    if (caminho == null) return;
 
     if (!Platform.isAndroid && !Platform.isIOS) {
       await File(caminho).writeAsBytes(bytes);
@@ -139,8 +131,7 @@ Future<void> showCatalogImportDialog(BuildContext context) async {
   final wallet = context.read<WalletService>();
   final controlador = TextEditingController();
   final jaTemProdutos = wallet.merchantProducts.isNotEmpty;
-  // Com catálogo existente o padrão é mesclar: substituir apaga o que já está
-  // cadastrado, e isso precisa ser uma escolha consciente.
+
   var substituir = false;
   var importando = false;
 
@@ -153,7 +144,8 @@ Future<void> showCatalogImportDialog(BuildContext context) async {
           const Text(
             'Escolha o arquivo .json que você baixou, ou cole o código copiado '
             'do outro aparelho.',
-            style: TextStyle(fontSize: 13, color: IrisTheme.textSecondary, height: 1.4),
+            style: TextStyle(
+                fontSize: 13, color: IrisTheme.textSecondary, height: 1.4),
           ),
           const SizedBox(height: 14),
           _Botao(
@@ -175,8 +167,8 @@ Future<void> showCatalogImportDialog(BuildContext context) async {
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 10),
                 child: Text('ou cole o código',
-                    style: TextStyle(
-                        fontSize: 11, color: IrisTheme.textTertiary)),
+                    style:
+                        TextStyle(fontSize: 11, color: IrisTheme.textTertiary)),
               ),
               Expanded(child: Divider(color: IrisTheme.bdr)),
             ],
@@ -189,7 +181,8 @@ Future<void> showCatalogImportDialog(BuildContext context) async {
             style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
             decoration: InputDecoration(
               hintText: '{ "iris_catalog": 1, ... }',
-              hintStyle: const TextStyle(color: IrisTheme.textTertiary, fontSize: 12),
+              hintStyle:
+                  const TextStyle(color: IrisTheme.textTertiary, fontSize: 12),
               filled: true,
               fillColor: IrisTheme.s2,
               border: OutlineInputBorder(
@@ -269,22 +262,17 @@ Future<void> showCatalogImportDialog(BuildContext context) async {
   );
 }
 
-/// Abre o seletor de arquivos e devolve o conteúdo como texto. Devolve null
-/// (sem estourar) quando o usuário cancela ou o arquivo não serve.
 Future<String?> _lerArquivoEscolhido(BuildContext context) async {
   try {
-    // FileType.any de propósito: filtrar por extensão esconde o .json em
-    // vários gerenciadores de arquivos do Android.
     final resultado = await FilePicker.platform.pickFiles(withData: true);
     if (resultado == null || resultado.files.isEmpty) return null;
     final escolhido = resultado.files.first;
 
-    // Um catálogo é texto pequeno. O limite evita carregar na memória um
-    // arquivo enorme escolhido por engano.
     const limiteBytes = 2 * 1024 * 1024;
     if (escolhido.size > limiteBytes) {
       if (context.mounted) {
-        _aviso(context, 'Arquivo grande demais para ser um catálogo.', erro: true);
+        _aviso(context, 'Arquivo grande demais para ser um catálogo.',
+            erro: true);
       }
       return null;
     }
@@ -295,7 +283,8 @@ Future<String?> _lerArquivoEscolhido(BuildContext context) async {
     }
     if (bytes == null) {
       if (context.mounted) {
-        _aviso(context, 'Não foi possível ler o arquivo escolhido.', erro: true);
+        _aviso(context, 'Não foi possível ler o arquivo escolhido.',
+            erro: true);
       }
       return null;
     }
@@ -320,8 +309,12 @@ String _resumo(CatalogImportResult r) {
   final partes = <String>[];
   if (r.adicionados > 0) partes.add('${r.adicionados} adicionado(s)');
   if (r.atualizados > 0) partes.add('${r.atualizados} atualizado(s)');
-  if (r.ignorados > 0) partes.add('${r.ignorados} ignorado(s) por dado inválido');
-  return partes.isEmpty ? 'Nada a importar.' : 'Catálogo importado: ${partes.join(', ')}.';
+  if (r.ignorados > 0) {
+    partes.add('${r.ignorados} ignorado(s) por dado inválido');
+  }
+  return partes.isEmpty
+      ? 'Nada a importar.'
+      : 'Catálogo importado: ${partes.join(', ')}.';
 }
 
 String _mensagemDeErro(Object e) {
@@ -341,10 +334,6 @@ void _aviso(BuildContext context, String mensagem, {bool erro = false}) {
     ),
   );
 }
-
-// ---------------------------------------------------------------------------
-// Peças visuais
-// ---------------------------------------------------------------------------
 
 class _Moldura extends StatelessWidget {
   final String titulo;
@@ -366,7 +355,8 @@ class _Moldura extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(titulo,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
               ...children,
             ],
@@ -398,7 +388,9 @@ class _NotaSeguranca extends StatelessWidget {
           Expanded(
             child: Text(texto,
                 style: const TextStyle(
-                    fontSize: 11.5, color: IrisTheme.textSecondary, height: 1.4)),
+                    fontSize: 11.5,
+                    color: IrisTheme.textSecondary,
+                    height: 1.4)),
           ),
         ],
       ),

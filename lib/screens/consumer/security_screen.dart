@@ -6,9 +6,6 @@ import '../../widgets/max_width_container.dart';
 import '../pin_screen.dart';
 import 'change_pin_screen.dart';
 
-/// Central de segurança: bloqueio automático (passivo), proteção contra
-/// tentativas de PIN, ver a frase-semente e apagar a carteira/loja atual.
-/// Tudo editável a qualquer momento.
 class SecurityScreen extends StatefulWidget {
   final bool isMerchant;
   const SecurityScreen({super.key, this.isMerchant = false});
@@ -54,8 +51,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
     );
   }
 
-  // --- Ver frase-semente (protegido por PIN) ---
-
   void _showSeed(BuildContext context) {
     Navigator.push(
       context,
@@ -64,7 +59,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
           mode: PinMode.unlock,
           isMerchant: widget.isMerchant,
           onSuccess: () {
-            Navigator.pop(context); // pop PIN
+            Navigator.pop(context);
             final wallet = context.read<WalletService>();
             final seed = widget.isMerchant
                 ? (wallet.merchantSeed ?? 'Semente da loja não encontrada')
@@ -127,8 +122,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
     );
   }
 
-  // --- Apagar carteira/loja atual (protegido por PIN) ---
-
   void _handleWipe(BuildContext context) {
     showDialog(
       context: context,
@@ -159,7 +152,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 backgroundColor: IrisTheme.danger,
                 foregroundColor: Colors.white),
             onPressed: () {
-              Navigator.pop(context); // fecha o diálogo
+              Navigator.pop(context);
               final wallet = context.read<WalletService>();
               Navigator.push(
                 context,
@@ -225,7 +218,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- Bloqueio automático (passivo) ---
                 _sectionHeader('Bloqueio automático'),
                 const SizedBox(height: 8),
                 _card(
@@ -268,12 +260,9 @@ class _SecurityScreenState extends State<SecurityScreen> {
                   value: _lockOnSuspend,
                   onChanged: (v) => setState(() => _lockOnSuspend = v),
                 ),
-
                 const SizedBox(height: 28),
                 const Divider(color: IrisTheme.bdr),
                 const SizedBox(height: 16),
-
-                // --- Proteção contra tentativas ---
                 _sectionHeader('Proteção contra tentativas'),
                 const SizedBox(height: 8),
                 _card(
@@ -299,7 +288,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 const SizedBox(height: 6),
                 _hint('Menos = mais rígido. Mais = tolera erros de digitação.'),
                 const SizedBox(height: 20),
-
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   activeColor: IrisTheme.primary,
@@ -345,7 +333,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
                     ),
                   ),
                 ],
-
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
@@ -361,12 +348,9 @@ class _SecurityScreenState extends State<SecurityScreen> {
                     child: const Text('Salvar'),
                   ),
                 ),
-
                 const SizedBox(height: 28),
                 const Divider(color: IrisTheme.bdr),
                 const SizedBox(height: 16),
-
-                // --- PIN ---
                 _sectionHeader('PIN'),
                 const SizedBox(height: 8),
                 _actionTile(
@@ -380,12 +364,9 @@ class _SecurityScreenState extends State<SecurityScreen> {
                             ChangePinScreen(isMerchant: widget.isMerchant)),
                   ),
                 ),
-
                 const SizedBox(height: 28),
                 const Divider(color: IrisTheme.bdr),
                 const SizedBox(height: 16),
-
-                // --- Semente e apagamento manual ---
                 _sectionHeader('Backup e dados'),
                 const SizedBox(height: 8),
                 _actionTile(

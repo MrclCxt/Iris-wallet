@@ -27,24 +27,20 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
     final exchangeRate = context.watch<ExchangeRateService>();
     final chroma = context.watch<ChromaService>();
     final showSats = exchangeRate.isSatsDisplay;
-    // Saldo unificado em satoshis: Lightning + Bitcoin on-chain + L-BTC (Liquid).
-    // A moeda do app é o satoshi; o toggle apenas muda a exibição para BRL.
+
     final balanceSats = wallet.consumerBalance + liquid.balanceSats;
     final balanceBrl = exchangeRate.satsToBrl(balanceSats);
-    // No desktop o saldo aparece bem maior.
+
     final balanceFontSize =
         MediaQuery.of(context).size.width >= 850 ? 68.0 : 44.0;
 
     return SafeArea(
       child: Column(
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
             child: Row(
               children: [
-                // Avatar da conta: foto (se houver) ou o ícone do app. Toque
-                // abre o Perfil para editar ou adicionar a personalização.
                 const AccountAvatar(isMerchant: false, size: 36),
                 const SizedBox(width: 10),
                 Flexible(
@@ -66,307 +62,291 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                   ),
                 ),
                 const Spacer(),
-                // Currency Toggle
                 const CurrencyToggleBtn(),
-                // Troca pessoal <-> loja vive em Configurações, não aqui: é
-                // uma ação rara e ficava competindo espaço com o que a tela
-                // inicial precisa mostrar.
               ],
             ),
           ),
-
           Expanded(
-            // Puxar para atualizar: a mesma carteira roda em vários aparelhos
-            // e cada um só enxerga o que o outro fez depois de sincronizar.
-            // Sem este gesto, restava esperar o tick periódico.
             child: RefreshIndicator(
               color: IrisTheme.primary,
               backgroundColor: IrisTheme.s2,
               onRefresh: () => wallet.atualizarAgora(),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
-                children: [
-                  // Balance Area
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 6, 24, 14),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              'SALDO',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: IrisTheme.textSecondary,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            InkWell(
-                              onTap: () =>
-                                  wallet.setHideBalance(!wallet.hideBalance),
-                              borderRadius: BorderRadius.circular(20),
-                              child: Padding(
-                                padding: const EdgeInsets.all(2),
-                                child: Icon(
-                                  wallet.hideBalance
-                                      ? Icons.visibility_off_outlined
-                                      : Icons.visibility_outlined,
-                                  size: 14,
-                                  color: IrisTheme.textTertiary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () => showExploreWalletsSheet(context,
-                              isMerchant: false),
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: ShaderMask(
-                              shaderCallback: (bounds) => chroma
-                                  .spectrumGradient
-                                  .createShader(bounds.inflate(2)),
-                              child: Text(
-                                wallet.hideBalance
-                                    ? '••••••'
-                                    : (showSats
-                                        ? CurrencyFormatter.formatBtcOrSats(
-                                            balanceSats)
-                                        : 'R\$ ${CurrencyFormatter.formatBrlCompact(balanceBrl)}'),
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  fontSize: balanceFontSize,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          wallet.hideBalance
-                              ? 'Toque para explorar carteiras'
-                              : (showSats
-                                  ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(balanceBrl)}'
-                                  : '≈ ${CurrencyFormatter.formatBtcOrSats(balanceSats)}'),
-                          style: const TextStyle(
-                              fontSize: 12, color: IrisTheme.textSecondary),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          '1 BTC = R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.btcToBrlRate)}',
-                          style: const TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 10,
-                            color: IrisTheme.textTertiary,
-                          ),
-                        ),
-                        // O número acima é o último saldo verificado, não uma
-                        // leitura ao vivo. Dizer isso é mais honesto do que
-                        // exibir um valor antigo como se fosse atual.
-                        if (wallet.saldoDesatualizado) ...[
-                          const SizedBox(height: 5),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 6, 24, 14),
+                      child: Column(
+                        children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const SizedBox(
-                                width: 9,
-                                height: 9,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 1.6,
-                                  valueColor: AlwaysStoppedAnimation(
-                                      IrisTheme.textTertiary),
+                              const Text(
+                                'SALDO',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: IrisTheme.textSecondary,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              Text(
-                                'Último saldo salvo · sincronizando',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: IrisTheme.textTertiary
-                                      .withOpacity(0.9),
+                              InkWell(
+                                onTap: () =>
+                                    wallet.setHideBalance(!wallet.hideBalance),
+                                borderRadius: BorderRadius.circular(20),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(2),
+                                  child: Icon(
+                                    wallet.hideBalance
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                    size: 14,
+                                    color: IrisTheme.textTertiary,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  // Action Buttons
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: chroma.buttonGradient,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                if (widget.onNavigateTab != null) {
-                                  widget.onNavigateTab!(1); // Enviar
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 13),
+                          const SizedBox(height: 4),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () => showExploreWalletsSheet(context,
+                                isMerchant: false),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: ShaderMask(
+                                shaderCallback: (bounds) => chroma
+                                    .spectrumGradient
+                                    .createShader(bounds.inflate(2)),
+                                child: Text(
+                                  wallet.hideBalance
+                                      ? '••••••'
+                                      : (showSats
+                                          ? CurrencyFormatter.formatBtcOrSats(
+                                              balanceSats)
+                                          : 'R\$ ${CurrencyFormatter.formatBrlCompact(balanceBrl)}'),
+                                  style: TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: balanceFontSize,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
-                              child: const Text('💸 Enviar',
-                                  style: TextStyle(fontSize: 14)),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              if (widget.onNavigateTab != null) {
-                                widget.onNavigateTab!(2); // Receber
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: IrisTheme.s2,
-                              foregroundColor: IrisTheme.textPrimary,
-                              padding: const EdgeInsets.symmetric(vertical: 13),
-                              side: const BorderSide(color: IrisTheme.bdr2),
-                            ),
-                            child: const Text('⬇ Receber',
-                                style: TextStyle(fontSize: 14)),
+                          const SizedBox(height: 5),
+                          Text(
+                            wallet.hideBalance
+                                ? 'Toque para explorar carteiras'
+                                : (showSats
+                                    ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(balanceBrl)}'
+                                    : '≈ ${CurrencyFormatter.formatBtcOrSats(balanceSats)}'),
+                            style: const TextStyle(
+                                fontSize: 12, color: IrisTheme.textSecondary),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-                  const Divider(color: IrisTheme.bdr, height: 1),
-                  const SizedBox(height: 14),
-
-                  // History
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (wallet.restaurandoCarteira)
-                          Container(
-                            width: double.infinity,
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: IrisTheme.primary.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: IrisTheme.primary.withOpacity(0.3)),
-                            ),
-                            child: const Row(
-                              children: [
-                                SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation(
-                                        IrisTheme.primary),
-                                  ),
-                                ),
-                                SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'Procurando seu histórico na rede — o saldo '
-                                    'pode levar alguns instantes para aparecer.',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: IrisTheme.textSecondary),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        PendingBanner(
-                          pendingSats: wallet.consumerPendingOnchainSats,
-                          hide: wallet.hideBalance,
-                          format: CurrencyFormatter.formatBtcOrSats,
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            'ÚLTIMAS MOVIMENTAÇÕES',
-                            style: TextStyle(
+                          const SizedBox(height: 3),
+                          Text(
+                            '1 BTC = R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.btcToBrlRate)}',
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
                               fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.8,
                               color: IrisTheme.textTertiary,
                             ),
                           ),
-                        ),
-                        if (wallet.consumerTransactions.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 24),
-                            child: Center(
-                              child: Text('Nenhuma movimentação ainda.',
-                                  style: TextStyle(
-                                      color: IrisTheme.textSecondary)),
-                            ),
-                          )
-                        else if (MediaQuery.of(context).size.width >= 850)
-                          _buildDesktopDataTable(wallet, exchangeRate)
-                        else
-                          Container(
-                            decoration: BoxDecoration(
-                              color: IrisTheme.s1,
-                              border: Border.all(color: IrisTheme.bdr),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            padding: const EdgeInsets.all(14),
-                            child: Column(
+                          if (wallet.saldoDesatualizado) ...[
+                            const SizedBox(height: 5),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                for (int i = 0;
-                                    i < wallet.consumerTransactions.length;
-                                    i++) ...[
-                                  if (i > 0)
-                                    const Divider(
-                                        color: IrisTheme.bdr, height: 20),
-                                  _buildTxRow(
-                                    wallet.consumerTransactions[i].emoji,
-                                    wallet.consumerTransactions[i].title,
-                                    '${wallet.consumerTransactions[i].date.day.toString().padLeft(2, '0')}/${wallet.consumerTransactions[i].date.month.toString().padLeft(2, '0')}',
-                                    wallet.consumerTransactions[i].isIncoming
-                                        ? wallet
-                                            .consumerTransactions[i].amountSats
-                                        : -wallet
-                                            .consumerTransactions[i].amountSats,
-                                    exchangeRate.isSatsDisplay,
-                                    exchangeRate,
-                                    hide: wallet.hideBalance,
-                                    status:
-                                        wallet.consumerTransactions[i].status,
+                                const SizedBox(
+                                  width: 9,
+                                  height: 9,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.6,
+                                    valueColor: AlwaysStoppedAnimation(
+                                        IrisTheme.textTertiary),
                                   ),
-                                ],
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Último saldo salvo · sincronizando',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color:
+                                        IrisTheme.textTertiary.withOpacity(0.9),
+                                  ),
+                                ),
                               ],
                             ),
-                          ),
-                      ],
+                          ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-              ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: chroma.buttonGradient,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  if (widget.onNavigateTab != null) {
+                                    widget.onNavigateTab!(1);
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 13),
+                                ),
+                                child: const Text('💸 Enviar',
+                                    style: TextStyle(fontSize: 14)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                if (widget.onNavigateTab != null) {
+                                  widget.onNavigateTab!(2);
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: IrisTheme.s2,
+                                foregroundColor: IrisTheme.textPrimary,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 13),
+                                side: const BorderSide(color: IrisTheme.bdr2),
+                              ),
+                              child: const Text('⬇ Receber',
+                                  style: TextStyle(fontSize: 14)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const Divider(color: IrisTheme.bdr, height: 1),
+                    const SizedBox(height: 14),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (wallet.restaurandoCarteira)
+                            Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: IrisTheme.primary.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: IrisTheme.primary.withOpacity(0.3)),
+                              ),
+                              child: const Row(
+                                children: [
+                                  SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation(
+                                          IrisTheme.primary),
+                                    ),
+                                  ),
+                                  SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Procurando seu histórico na rede — o saldo '
+                                      'pode levar alguns instantes para aparecer.',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: IrisTheme.textSecondary),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          PendingBanner(
+                            pendingSats: wallet.consumerPendingOnchainSats,
+                            hide: wallet.hideBalance,
+                            format: CurrencyFormatter.formatBtcOrSats,
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 8),
+                            child: Text(
+                              'ÚLTIMAS MOVIMENTAÇÕES',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.8,
+                                color: IrisTheme.textTertiary,
+                              ),
+                            ),
+                          ),
+                          if (wallet.consumerTransactions.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24),
+                              child: Center(
+                                child: Text('Nenhuma movimentação ainda.',
+                                    style: TextStyle(
+                                        color: IrisTheme.textSecondary)),
+                              ),
+                            )
+                          else if (MediaQuery.of(context).size.width >= 850)
+                            _buildDesktopDataTable(wallet, exchangeRate)
+                          else
+                            Container(
+                              decoration: BoxDecoration(
+                                color: IrisTheme.s1,
+                                border: Border.all(color: IrisTheme.bdr),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              padding: const EdgeInsets.all(14),
+                              child: Column(
+                                children: [
+                                  for (int i = 0;
+                                      i < wallet.consumerTransactions.length;
+                                      i++) ...[
+                                    if (i > 0)
+                                      const Divider(
+                                          color: IrisTheme.bdr, height: 20),
+                                    _buildTxRow(
+                                      wallet.consumerTransactions[i].emoji,
+                                      wallet.consumerTransactions[i].title,
+                                      '${wallet.consumerTransactions[i].date.day.toString().padLeft(2, '0')}/${wallet.consumerTransactions[i].date.month.toString().padLeft(2, '0')}',
+                                      wallet.consumerTransactions[i].isIncoming
+                                          ? wallet.consumerTransactions[i]
+                                              .amountSats
+                                          : -wallet.consumerTransactions[i]
+                                              .amountSats,
+                                      exchangeRate.isSatsDisplay,
+                                      exchangeRate,
+                                      hide: wallet.hideBalance,
+                                      status:
+                                          wallet.consumerTransactions[i].status,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
             ),
           ),

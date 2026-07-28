@@ -11,11 +11,6 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/theme.dart';
 import '../../services/wallet_service.dart';
 
-/// Exportação e importação do PERFIL (nome, foto, emoji, cor, preferências de
-/// segurança não-secretas), para transferir entre dispositivos ou entre
-/// contas. Seed, PIN e chaves nunca trafegam — só o backup do perfil, igual
-/// ao princípio já usado na transferência de catálogo do lojista.
-
 Future<void> showProfileExportSheet(BuildContext context,
     {required bool isMerchant}) async {
   final wallet = context.read<WalletService>();
@@ -103,7 +98,7 @@ Future<void> _baixarArquivo(
       fileName: _nomeArquivo(nome),
       bytes: bytes,
     );
-    if (caminho == null) return; // usuário cancelou
+    if (caminho == null) return;
 
     if (!Platform.isAndroid && !Platform.isIOS) {
       await File(caminho).writeAsBytes(bytes);
@@ -250,8 +245,7 @@ Future<String?> _lerArquivoEscolhido(BuildContext context) async {
     if (resultado == null || resultado.files.isEmpty) return null;
     final escolhido = resultado.files.first;
 
-    const limiteBytes =
-        4 * 1024 * 1024; // uma foto embutida em base64 pesa mais que texto puro
+    const limiteBytes = 4 * 1024 * 1024;
     if (escolhido.size > limiteBytes) {
       if (context.mounted) {
         _aviso(context, 'Arquivo grande demais para ser um backup de perfil.',
@@ -305,10 +299,6 @@ void _aviso(BuildContext context, String mensagem, {bool erro = false}) {
     ),
   );
 }
-
-// ---------------------------------------------------------------------------
-// Peças visuais (mesmo padrão de merchant_catalog_transfer.dart)
-// ---------------------------------------------------------------------------
 
 class _Moldura extends StatelessWidget {
   final String titulo;

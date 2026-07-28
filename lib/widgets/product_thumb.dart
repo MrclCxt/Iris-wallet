@@ -6,8 +6,6 @@ import '../core/theme.dart';
 import '../services/wallet_service.dart';
 import '../services/product_image_store.dart';
 
-/// Miniatura do produto: a foto enviada pelo lojista quando existe, senão um
-/// marcador neutro. Usada na lista de produtos, no painel e no QR.
 class ProductThumb extends StatelessWidget {
   final Product product;
   final double tamanho;
@@ -40,8 +38,6 @@ class ProductThumb extends StatelessWidget {
               fit: BoxFit.cover,
               width: tamanho,
               height: tamanho,
-              // Arquivo pode ter sumido (limpeza, restauração): cai no
-              // marcador em vez de quebrar a lista inteira.
               errorBuilder: (_, __, ___) => semFoto,
             ),
     );

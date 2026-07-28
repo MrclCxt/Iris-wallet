@@ -3,7 +3,6 @@ use crate::frb_generated::RustOpaque;
 use crate::utils::error::LdkNodeError;
 use ldk_node::lightning::util::ser::Writeable;
 
-///Represents the compressed public key of a node
 pub struct NodeId {
     pub compressed: Vec<u8>,
 }
@@ -23,11 +22,11 @@ impl TryFrom<NodeId> for ldk_node::lightning::routing::gossip::NodeId {
             .map_err(|e| e.into())
     }
 }
-///Fees for routing via a given channel or a node
+
 pub struct RoutingFees {
-    ///Flat routing fee in millisatoshis.
+
     pub base_msat: u32,
-    ///Liquidity-based routing fee in millionths of a routed amount. In other words, 10000 is 1%.
+
     pub proportional_millionths: u32,
 }
 impl From<ldk_node::lightning::routing::gossip::RoutingFees> for RoutingFees {
@@ -39,31 +38,30 @@ impl From<ldk_node::lightning::routing::gossip::RoutingFees> for RoutingFees {
     }
 }
 pub struct ChannelUpdateInfo {
-    ///When the last update to the channel direction was issued. Value is opaque, as set in the announcement.
+
     pub last_update: u32,
-    ///Whether the channel can be currently used for payments (in this one direction).
+
     pub enabled: bool,
-    ///The difference in CLTV values that you must have when routing through this channel.
+
     pub cltv_expiry_delta: u16,
-    ///The minimum value, which must be relayed to the next hop via the channel
+
     pub htlc_minimum_msat: u64,
-    ///The maximum value which may be relayed to the next hop via the channel.
+
     pub htlc_maximum_msat: u64,
-    ////Fees charged when the channel is used for routing
+
     pub fees: RoutingFees,
 }
 
-///Details about a channel (both directions). Received within a channel announcement.
 pub struct ChannelInfo {
-    ///Source node of the first direction of a channel
+
     pub node_one: NodeId,
-    ///Details about the first direction of a channel
+
     pub one_to_two: Option<ChannelUpdateInfo>,
-    ///Source node of the second direction of a channel
+
     pub node_two: NodeId,
-    ///Details about the second direction of a channel
+
     pub two_to_one: Option<ChannelUpdateInfo>,
-    ///The channel capacity as seen on-chain, if chain lookup is available.
+
     pub capacity_sats: Option<u64>,
 }
 impl From<ldk_node::lightning::routing::gossip::ChannelInfo> for ChannelInfo {
@@ -90,10 +88,10 @@ impl From<ldk_node::lightning::routing::gossip::ChannelUpdateInfo> for ChannelUp
         }
     }
 }
-///Details about a node in the network, known from the network announcement.
+
 pub struct NodeInfo {
     pub channels: Vec<u64>,
-    ///More information about a node from node_announcement. Optional because we store a Node entry after learning about it from a channel announcement, but before receiving a node announcement.
+
     pub announcement_info: Option<NodeAnnouncementInfo>,
 }
 
@@ -106,14 +104,11 @@ impl From<ldk_node::lightning::routing::gossip::NodeInfo> for NodeInfo {
     }
 }
 pub struct NodeAnnouncementInfo {
-    /// When the last known update to the node state was issued.
-    /// Value is opaque, as set in the announcement.
+
     pub last_update: u32,
-    /// Moniker assigned to the node.
-    /// May be invalid or malicious (eg control chars),
-    /// should not be exposed to the user.
+
     pub alias: String,
-    /// List of addresses on which this node is reachable
+
     pub addresses: Vec<SocketAddress>,
 }
 
@@ -142,17 +137,15 @@ impl From<ldk_node::graph::NetworkGraph> for LdkNetworkGraph {
 }
 
 impl LdkNetworkGraph {
-    /// Returns the list of channels in the graph
+
     pub fn list_channels(&self) -> Vec<u64> {
         self.ptr.list_channels()
     }
 
-    /// Returns information on a channel with the given id.
     pub fn channel(&self, short_channel_id: u64) -> Option<ChannelInfo> {
         self.ptr.channel(short_channel_id).map(|e| e.into())
     }
 
-    /// Returns the list of nodes in the graph
     pub fn list_nodes(&self) -> Vec<NodeId> {
         self.ptr
             .list_nodes()

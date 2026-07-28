@@ -76,11 +76,7 @@ impl NodeBuilder {
             };
         }
         if let Some(liquidity) = liquidity_source_config {
-            // PORTE 0.7.0: a ordem dos argumentos INVERTEU — agora é
-            // (node_id, address, token); antes era (address, node_id, token).
-            // A tupla `lsps2_service` mantém a ordem antiga (.0 = endereço,
-            // .1 = node_id), então trocamos aqui em vez de mexer no tipo que
-            // o Dart envia.
+
             builder.set_liquidity_source_lsps2(
                 liquidity
                     .lsps2_service
@@ -115,25 +111,5 @@ impl NodeBuilder {
             Err(e) => Err(e.into()),
         }
     }
-    // fn build_with_store(
-    //     self
-    // ) -> anyhow::Result<LdkNode,BuilderException> {
-    //     match self.builder.build_with_store(Arc::new(())) {
-    //         Ok(e) => Ok(LdkNode {
-    //             ptr: RustOpaque::new(e),
-    //         }),
-    //         Err(e) => Err(e.into()),
-    //     }
-    // }
-}
 
-// pub fn build_with_vss_store(
-//     self, url: String, store_id: String
-// ) -> anyhow::Result<LdkNode, LdkBuilderError> {
-//     match self.builder.build_with_vss_store(url, store_id) {
-//         Ok(e) => Ok(LdkNode {
-//             ptr: RustOpaque::new(e),
-//         }),
-//         Err(e) => Err(e.into()),
-//     }
-// }
+}

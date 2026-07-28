@@ -7,16 +7,10 @@ import 'package:image/image.dart' as img;
 
 import '../../core/theme.dart';
 
-/// Editor da foto do produto: gira em passos de 90° e permite arrastar e dar
-/// zoom até enquadrar no 1:1 usado na exibição.
-///
-/// Devolve os bytes JPEG já recortados no quadrado, ou null se cancelar.
 Future<Uint8List?> abrirEditorDeFoto(
   BuildContext context,
   Uint8List bytesOriginais,
 ) async {
-  // Só para saber a proporção da imagem; o recorte final sai do que aparece
-  // na tela, não desta decodificação.
   final decodificada = img.decodeImage(bytesOriginais);
   if (decodificada == null) return null;
 
@@ -52,12 +46,9 @@ class _EditorDeFotoState extends State<_EditorDeFoto> {
   final GlobalKey _quadroKey = GlobalKey();
   final TransformationController _transformacao = TransformationController();
 
-  /// Giros de 90° no sentido horário.
   int _giros = 0;
   bool _processando = false;
 
-  /// Lado do recorte na imagem final. Fixo para o arquivo não variar conforme
-  /// o tamanho da tela do aparelho.
   static const double _ladoDeSaida = 1440;
 
   @override
@@ -70,14 +61,11 @@ class _EditorDeFotoState extends State<_EditorDeFoto> {
     setState(() {
       _giros = (_giros + passo) % 4;
       if (_giros < 0) _giros += 4;
-      // O enquadramento anterior não faz sentido na nova orientação.
+
       _transformacao.value = Matrix4.identity();
     });
   }
 
-  /// Dimensões do widget da imagem dentro do quadro: a proporção é preservada
-  /// e o menor lado cobre o quadro, de modo que sempre haja imagem em toda a
-  /// área 1:1 e sobre margem para arrastar no lado maior.
   Size _tamanhoNoQuadro(double lado) {
     final girado = _giros.isOdd;
     final w = girado ? widget.alturaOriginal : widget.larguraOriginal;
@@ -86,23 +74,20 @@ class _EditorDeFotoState extends State<_EditorDeFoto> {
 
     final proporcao = w / h;
     return proporcao >= 1
-        ? Size(lado * proporcao, lado) // paisagem: sobra na horizontal
-        : Size(lado, lado / proporcao); // retrato: sobra na vertical
+        ? Size(lado * proporcao, lado)
+        : Size(lado, lado / proporcao);
   }
 
   Future<void> _confirmar() async {
     setState(() => _processando = true);
     try {
-      final limite =
-          _quadroKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      final limite = _quadroKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
       if (limite == null) {
         Navigator.pop(context);
         return;
       }
 
-      // Captura exatamente o que está enquadrado. Fazer o recorte pela captura
-      // evita refazer à mão a matemática do zoom/arrasto e garante que o
-      // resultado seja igual ao que o lojista viu.
       final ladoNaTela = limite.size.width;
       final escala = ladoNaTela > 0 ? _ladoDeSaida / ladoNaTela : 1.0;
       final imagem = await limite.toImage(pixelRatio: escala);
@@ -113,7 +98,6 @@ class _EditorDeFotoState extends State<_EditorDeFoto> {
         return;
       }
 
-      // PNG de foto fica enorme; reencoda em JPEG de alta qualidade.
       final recortada = img.decodeImage(png.buffer.asUint8List());
       if (recortada == null) {
         if (mounted) Navigator.pop(context);
@@ -174,9 +158,6 @@ class _EditorDeFotoState extends State<_EditorDeFoto> {
                             color: Colors.black,
                             child: InteractiveViewer(
                               transformationController: _transformacao,
-                              // constrained: false deixa a imagem maior que o
-                              // quadro, então dá para arrastar e escolher a
-                              // parte que aparece mesmo sem zoom.
                               constrained: false,
                               minScale: 1,
                               maxScale: 6,

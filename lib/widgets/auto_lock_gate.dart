@@ -4,16 +4,6 @@ import 'package:provider/provider.dart';
 import '../services/wallet_service.dart';
 import '../screens/pin_screen.dart';
 
-/// Bloqueio PASSIVO da carteira — substitui qualquer botão manual de
-/// "Bloquear Aplicativo". O usuário não precisa lembrar de trancar: o app
-/// tranca sozinho.
-///
-/// Dois gatilhos, configuráveis em Segurança:
-/// - Inatividade: nenhum toque/clique por [WalletService.autoLockMinutes].
-/// - Segundo plano: o app volta de minimizado/trocado (proxy prático de
-///   "dispositivo bloqueado" — o Flutter não recebe um sinal direto de tela
-///   travada, mas ir para segundo plano é o sinal mais próximo disponível em
-///   todas as plataformas).
 class AutoLockGate extends StatefulWidget {
   final Widget child;
   final GlobalKey<NavigatorState> navigatorKey;
@@ -35,8 +25,7 @@ class _AutoLockGateState extends State<AutoLockGate>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Adia até o primeiro frame: o Provider só resolve depois que a árvore
-    // termina de montar.
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _wallet = context.read<WalletService>();
@@ -56,8 +45,6 @@ class _AutoLockGateState extends State<AutoLockGate>
   bool get _anyUnlocked =>
       (_wallet?.isUnlocked ?? false) || (_wallet?.isMerchantUnlocked ?? false);
 
-  /// Reage a login/logout para (re)armar ou cancelar o cronômetro — cobre o
-  /// caso de o usuário desbloquear e não tocar em mais nada.
   void _onWalletChanged() {
     final unlocked = _anyUnlocked;
     if (unlocked && !_wasUnlocked) {
@@ -74,7 +61,7 @@ class _AutoLockGateState extends State<AutoLockGate>
     if (w == null || !_anyUnlocked) return;
     final minutes = w.autoLockMinutes;
     if (minutes <= 0) {
-      return; // inatividade desligada (ainda vale lockOnSuspend)
+      return;
     }
     _inactivityTimer = Timer(Duration(minutes: minutes), _triggerLock);
   }

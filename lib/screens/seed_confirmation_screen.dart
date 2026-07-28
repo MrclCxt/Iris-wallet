@@ -25,11 +25,10 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
   void _generateQuestions() {
     final seedStr = context.read<WalletService>().consumerSeed;
     if (seedStr == null) return;
-    // Funciona igual para 12 ou 24 palavras.
+
     _quiz = SeedQuiz.gerar(seedStr.split(' '));
     _respostas = List<String?>.filled(_quiz!.indices.length, null);
   }
-
 
   void _verify() {
     final seedStr = context.read<WalletService>().consumerSeed;
@@ -38,7 +37,6 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
     final quiz = _quiz;
     if (quiz == null) return;
 
-    // Todas as posições sorteadas precisam bater.
     var todasCertas = true;
     for (var i = 0; i < quiz.indices.length; i++) {
       if (_respostas[i] != words[quiz.indices[i]]) todasCertas = false;
@@ -48,14 +46,17 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
       setState(() => _error = null);
       Navigator.pushReplacementNamed(context, '/pin_create');
     } else {
-      setState(() => _error = 'Palavras incorretas. Tente novamente ou releia sua semente.');
+      setState(() => _error =
+          'Palavras incorretas. Tente novamente ou releia sua semente.');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final seedStr = context.watch<WalletService>().consumerSeed;
-    if (seedStr == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (seedStr == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -82,16 +83,37 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
                           color: IrisTheme.success.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Center(child: Text('✅', style: TextStyle(fontSize: 17))),
+                        child: const Center(
+                            child: Text('✅', style: TextStyle(fontSize: 17))),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(context.read<WalletService>().consumerAccounts.isNotEmpty ? 'Confirme a Semente (Secundária)' : 'Confirme sua semente', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                            Text(
+                                context
+                                        .read<WalletService>()
+                                        .consumerAccounts
+                                        .isNotEmpty
+                                    ? 'Confirme a Semente (Secundária)'
+                                    : 'Confirme sua semente',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 2),
-                            Text(context.read<WalletService>().consumerAccounts.isNotEmpty ? 'Para garantir que anotou a nova semente.' : 'Para garantir que anotou corretamente.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: IrisTheme.textSecondary)),
+                            Text(
+                                context
+                                        .read<WalletService>()
+                                        .consumerAccounts
+                                        .isNotEmpty
+                                    ? 'Para garantir que anotou a nova semente.'
+                                    : 'Para garantir que anotou corretamente.',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(color: IrisTheme.textSecondary)),
                           ],
                         ),
                       ),
@@ -104,7 +126,9 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        for (var i = 0; i < (_quiz?.indices.length ?? 0); i++) ...[
+                        for (var i = 0;
+                            i < (_quiz?.indices.length ?? 0);
+                            i++) ...[
                           _buildQuestionBlock(
                             i + 1,
                             _quiz!.indices[i],
@@ -114,12 +138,14 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
                           ),
                           const SizedBox(height: 14),
                         ],
-
                         if (_error != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 16),
                             child: Center(
-                              child: Text(_error!, style: const TextStyle(color: IrisTheme.danger, fontSize: 12), textAlign: TextAlign.center),
+                              child: Text(_error!,
+                                  style: const TextStyle(
+                                      color: IrisTheme.danger, fontSize: 12),
+                                  textAlign: TextAlign.center),
                             ),
                           ),
                       ],
@@ -143,27 +169,44 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: IrisTheme.textSecondary,
                           side: const BorderSide(color: IrisTheme.bdr),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, fontFamily: 'Outfit'),
+                          textStyle: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'Outfit'),
                         ),
                         onPressed: () {
                           Navigator.pop(context);
                         },
                         child: const Text('← Voltar e reler'),
                       ),
-                      if (context.watch<WalletService>().consumerAccounts.isNotEmpty || context.watch<WalletService>().merchantAccounts.isNotEmpty) ...[
+                      if (context
+                              .watch<WalletService>()
+                              .consumerAccounts
+                              .isNotEmpty ||
+                          context
+                              .watch<WalletService>()
+                              .merchantAccounts
+                              .isNotEmpty) ...[
                         const SizedBox(height: 8),
                         TextButton(
                           onPressed: () {
-                            context.read<WalletService>().cancelWalletCreation();
-                            Navigator.of(context).popUntil((route) => route.settings.name == '/consumer_home' || route.settings.name == '/welcome' || route.isFirst);
+                            context
+                                .read<WalletService>()
+                                .cancelWalletCreation();
+                            Navigator.of(context).popUntil((route) =>
+                                route.settings.name == '/consumer_home' ||
+                                route.settings.name == '/welcome' ||
+                                route.isFirst);
                           },
                           style: TextButton.styleFrom(
                             foregroundColor: IrisTheme.danger,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
-                          child: const Text('Cancelar e Voltar', style: TextStyle(fontWeight: FontWeight.bold)),
+                          child: const Text('Cancelar e Voltar',
+                              style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ],
@@ -177,13 +220,17 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
     );
   }
 
-  Widget _buildQuestionBlock(int qNum, int idx, List<String> opts, String? currentAns, ValueChanged<String> onSelect) {
+  Widget _buildQuestionBlock(int qNum, int idx, List<String> opts,
+      String? currentAns, ValueChanged<String> onSelect) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Qual é a ${idx + 1}ª palavra?',
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: IrisTheme.textPrimary),
+          style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: IrisTheme.textPrimary),
         ),
         const SizedBox(height: 8),
         Row(
@@ -197,7 +244,9 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
                     color: isSelected ? IrisTheme.primary : IrisTheme.s2,
-                    border: Border.all(color: isSelected ? IrisTheme.primary : IrisTheme.bdr2, width: 1.5),
+                    border: Border.all(
+                        color: isSelected ? IrisTheme.primary : IrisTheme.bdr2,
+                        width: 1.5),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   alignment: Alignment.center,

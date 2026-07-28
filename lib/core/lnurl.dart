@@ -2,10 +2,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'bolt11.dart';
 
-/// Suporte a LNURL-pay (LUD-06) e Lightning Address (LUD-16).
-///
-/// Fluxo: decodifica o LNURL/endereço -> GET nos parâmetros de pagamento ->
-/// GET no callback com o valor escolhido -> recebe a fatura BOLT11 real.
 class LnurlException implements Exception {
   final String message;
   LnurlException(this.message);
@@ -32,7 +28,6 @@ class LnurlPayParams {
   int get maxSendableSats => maxSendableMsat ~/ 1000;
   bool get isFixedAmount => minSendableMsat == maxSendableMsat;
 
-  /// Descrição legível extraída do metadata JSON (campo text/plain).
   String get description {
     try {
       final List<dynamic> meta = jsonDecode(metadata);
@@ -47,7 +42,6 @@ class LnurlPayParams {
 }
 
 class Lnurl {
-  /// Detecta se a entrada é um LNURL ou Lightning Address.
   static bool looksLikeLnurl(String input) {
     final s = _sanitize(input);
     if (s.toLowerCase().startsWith('lnurl1')) return true;
@@ -66,7 +60,6 @@ class Lnurl {
     return s;
   }
 
-  /// Resolve o LNURL/endereço para a URL do endpoint payRequest.
   static String resolveUrl(String input) {
     final s = _sanitize(input);
     if (s.toLowerCase().startsWith('lnurl1')) {
@@ -85,7 +78,6 @@ class Lnurl {
     throw LnurlException('Entrada não é LNURL nem Lightning Address');
   }
 
-  /// Busca os parâmetros de pagamento (LUD-06).
   static Future<LnurlPayParams> fetchPayParams(String input,
       {http.Client? client}) async {
     final url = resolveUrl(input);
@@ -115,7 +107,6 @@ class Lnurl {
     }
   }
 
-  /// Solicita a fatura BOLT11 final para o valor escolhido (em msats).
   static Future<String> requestInvoice(LnurlPayParams params, int amountMsat,
       {http.Client? client}) async {
     if (amountMsat < params.minSendableMsat ||

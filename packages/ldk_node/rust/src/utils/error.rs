@@ -3,128 +3,128 @@ use ldk_node::{BuildError, NodeError};
 #[derive(Debug, PartialEq)]
 pub enum LdkNodeError {
     InvalidTxid,
-    /// Returned when trying to start [Node] while it is already running.
+
     AlreadyRunning,
-    /// Returned when trying to stop [Node] while it is not running.
+
     NotRunning,
-    /// An on-chain transaction could not be created.
+
     OnchainTxCreationFailed,
-    /// A network connection has been closed.
+
     ConnectionFailed,
-    /// Invoice creation failed.
+
     InvoiceCreationFailed,
-    /// Sending a payment has failed.
+
     PaymentSendingFailed,
-    /// Sending a payment probe has failed.
+
     ProbeSendingFailed,
-    /// A channel could not be opened.
+
     ChannelCreationFailed,
-    /// A channel could not be closed.
+
     ChannelClosingFailed,
-    /// A channel config could not be updated.
+
     ChannelConfigUpdateFailed,
-    /// Persistence failed.
+
     PersistenceFailed,
-    /// A wallet operation failed.
+
     WalletOperationFailed,
-    /// A signing operation for transaction failed.
+
     OnchainTxSigningFailed,
-    /// A signing operation for message failed.
+
     MessageSigningFailed,
-    /// A transaction sync operation failed.
+
     TxSyncFailed,
-    /// A gossip updating operation failed.
+
     GossipUpdateFailed,
-    /// The given address is invalid.
+
     InvalidAddress,
-    /// The given network address is invalid.
+
     InvalidSocketAddress,
-    /// The given public key is invalid.
+
     InvalidPublicKey,
-    /// The given secret key is invalid.
+
     InvalidSecretKey,
-    /// The given payment hash is invalid.
+
     InvalidPaymentHash,
-    /// The given payment preimage is invalid.
+
     InvalidPaymentPreimage,
-    /// The given payment secret is invalid.
+
     InvalidPaymentSecret,
-    /// The given amount is invalid.
+
     InvalidAmount,
-    /// The given invoice is invalid.
+
     InvalidInvoice,
-    /// The given channel ID is invalid.
+
     InvalidChannelId,
-    /// The given network is invalid.
+
     InvalidNetwork,
-    /// A payment with the given hash has already been initiated.
+
     DuplicatePayment,
-    /// There are insufficient funds to complete the given operation.
+
     InsufficientFunds,
-    ///A fee rate estimation update failed.
+
     FeerateEstimationUpdateFailed,
-    ///A liquidity request operation failed.
+
     LiquidityRequestFailed,
-    ///The given operation failed due to the required liquidity source being unavailable.
+
     LiquiditySourceUnavailable,
-    ///The given operation failed due to the LSP's required opening fee being too high.
+
     LiquidityFeeTooHigh,
-    ///The given payment id is invalid.
+
     InvalidPaymentId,
-    ///An error in decoding a message or struct.
+
     Decode(DecodeError),
-    ///An error in decoding the Bolt12 offer.
+
     Bolt12Parse(Bolt12ParseError),
-    ///Invoice request creation failed.
+
     InvoiceRequestCreationFailed,
-    ///Offer creation failed.
+
     OfferCreationFailed,
-    ///Refund creation failed.
+
     RefundCreationFailed,
-    ///A fee rate estimation update timed out.
+
     FeerateEstimationUpdateTimeout,
-    ///A wallet operation timed out.
+
     WalletOperationTimeout,
-    ///A transaction sync operation timed out.
+
     TxSyncTimeout,
-    ///A gossip updating operation timed out.
+
     GossipUpdateTimeout,
-    ///The given offer id is invalid.
+
     InvalidOfferId,
-    ///The given node id is invalid.
+
     InvalidNodeId,
-    ///The given offer is invalid.
+
     InvalidOffer,
-    ///The given refund is invalid.
+
     InvalidRefund,
-    ///The provided offer was denominated in an unsupported currency.
+
     UnsupportedCurrency,
 }
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum LdkBuilderError {
     SocketAddressParseError,
-    /// The given seed bytes are invalid, e.g., have invalid length.
+
     InvalidSeedBytes,
-    /// The given seed file is invalid, e.g., has invalid length, or could not be read.
+
     InvalidSeedFile,
-    /// The current system time is invalid, clocks might have gone backwards.
+
     InvalidSystemTime,
-    /// The a read channel monitor is invalid.
+
     InvalidChannelMonitor,
-    /// The given listening addresses are invalid, e.g. too many were passed.
+
     InvalidListeningAddress,
-    /// We failed to read data from the [`KVStore`].
+
     ReadFailed,
-    /// We failed to write data to the [`KVStore`].
+
     WriteFailed,
-    /// We failed to access the given `storage_dir_path`.
+
     StoragePathAccessFailed,
-    /// We failed to setup our [`KVStore`].
+
     KVStoreSetupFailed,
-    /// We failed to setup the onchain wallet.
+
     WalletSetupFailed,
-    /// We failed to setup the logger.
+
     LoggerSetupFailed,
 
     InvalidPublicKey,
@@ -180,11 +180,7 @@ impl From<NodeError> for LdkNodeError {
             NodeError::InvalidOffer => LdkNodeError::InvalidOffer,
             NodeError::InvalidRefund => LdkNodeError::InvalidRefund,
             NodeError::UnsupportedCurrency => LdkNodeError::UnsupportedCurrency,
-            // PORTE 0.7.0: o LDK acrescenta variantes de erro a cada versão
-            // (splicing, TLVs, URI...). Braço genérico para uma versão nova não
-            // quebrar a compilação; a mensagem preserva o motivo real.
-            // Sem variante genérica no nosso enum; PersistenceFailed é a mais
-            // neutra ("algo deu errado no nó") e já é tratada pela UI.
+
             _ => LdkNodeError::PersistenceFailed,
         }
     }
@@ -203,8 +199,7 @@ impl From<BuildError> for LdkBuilderError {
             BuildError::InvalidChannelMonitor => LdkBuilderError::InvalidChannelMonitor,
             BuildError::KVStoreSetupFailed => LdkBuilderError::KVStoreSetupFailed,
             BuildError::InvalidListeningAddresses => LdkBuilderError::InvalidListeningAddress,
-            // Idem: variantes novas do BuildError caem aqui em vez de quebrar
-            // a compilação a cada versão do ldk-node.
+
             _ => LdkBuilderError::WalletSetupFailed,
         }
     }
@@ -292,8 +287,7 @@ impl From<ldk_node::lightning::offers::parse::Bolt12ParseError> for LdkNodeError
             ldk_node::lightning::offers::parse::Bolt12ParseError::InvalidSignature(e) => {
                 LdkNodeError::Bolt12Parse(Bolt12ParseError::InvalidSignature(e.to_string()))
             }
-            // Variante nova do parser BOLT12 (InvalidLeadingWhitespace e
-            // futuras): tratamos como formato inválido.
+
             _ => LdkNodeError::Bolt12Parse(Bolt12ParseError::InvalidBech32Hrp),
         }
     }

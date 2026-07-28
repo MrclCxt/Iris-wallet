@@ -28,7 +28,7 @@ class _PinScreenState extends State<PinScreen> {
   @override
   void initState() {
     super.initState();
-    // Atualiza a contagem regressiva do bloqueio a cada segundo.
+
     _lockTicker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       if (context.read<WalletService>().isPinLocked) setState(() {});
@@ -47,7 +47,6 @@ class _PinScreenState extends State<PinScreen> {
     return '${d.inSeconds}s';
   }
 
-  /// Mensagem de PIN errado, avisando sobre apagamento automático se ligado.
   String _wrongPinMessage(WalletService wallet) {
     if (wallet.autoWipeEnabled) {
       final left = wallet.pinAttemptsRemainingBeforeWipe;
@@ -59,13 +58,10 @@ class _PinScreenState extends State<PinScreen> {
     return 'PIN incorreto';
   }
 
-  /// Inicializa a carteira Liquid (sidechain) com a mesma seed do perfil,
-  /// em segundo plano, após o desbloqueio.
   void _initLiquidInBackground() {
     final wallet = context.read<WalletService>();
     final liquid = context.read<LiquidWalletService>();
-    // A Liquid segue o mesmo modelo do nó: uma por DISPOSITIVO. Assim o saldo
-    // em Liquid é o mesmo na área pessoal e na loja, como o resto da carteira.
+
     final seed = wallet.deviceSeed ??
         (widget.isMerchant ? wallet.merchantSeed : wallet.consumerSeed);
     if (seed != null) {
@@ -76,9 +72,8 @@ class _PinScreenState extends State<PinScreen> {
   }
 
   void _onKeyPress(String key) async {
-    if (_verifying) return; // já processando um PIN completo
-    // Bloqueio anti-brute-force: ignora o teclado enquanto travado (só no
-    // desbloqueio; a criação de PIN não é alvo de força-bruta).
+    if (_verifying) return;
+
     if (widget.mode == PinMode.unlock &&
         context.read<WalletService>().isPinLocked) {
       return;
@@ -105,7 +100,7 @@ class _PinScreenState extends State<PinScreen> {
                 final success = widget.isMerchant
                     ? await wallet.unlockMerchant(_pin)
                     : await wallet.unlock(_pin);
-                // O desbloqueio é assíncrono: a tela pode ter saído nesse meio.
+
                 if (!mounted) return;
                 setState(() => _verifying = false);
                 if (success) {
@@ -134,11 +129,8 @@ class _PinScreenState extends State<PinScreen> {
               }
             }
           } else {
-            // Unlock mode
             final wallet = context.read<WalletService>();
             if (widget.onSuccess != null) {
-              // Confirmação (ex.: pagamento): apenas VERIFICA o PIN, sem
-              // mexer na sessão — evita qualquer efeito de "deslogar".
               final ok = widget.isMerchant
                   ? wallet.verifyMerchantPin(_pin)
                   : wallet.verifyConsumerPin(_pin);
@@ -157,7 +149,6 @@ class _PinScreenState extends State<PinScreen> {
                 setState(() => _pin = '');
               }
             } else {
-              // Desbloqueio de sessão de verdade
               setState(() => _verifying = true);
               final success = widget.isMerchant
                   ? await wallet.unlockMerchant(_pin)

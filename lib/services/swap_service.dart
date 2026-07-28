@@ -5,8 +5,6 @@ import 'wallet_service.dart';
 import 'liquid_wallet_service.dart';
 import 'exchange_rate_service.dart';
 
-/// Roteamento de liquidez BRL (DEPIX/Liquid) -> Lightning via Boltz
-/// (Submarine Swap), tudo na testnet.
 class SwapService extends ChangeNotifier {
   final WalletService walletService;
   final LiquidWalletService liquidWalletService;
@@ -31,21 +29,22 @@ class SwapService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Roteamento completo: PIX (BRL) -> DEPIX (Liquid) -> L-BTC -> saldo em sats.
-  /// O usuário só vê Reais entrando e sats no saldo unificado.
   Future<void> executeFullRouting(double brlAmount) async {
     clearLogs();
-    _addLog('[PIX] Depósito recebido: R\$ ${brlAmount.toStringAsFixed(2)} (testnet: simulado)');
+    _addLog(
+        '[PIX] Depósito recebido: R\$ ${brlAmount.toStringAsFixed(2)} (testnet: simulado)');
 
-    // Conversão pelo câmbio real (CoinGecko), não por taxa fixa simulada.
     final satsAmount = exchangeRateService.brlToSats(brlAmount);
     if (satsAmount <= 0) {
-      _addLog('[ERRO] Cotação BTC/BRL indisponível. Tente novamente em instantes.');
+      _addLog(
+          '[ERRO] Cotação BTC/BRL indisponível. Tente novamente em instantes.');
       await exchangeRateService.fetchRate();
       return;
     }
-    _addLog('[DEPIX] R\$ ${brlAmount.toStringAsFixed(2)} emitidos como DEPIX na Liquid.');
-    _addLog('[SWAP] Trocando DEPIX por L-BTC: $satsAmount sats (câmbio em tempo real).');
+    _addLog(
+        '[DEPIX] R\$ ${brlAmount.toStringAsFixed(2)} emitidos como DEPIX na Liquid.');
+    _addLog(
+        '[SWAP] Trocando DEPIX por L-BTC: $satsAmount sats (câmbio em tempo real).');
 
     _addLog('[BOLTZ] Movendo L-BTC para o saldo Lightning (Submarine Swap)...');
     await _executeBoltzSwap(satsAmount);
@@ -53,12 +52,12 @@ class SwapService extends ChangeNotifier {
 
   Future<void> _executeBoltzSwap(int expectedSats) async {
     try {
-      // 1. Gera fatura Lightning real no nó local
-      final invoice = await walletService.createInvoice(expectedSats, 'Boltz L-BTC Swap');
+      final invoice =
+          await walletService.createInvoice(expectedSats, 'Boltz L-BTC Swap');
       _addLog('[LDK] Fatura de $expectedSats sats gerada internamente.');
 
-      // 2. Chama a API da Boltz Exchange (testnet)
-      final url = Uri.parse('https://api.testnet.boltz.exchange/v2/swap/submarine');
+      final url =
+          Uri.parse('https://api.testnet.boltz.exchange/v2/swap/submarine');
       final requestBody = {
         'from': 'L-BTC',
         'to': 'BTC',
@@ -81,26 +80,28 @@ class SwapService extends ChangeNotifier {
         final expectedAmount = (data['expectedAmount'] as num?)?.toInt();
 
         if (boltzAddress == null || expectedAmount == null) {
-          _addLog('[ERRO] Resposta da Boltz sem endereço/valor: ${response.body}');
+          _addLog(
+              '[ERRO] Resposta da Boltz sem endereço/valor: ${response.body}');
           return;
         }
 
-        _addLog('[BOLTZ] Swap aceito. Enviando $expectedAmount sats L-BTC para: $boltzAddress');
+        _addLog(
+            '[BOLTZ] Swap aceito. Enviando $expectedAmount sats L-BTC para: $boltzAddress');
 
-        // 3. Envia L-BTC de verdade (build + sign + broadcast local)
         final txid = await liquidWalletService.sendLbtc(
           toAddress: boltzAddress,
           sats: expectedAmount,
         );
         _addLog('[LIQUID] Transação transmitida. txid: $txid');
 
-        // 4. A Boltz detecta os fundos e paga a fatura Lightning.
-        //    O crédito real chega pelo evento PaymentReceived do LDK.
         _addLog('[BOLTZ] Aguardando a Boltz liquidar a fatura Lightning...');
-        _addLog('[ℹ️] O saldo será creditado automaticamente quando o pagamento chegar no nó.');
+        _addLog(
+            '[ℹ️] O saldo será creditado automaticamente quando o pagamento chegar no nó.');
       } else {
-        _addLog('[AVISO] Boltz testnet indisponível (HTTP ${response.statusCode}).');
-        _addLog('[ℹ️] Sem problema: os fundos permanecem como L-BTC na Liquid e '
+        _addLog(
+            '[AVISO] Boltz testnet indisponível (HTTP ${response.statusCode}).');
+        _addLog(
+            '[ℹ️] Sem problema: os fundos permanecem como L-BTC na Liquid e '
             'já contam no seu saldo total em sats. O rebalanceamento para '
             'Lightning pode ser refeito depois.');
       }

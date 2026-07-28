@@ -43,13 +43,10 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
             child: Row(
               children: [
-                // Avatar da loja: foto (se houver) ou o ícone do app. Toque
-                // abre o Perfil para editar ou adicionar a personalização.
                 const AccountAvatar(isMerchant: true, size: 36),
                 const SizedBox(width: 12),
                 Expanded(
@@ -85,12 +82,9 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                   ),
                 ),
                 const CurrencyToggleBtn(),
-                // Troca loja <-> pessoal fica em Configurações (ver
-                // consumer_dashboard: mesma decisão dos dois lados).
               ],
             ),
           ),
-
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -98,8 +92,6 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
-
-                  // Row 1: Hoje / Semana
                   Row(
                     children: [
                       Expanded(
@@ -143,7 +135,6 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                     hide: wallet.hideBalance,
                     format: CurrencyFormatter.formatBtcOrSats,
                   ),
-                  // Row 2: Saldo loja / Taxa paga
                   Row(
                     children: [
                       Expanded(
@@ -183,10 +174,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 24),
-
-                  // Charge Now button
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: chroma.buttonGradient,
@@ -217,12 +205,9 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 24),
                   const Divider(color: IrisTheme.bdr, height: 1),
                   const SizedBox(height: 24),
-
-                  // Produtos Ativos
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -244,8 +229,6 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                     ],
                   ),
                   const SizedBox(height: 16),
-
-                  // Dynamic Products row
                   if (wallet.merchantProducts.isEmpty)
                     const Text('Nenhum produto cadastrado.',
                         style: TextStyle(color: IrisTheme.textSecondary))
@@ -256,7 +239,6 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                           .map((p) => _buildProductRow(p))
                           .toList(),
                     ),
-
                   const SizedBox(height: 32),
                 ],
               ),
@@ -308,7 +290,6 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
             backgroundColor: Colors.transparent,
             insetPadding: const EdgeInsets.all(16),
             child: ConstrainedBox(
-              // Alto o suficiente para o conteúdo caber sem scroll.
               constraints: const BoxConstraints(maxWidth: 450, maxHeight: 780),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),

@@ -25,15 +25,18 @@ class MerchantHistoryScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 SizedBox(width: 48),
-                Text('Histórico', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                Text('Histórico',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 CurrencyToggleBtn(),
               ],
             ),
           ),
-          
           Expanded(
             child: wallet.merchantTransactions.isEmpty
-                ? const Center(child: Text('Nenhuma venda registrada ainda.', style: TextStyle(color: IrisTheme.textSecondary)))
+                ? const Center(
+                    child: Text('Nenhuma venda registrada ainda.',
+                        style: TextStyle(color: IrisTheme.textSecondary)))
                 : MediaQuery.of(context).size.width >= 850
                     ? _buildDesktopDataTable(wallet, exchangeRate)
                     : ListView.builder(
@@ -56,7 +59,8 @@ class MerchantHistoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDesktopDataTable(WalletService wallet, ExchangeRateService exchangeRate) {
+  Widget _buildDesktopDataTable(
+      WalletService wallet, ExchangeRateService exchangeRate) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -75,25 +79,53 @@ class MerchantHistoryScreen extends StatelessWidget {
             columnSpacing: 24,
             horizontalMargin: 24,
             columns: const [
-              DataColumn(label: Text('Data', style: TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textSecondary))),
-              DataColumn(label: Text('Descrição', style: TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textSecondary))),
-              DataColumn(label: Text('Tipo', style: TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textSecondary))),
-              DataColumn(label: Text('Valor (BRL)', style: TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textSecondary)), numeric: true),
-              DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, color: IrisTheme.textSecondary))),
+              DataColumn(
+                  label: Text('Data',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: IrisTheme.textSecondary))),
+              DataColumn(
+                  label: Text('Descrição',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: IrisTheme.textSecondary))),
+              DataColumn(
+                  label: Text('Tipo',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: IrisTheme.textSecondary))),
+              DataColumn(
+                  label: Text('Valor (BRL)',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: IrisTheme.textSecondary)),
+                  numeric: true),
+              DataColumn(
+                  label: Text('Status',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: IrisTheme.textSecondary))),
             ],
             rows: wallet.merchantTransactions.map((tx) {
               final brl = exchangeRate.satsToBrl(tx.amountSats);
-              
+
               return DataRow(
                 cells: [
-                  DataCell(Text('${tx.date.day.toString().padLeft(2, '0')}/${tx.date.month.toString().padLeft(2, '0')} ${tx.date.hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')}', style: const TextStyle(color: IrisTheme.textSecondary))),
-                  DataCell(Text(tx.title, style: const TextStyle(fontWeight: FontWeight.w600))),
-                  const DataCell(Text('Venda', style: TextStyle(color: IrisTheme.textSecondary))),
+                  DataCell(Text(
+                      '${tx.date.day.toString().padLeft(2, '0')}/${tx.date.month.toString().padLeft(2, '0')} ${tx.date.hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')}',
+                      style: const TextStyle(color: IrisTheme.textSecondary))),
+                  DataCell(Text(tx.title,
+                      style: const TextStyle(fontWeight: FontWeight.w600))),
+                  const DataCell(Text('Venda',
+                      style: TextStyle(color: IrisTheme.textSecondary))),
                   DataCell(Text(
                       exchangeRate.isSatsDisplay
                           ? '+${CurrencyFormatter.formatBtcOrSats(tx.amountSats)}'
                           : '+R\$ ${CurrencyFormatter.formatBrlCompact(brl)}',
-                      style: const TextStyle(color: IrisTheme.success, fontFamily: 'monospace', fontWeight: FontWeight.bold))),
+                      style: const TextStyle(
+                          color: IrisTheme.success,
+                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.bold))),
                   DataCell(TxStatusChip(status: tx.status)),
                 ],
               );
@@ -104,9 +136,9 @@ class MerchantHistoryScreen extends StatelessWidget {
     );
   }
 
-
-
-  Widget _buildTxItem(String title, String time, int sats, ExchangeRateService exchangeRate, {String status = 'confirmed'}) {
+  Widget _buildTxItem(
+      String title, String time, int sats, ExchangeRateService exchangeRate,
+      {String status = 'confirmed'}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(16),
@@ -119,22 +151,29 @@ class MerchantHistoryScreen extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: IrisTheme.s2, borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.receipt_long, color: IrisTheme.primary, size: 20),
+            decoration: BoxDecoration(
+                color: IrisTheme.s2, borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.receipt_long,
+                color: IrisTheme.primary, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    Text(time, style: const TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
+                    Text(time,
+                        style: const TextStyle(
+                            fontSize: 11, color: IrisTheme.textSecondary)),
                     if (status != 'confirmed') ...[
                       const SizedBox(width: 6),
-                      Flexible(child: TxStatusChip(status: status, compact: true)),
+                      Flexible(
+                          child: TxStatusChip(status: status, compact: true)),
                     ],
                   ],
                 ),
@@ -148,14 +187,20 @@ class MerchantHistoryScreen extends StatelessWidget {
                 exchangeRate.isSatsDisplay
                     ? '+ ${CurrencyFormatter.formatBtcOrSats(sats)}'
                     : '+ R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(sats))}',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: IrisTheme.success),
+                style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: IrisTheme.success),
               ),
               const SizedBox(height: 2),
               Text(
                 exchangeRate.isSatsDisplay
                     ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(sats))}'
                     : '≈ ${CurrencyFormatter.formatBtcOrSats(sats)}',
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 10, color: IrisTheme.textTertiary),
+                style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 10,
+                    color: IrisTheme.textTertiary),
               ),
             ],
           ),

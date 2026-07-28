@@ -63,8 +63,6 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
                   });
                 },
               ),
-              // Sem troca de área aqui: ela mora em Configurações (mesma
-              // decisão do lado pessoal).
               selectedIconTheme: const IconThemeData(color: IrisTheme.primary),
               unselectedIconTheme:
                   const IconThemeData(color: IrisTheme.textTertiary),
@@ -166,14 +164,10 @@ class _MerchantReceiveWrapper extends StatelessWidget {
     final wallet = context.watch<WalletService>();
     final pending = wallet.pendingChargeAmount;
 
-    // Convert BRL to sats if there's a pending charge
-    // But ReceiveQrScreen expects sats. Let's let it handle 0 (fixed QR) or specific sats.
     int sats = 0;
     if (pending > 0) {
       final exchangeRate = context.read<ExchangeRateService>();
       sats = exchangeRate.brlToSats(pending);
-      // We should clear it so it doesn't persist forever if they leave the tab?
-      // For now it's fine, let's keep it simple.
     }
 
     return ReceiveQrScreen(satsAmount: sats, isMerchant: true);

@@ -4,24 +4,10 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// Guarda as fotos dos produtos em arquivo, separadas por loja.
-///
-/// Por que não dentro do produto (base64 no SharedPreferences): o catálogo
-/// inteiro é gravado de uma vez, e uma foto tem centenas de KB. Isso
-/// atravessaria o canal de método a cada salvamento e travaria o app. Em
-/// arquivo, o catálogo continua sendo um JSON pequeno com o nome do arquivo.
-///
-/// Por que uma pasta por loja: contas são separadas. Com pasta única, a
-/// limpeza de órfãs da loja ativa apagava as fotos das outras lojas, porque
-/// nenhum produto dela as referenciava.
-///
-/// O produto guarda só o NOME do arquivo — nunca o caminho absoluto, que muda
-/// entre instalações no Android e deixaria toda foto quebrada após atualizar.
 class ProductImageStore {
   static String? _raiz;
   static String? _lojaAtual;
 
-  /// Chamado uma vez no start do app, antes do primeiro build.
   static Future<void> init() async {
     try {
       final docs = await getApplicationDocumentsDirectory();
@@ -35,7 +21,6 @@ class ProductImageStore {
     }
   }
 
-  /// Aponta o armazenamento para a loja ativa. Sem loja, nada é lido ou salvo.
   static void definirLoja(String? merchantId) {
     _lojaAtual = (merchantId == null || merchantId.isEmpty) ? null : merchantId;
   }
@@ -49,7 +34,6 @@ class ProductImageStore {
 
   static bool get pronto => _pasta != null;
 
-  /// Caminho completo a partir do nome guardado no produto.
   static String? caminhoDe(String? nomeArquivo) {
     final base = _pasta;
     if (base == null || nomeArquivo == null || nomeArquivo.isEmpty) return null;
@@ -64,9 +48,8 @@ class ProductImageStore {
     return dir;
   }
 
-  /// Grava os bytes já enquadrados. Devolve o nome do arquivo, ou null se não
-  /// conseguiu gravar.
-  static Future<String?> salvar(Uint8List bytes, {String extensao = 'jpg'}) async {
+  static Future<String?> salvar(Uint8List bytes,
+      {String extensao = 'jpg'}) async {
     try {
       final dir = await _garantirPasta();
       if (dir == null) return null;
@@ -93,8 +76,6 @@ class ProductImageStore {
     }
   }
 
-  /// True se o arquivo realmente existe. A tela usa isto para não oferecer
-  /// "trocar/remover" de uma foto que sumiu do disco.
   static bool existe(String? nomeArquivo) {
     final caminho = caminhoDe(nomeArquivo);
     if (caminho == null) return false;
@@ -116,8 +97,8 @@ class ProductImageStore {
     }
   }
 
-  /// Grava uma foto recebida na importação de catálogo.
-  static Future<String?> salvarBase64(String base64, {String extensao = 'jpg'}) async {
+  static Future<String?> salvarBase64(String base64,
+      {String extensao = 'jpg'}) async {
     try {
       return await salvar(base64Decode(base64), extensao: extensao);
     } catch (e) {
@@ -126,8 +107,6 @@ class ProductImageStore {
     }
   }
 
-  /// Apaga fotos que nenhum produto DA LOJA ATUAL referencia. Só varre a pasta
-  /// da loja ativa — nunca toca no material das outras.
   static Future<void> limparOrfaos(Set<String> emUso) async {
     final base = _pasta;
     if (base == null) return;
@@ -146,7 +125,6 @@ class ProductImageStore {
     }
   }
 
-  /// Apaga a pasta inteira de uma loja removida.
   static Future<void> apagarLoja(String merchantId) async {
     final raiz = _raiz;
     if (raiz == null) return;
@@ -158,9 +136,6 @@ class ProductImageStore {
     }
   }
 
-  /// Move para a pasta da loja ativa as fotos que ficaram soltas na raiz —
-  /// resquício da versão que usava pasta única. Só migra as que a loja atual
-  /// realmente referencia, para não roubar foto de outra loja.
   static Future<void> migrarDaRaiz(Set<String> referenciadas) async {
     final raiz = _raiz;
     final base = _pasta;

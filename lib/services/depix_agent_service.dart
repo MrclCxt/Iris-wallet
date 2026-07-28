@@ -7,16 +7,6 @@ import 'package:ed25519_edwards/ed25519_edwards.dart' as ed;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
-/// Onboarding automático de conta DePix via "agent accounts".
-///
-/// A identidade do agent é um par de chaves Ed25519 gerado e guardado SÓ no
-/// dispositivo do usuário (a seed nunca sai daqui). Cada requisição aos
-/// endpoints `/api/agents/*` é assinada — não há chave estática compartilhada,
-/// e o Iris nunca detém a conta: quem a cria é o próprio usuário, com o `op_`
-/// token que ele obteve conectando GitHub/Google no painel da DePix.
-///
-/// O resultado do registro é uma chave `sk_test_`/`sk_live_` que o
-/// [DepixAppProvider] consome normalmente — este serviço só a provisiona.
 class DepixAgentService {
   static const String host = 'api.depixapp.com';
   static const String baseUrl = 'https://api.depixapp.com';
@@ -31,8 +21,6 @@ class DepixAgentService {
       : _storage = storage ?? const FlutterSecureStorage(),
         _client = client ?? http.Client();
 
-  /// Garante que existe uma identidade de agent (gera na primeira vez e
-  /// persiste a seed de 32 bytes no keystore nativo).
   Future<void> ensureIdentity() async {
     if (_priv != null && _pub != null) return;
     final seedHex = await _storage.read(key: 'depix_agent_seed');
@@ -48,16 +36,11 @@ class DepixAgentService {
     _pub = ed.public(_priv!);
   }
 
-  /// Chave pública do agent (64 hex) — pode ser exibida ao usuário como a
-  /// "impressão digital" da identidade dele.
   Future<String> publicKeyHex() async {
     await ensureIdentity();
     return _bytesToHex(_pub!.bytes);
   }
 
-  /// Registra a conta de agent. [liquidAddress] é IMUTÁVEL após a criação —
-  /// use um endereço da carteira Liquid não-custodial do próprio usuário, para
-  /// que os depósitos DePix caiam direto no saldo dele.
   Future<AgentRegistration> register({
     required String name,
     required String operatorToken,
@@ -73,7 +56,8 @@ class DepixAgentService {
       'operator_token': operatorToken,
       'operator_email': operatorEmail,
       'liquid_address': liquidAddress,
-      if (username != null && username.trim().isNotEmpty) 'username': username.trim(),
+      if (username != null && username.trim().isNotEmpty)
+        'username': username.trim(),
       if (callbackUrl != null && callbackUrl.trim().isNotEmpty)
         'default_callback_url': callbackUrl.trim(),
     });
@@ -83,12 +67,10 @@ class DepixAgentService {
       body: body,
     );
     if (r.statusCode != 200 && r.statusCode != 201) _fail(r);
-    return AgentRegistration.fromJson(jsonDecode(r.body) as Map<String, dynamic>);
+    return AgentRegistration.fromJson(
+        jsonDecode(r.body) as Map<String, dynamic>);
   }
 
-  /// Emite uma nova chave para o agent já registrado. `live: true` exige
-  /// graduação (5 depósitos liquidados e maturados) — antes disso o servidor
-  /// responde 403 `graduation_pending`.
   Future<AgentKey> createKey({
     bool live = false,
     List<String> scopes = const ['wallet_read', 'wallet_write'],
@@ -114,20 +96,18 @@ class DepixAgentService {
     return AgentKey.fromJson(jsonDecode(r.body) as Map<String, dynamic>);
   }
 
-  // --- Assinatura canônica (depix-agent-auth:v1) ---------------------------
-
   Map<String, String> _signedHeaders(String method, String path, String body) {
     final ts = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
     final rnd = Random.secure();
     final nonce = _bytesToHex(
         Uint8List.fromList(List.generate(16, (_) => rnd.nextInt(256))));
-    // SHA-256 do corpo BRUTO, em hex minúsculo.
+
     final bodyHash = crypto.sha256.convert(utf8.encode(body)).toString();
     final canonical = [
       'depix-agent-auth:v1',
       host,
       method.toUpperCase(),
-      path, // sem query string
+      path,
       ts,
       nonce,
       bodyHash,
@@ -171,11 +151,9 @@ class DepixAgentService {
   }
 }
 
-/// Chave emitida pela DePix (`sk_test_`/`sk_live_`), retornada em texto claro
-/// UMA única vez.
 class AgentKey {
   final String key;
-  final String prefix; // 'sk_test_' | 'sk_live_'
+  final String prefix;
   final bool isLive;
   final String scopes;
   final int? perTxLimitCents;
@@ -207,7 +185,6 @@ class AgentKey {
   }
 }
 
-/// Resposta do `POST /api/agents/register`.
 class AgentRegistration {
   final String? username;
   final String? merchantId;

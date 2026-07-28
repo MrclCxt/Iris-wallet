@@ -13,8 +13,8 @@ class MerchantSetupScreen extends StatefulWidget {
 }
 
 class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
-  int _step = 0; // 0: Nome, 1: Escolha (Novo/Importar), 2: Semente, 3: Confirmacao, 4: PIN
-  String _mode = ''; // 'new' ou 'import'
+  int _step = 0;
+  String _mode = '';
   final TextEditingController _nameCtrl = TextEditingController();
   final TextEditingController _seedCtrl = TextEditingController();
   String _seed = '';
@@ -22,12 +22,10 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
   String _firstPin = '';
   bool _isConfirmingPin = false;
 
-  // Conferência da semente (mesma lógica da área pessoal)
   SeedQuiz? _quiz;
   List<String?> _respostas = [];
   String? _errorMsg;
 
-  /// Quantas palavras a semente nova terá.
   int _quantidadeDePalavras = 12;
 
   void _generateQuestions() {
@@ -37,19 +35,22 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
 
   void _nextStep() {
     if (_step == 0 && _nameCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insira um nome válido')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Insira um nome válido')));
       return;
     }
     if (_step == 2 && _mode == 'import') {
-      final seedInput = _seedCtrl.text.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
-      // Mesma regra da área pessoal: 12 ou 24 palavras, com checksum.
+      final seedInput =
+          _seedCtrl.text.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+
       final erro = WalletService.validateSeedPhrase(seedInput);
       if (erro != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erro)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(erro)));
         return;
       }
       _seed = seedInput;
-      setState(() => _step = 4); // skip confirmation for import
+      setState(() => _step = 4);
       return;
     }
     if (_step == 2 && _mode == 'new') {
@@ -71,7 +72,7 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
         return;
       }
     }
-    
+
     setState(() => _step++);
   }
 
@@ -92,7 +93,6 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
             });
           } else {
             if (_pin == _firstPin) {
-              // Finalize setup
               final wallet = context.read<WalletService>();
               await wallet.setupMerchant(_nameCtrl.text.trim(), _seed, _pin);
               if (context.mounted) {
@@ -100,7 +100,9 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
               }
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Os PINs não coincidem. Tente novamente.'), backgroundColor: IrisTheme.danger),
+                const SnackBar(
+                    content: Text('Os PINs não coincidem. Tente novamente.'),
+                    backgroundColor: IrisTheme.danger),
               );
               setState(() {
                 _pin = '';
@@ -141,12 +143,18 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (_step == 0) _buildStep0()
-                else if (_step == 1) _buildStep1()
-                else if (_step == 2 && _mode == 'new') _buildStep2New()
-                else if (_step == 2 && _mode == 'import') _buildStep2Import()
-                else if (_step == 3) _buildStep3Confirmation()
-                else if (_step == 4) _buildStep4Pin()
+                if (_step == 0)
+                  _buildStep0()
+                else if (_step == 1)
+                  _buildStep1()
+                else if (_step == 2 && _mode == 'new')
+                  _buildStep2New()
+                else if (_step == 2 && _mode == 'import')
+                  _buildStep2Import()
+                else if (_step == 3)
+                  _buildStep3Confirmation()
+                else if (_step == 4)
+                  _buildStep4Pin()
               ],
             ),
           ),
@@ -164,9 +172,12 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
           children: [
             const Text('🏪', style: TextStyle(fontSize: 48)),
             const SizedBox(height: 16),
-            const Text('Criar perfil de Loja', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+            const Text('Criar perfil de Loja',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            const Text('O seu PDV terá saldo e configurações independentes da sua carteira pessoal.', style: TextStyle(color: IrisTheme.textSecondary)),
+            const Text(
+                'O seu PDV terá saldo e configurações independentes da sua carteira pessoal.',
+                style: TextStyle(color: IrisTheme.textSecondary)),
             const SizedBox(height: 32),
             TextField(
               controller: _nameCtrl,
@@ -174,13 +185,15 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                 labelText: 'Nome do seu estabelecimento',
                 filled: true,
                 fillColor: IrisTheme.s1,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
               ),
             ),
             const Spacer(),
             ElevatedButton(
               onPressed: _nextStep,
-              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+              style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16)),
               child: const Text('Continuar'),
             ),
           ],
@@ -196,9 +209,12 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Opções de Carteira', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+            const Text('Opções de Carteira',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            const Text('Como deseja configurar a carteira do seu estabelecimento?', style: TextStyle(color: IrisTheme.textSecondary)),
+            const Text(
+                'Como deseja configurar a carteira do seu estabelecimento?',
+                style: TextStyle(color: IrisTheme.textSecondary)),
             const SizedBox(height: 12),
             const Text(
               'A loja tem carteira própria. Se você importar aqui as palavras '
@@ -208,7 +224,6 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                   fontSize: 12, color: IrisTheme.textTertiary, height: 1.5),
             ),
             const SizedBox(height: 24),
-            // Tamanho escolhido ANTES de a semente ser criada.
             const Text('Tamanho da semente',
                 style: TextStyle(
                     fontSize: 12,
@@ -255,12 +270,16 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
             const Spacer(),
             ElevatedButton(
               onPressed: () {
-                _seed = WalletService.generateSeedPhrase(words: _quantidadeDePalavras);
+                _seed = WalletService.generateSeedPhrase(
+                    words: _quantidadeDePalavras);
                 _mode = 'new';
                 _nextStep();
               },
-              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), backgroundColor: IrisTheme.primary),
-              child: const Text('Criar com nova carteira →', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: IrisTheme.primary),
+              child: const Text('Criar com nova carteira →',
+                  style: TextStyle(color: Colors.white)),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
@@ -268,7 +287,10 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                 _mode = 'import';
                 _nextStep();
               },
-              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), backgroundColor: IrisTheme.s2, foregroundColor: IrisTheme.textPrimary),
+              style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: IrisTheme.s2,
+                  foregroundColor: IrisTheme.textPrimary),
               child: const Text('🔄 Importar carteira existente'),
             ),
           ],
@@ -294,16 +316,23 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                     color: IrisTheme.success.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Center(child: Text('🔑', style: TextStyle(fontSize: 17))),
+                  child: const Center(
+                      child: Text('🔑', style: TextStyle(fontSize: 17))),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Semente da Loja', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
+                      Text('Semente da Loja',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyLarge
+                              ?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 1),
-                      Text('$_quantidadeDePalavras palavras que abrem sua loja', style: const TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
+                      Text('$_quantidadeDePalavras palavras que abrem sua loja',
+                          style: const TextStyle(
+                              fontSize: 11, color: IrisTheme.textSecondary)),
                     ],
                   ),
                 ),
@@ -314,7 +343,12 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text('ANOTE EM PAPEL ANTES DE CONTINUAR', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: IrisTheme.textTertiary)),
+              child: Text('ANOTE EM PAPEL ANTES DE CONTINUAR',
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      color: IrisTheme.textTertiary)),
             ),
           ),
           Expanded(
@@ -326,7 +360,9 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                 crossAxisSpacing: 5,
                 mainAxisSpacing: 5,
               ),
-              itemCount: _seed.isEmpty ? _quantidadeDePalavras : _seed.split(' ').length,
+              itemCount: _seed.isEmpty
+                  ? _quantidadeDePalavras
+                  : _seed.split(' ').length,
               itemBuilder: (ctx, i) {
                 return Container(
                   decoration: BoxDecoration(
@@ -334,14 +370,24 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                     border: Border.all(color: IrisTheme.bdr),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   child: Row(
                     children: [
                       SizedBox(
                         width: 20,
-                        child: Text('${i + 1}.', style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: IrisTheme.textTertiary)),
+                        child: Text('${i + 1}.',
+                            style: const TextStyle(
+                                fontSize: 10,
+                                fontFamily: 'monospace',
+                                color: IrisTheme.textTertiary)),
                       ),
-                      Text(words[i], style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: IrisTheme.primary, fontWeight: FontWeight.w600)),
+                      Text(words[i],
+                          style: const TextStyle(
+                              fontSize: 12,
+                              fontFamily: 'monospace',
+                              color: IrisTheme.primary,
+                              fontWeight: FontWeight.w600)),
                     ],
                   ),
                 );
@@ -359,7 +405,8 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
               ),
               child: const Text(
                 'Guarde essas palavras em lugar seguro. Se perder o acesso, elas recuperam o saldo da loja.',
-                style: TextStyle(color: IrisTheme.primaryLight, fontSize: 12, height: 1.55),
+                style: TextStyle(
+                    color: IrisTheme.primaryLight, fontSize: 12, height: 1.55),
               ),
             ),
           ),
@@ -377,13 +424,18 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: IrisTheme.textSecondary,
                     side: const BorderSide(color: IrisTheme.bdr),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, fontFamily: 'Outfit'),
+                    textStyle: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Outfit'),
                   ),
                   onPressed: () {
                     setState(() {
-                      _seed = WalletService.generateSeedPhrase(words: _quantidadeDePalavras);
+                      _seed = WalletService.generateSeedPhrase(
+                          words: _quantidadeDePalavras);
                     });
                   },
                   child: const Text('Gerar palavras novas'),
@@ -412,16 +464,23 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                     color: IrisTheme.success.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Center(child: Text('🔄', style: TextStyle(fontSize: 17))),
+                  child: const Center(
+                      child: Text('🔄', style: TextStyle(fontSize: 17))),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Importar carteira', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
+                      Text('Importar carteira',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyLarge
+                              ?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 1),
-                      const Text('Use uma seed já existente', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
+                      const Text('Use uma seed já existente',
+                          style: TextStyle(
+                              fontSize: 11, color: IrisTheme.textSecondary)),
                     ],
                   ),
                 ),
@@ -436,39 +495,53 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                 children: [
                   const Text(
                     '12 ou 24 palavras (separadas por espaço)',
-                    style: TextStyle(fontSize: 12, color: IrisTheme.textSecondary, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: IrisTheme.textSecondary,
+                        fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 4),
                   TextField(
                     controller: _seedCtrl,
                     maxLines: 4,
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 13, color: IrisTheme.textPrimary),
+                    style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 13,
+                        color: IrisTheme.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'palavra1 palavra2 ...',
-                      hintStyle: TextStyle(color: IrisTheme.textSecondary.withOpacity(0.5)),
+                      hintStyle: TextStyle(
+                          color: IrisTheme.textSecondary.withOpacity(0.5)),
                       filled: true,
                       fillColor: IrisTheme.s2,
                       enabledBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: IrisTheme.bdr2, width: 1.5),
+                        borderSide:
+                            const BorderSide(color: IrisTheme.bdr2, width: 1.5),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: IrisTheme.primary, width: 1.5),
+                        borderSide: const BorderSide(
+                            color: IrisTheme.primary, width: 1.5),
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 13, vertical: 10),
                     decoration: BoxDecoration(
                       color: IrisTheme.primaryDark,
-                      border: Border.all(color: IrisTheme.primary.withOpacity(0.2)),
+                      border:
+                          Border.all(color: IrisTheme.primary.withOpacity(0.2)),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Text(
                       'Use se já tem uma carteira Bitcoin Lightning para a loja.',
-                      style: TextStyle(color: IrisTheme.primaryLight, fontSize: 12, height: 1.55),
+                      style: TextStyle(
+                          color: IrisTheme.primaryLight,
+                          fontSize: 12,
+                          height: 1.55),
                     ),
                   ),
                 ],
@@ -479,7 +552,8 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
             child: ElevatedButton(
               onPressed: _nextStep,
-              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+              style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16)),
               child: const Text('Importar →'),
             ),
           ),
@@ -504,16 +578,23 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                     color: IrisTheme.success.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Center(child: Text('✅', style: TextStyle(fontSize: 17))),
+                  child: const Center(
+                      child: Text('✅', style: TextStyle(fontSize: 17))),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Confirme as palavras', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
+                      Text('Confirme as palavras',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyLarge
+                              ?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 1),
-                      const Text('Selecione na ordem certa', style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
+                      const Text('Selecione na ordem certa',
+                          style: TextStyle(
+                              fontSize: 11, color: IrisTheme.textSecondary)),
                     ],
                   ),
                 ),
@@ -536,12 +617,14 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                     ),
                     const SizedBox(height: 14),
                   ],
-
                   if (_errorMsg != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 16),
                       child: Center(
-                        child: Text(_errorMsg!, style: const TextStyle(color: IrisTheme.danger, fontSize: 12), textAlign: TextAlign.center),
+                        child: Text(_errorMsg!,
+                            style: const TextStyle(
+                                color: IrisTheme.danger, fontSize: 12),
+                            textAlign: TextAlign.center),
                       ),
                     ),
                 ],
@@ -565,15 +648,20 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: IrisTheme.textSecondary,
                     side: const BorderSide(color: IrisTheme.bdr),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, fontFamily: 'Outfit'),
+                    textStyle: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Outfit'),
                   ),
                   onPressed: () {
                     setState(() {
-                      _respostas = List<String?>.filled(_respostas.length, null);
+                      _respostas =
+                          List<String?>.filled(_respostas.length, null);
                       _errorMsg = null;
-                      _step = 2; // voltar e reler
+                      _step = 2;
                     });
                   },
                   child: const Text('← Voltar e reler'),
@@ -596,9 +684,16 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_isConfirmingPin ? 'Confirme o PIN' : 'Crie um PIN para a Loja', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+                Text(
+                    _isConfirmingPin
+                        ? 'Confirme o PIN'
+                        : 'Crie um PIN para a Loja',
+                    style: const TextStyle(
+                        fontSize: 24, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
-                const Text('Seus funcionários podem usar este PIN para cobrar clientes sem acessar seu saldo pessoal.', style: TextStyle(color: IrisTheme.textSecondary)),
+                const Text(
+                    'Seus funcionários podem usar este PIN para cobrar clientes sem acessar seu saldo pessoal.',
+                    style: TextStyle(color: IrisTheme.textSecondary)),
               ],
             ),
           ),
@@ -612,13 +707,17 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
     );
   }
 
-  Widget _buildQuestionBlock(int qNum, int idx, List<String> opts, String? currentAns, ValueChanged<String> onSelect) {
+  Widget _buildQuestionBlock(int qNum, int idx, List<String> opts,
+      String? currentAns, ValueChanged<String> onSelect) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Qual é a ${idx + 1}ª palavra?',
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: IrisTheme.textPrimary),
+          style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: IrisTheme.textPrimary),
         ),
         const SizedBox(height: 8),
         Row(
@@ -632,7 +731,9 @@ class _MerchantSetupScreenState extends State<MerchantSetupScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
                     color: isSelected ? IrisTheme.primary : IrisTheme.s2,
-                    border: Border.all(color: isSelected ? IrisTheme.primary : IrisTheme.bdr2, width: 1.5),
+                    border: Border.all(
+                        color: isSelected ? IrisTheme.primary : IrisTheme.bdr2,
+                        width: 1.5),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   alignment: Alignment.center,

@@ -19,8 +19,8 @@ class WelcomeScreen extends StatelessWidget {
               backgroundColor: Colors.transparent,
               elevation: 0,
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back,
-                    color: IrisTheme.textPrimary),
+                icon:
+                    const Icon(Icons.arrow_back, color: IrisTheme.textPrimary),
                 onPressed: () => Navigator.pop(context),
               ),
             )
@@ -35,7 +35,6 @@ class WelcomeScreen extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Real IRIS icon with chroma glow
                     Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
@@ -74,7 +73,6 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    // Rainbow divider
                     Container(
                       height: 2,
                       decoration: const BoxDecoration(
@@ -88,8 +86,8 @@ class WelcomeScreen extends StatelessWidget {
                           horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: chroma.primaryDark,
-                        border: Border.all(
-                            color: chroma.primary.withOpacity(0.25)),
+                        border:
+                            Border.all(color: chroma.primary.withOpacity(0.25)),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -116,8 +114,6 @@ class WelcomeScreen extends StatelessWidget {
                       IrisButton(
                         label: 'Criar minha carteira grátis',
                         onPressed: () {
-                          // A semente é gerada na tela seguinte, depois de o usuário escolher o
-                          // tamanho — criar aqui produzia uma carteira antes da escolha.
                           Navigator.pushNamed(context, '/seed_gen');
                         },
                       ),

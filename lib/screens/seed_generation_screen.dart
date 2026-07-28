@@ -11,7 +11,6 @@ class SeedGenerationScreen extends StatefulWidget {
 }
 
 class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
-  /// Quantas palavras a semente terá. 24 dá 256 bits de entropia.
   int _quantidadeDePalavras = 12;
 
   @override
@@ -22,17 +21,14 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
     });
   }
 
-  /// Cria a carteira com o tamanho escolhido e só então revela as palavras.
   void _criarComTamanho(int palavras) {
     setState(() => _quantidadeDePalavras = palavras);
     context.read<WalletService>().resetAndGenerateSeed(words: palavras);
   }
 
-  /// Primeiro passo: o tamanho da semente. A carteira só é criada depois
-  /// desta escolha — antes, gerávamos 12 palavras e a "escolha" vinha tarde.
   Widget _telaDeEscolha(WalletService wallet) {
-    final podeVoltar =
-        wallet.consumerAccounts.isNotEmpty || wallet.merchantAccounts.isNotEmpty;
+    final podeVoltar = wallet.consumerAccounts.isNotEmpty ||
+        wallet.merchantAccounts.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -41,7 +37,8 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
         automaticallyImplyLeading: false,
         leading: podeVoltar
             ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: IrisTheme.textPrimary),
+                icon:
+                    const Icon(Icons.arrow_back, color: IrisTheme.textPrimary),
                 onPressed: () {
                   wallet.cancelWalletCreation();
                   Navigator.pop(context);
@@ -59,7 +56,9 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('🔑', style: TextStyle(fontSize: 40), textAlign: TextAlign.center),
+                  const Text('🔑',
+                      style: TextStyle(fontSize: 40),
+                      textAlign: TextAlign.center),
                   const SizedBox(height: 16),
                   Text(
                     'Tamanho da sua semente',
@@ -75,7 +74,9 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
                     'de criá-la — depois não dá para mudar sem gerar outra.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 13, color: IrisTheme.textSecondary, height: 1.5),
+                        fontSize: 13,
+                        color: IrisTheme.textSecondary,
+                        height: 1.5),
                   ),
                   const SizedBox(height: 28),
                   _opcaoDeTamanho(
@@ -145,29 +146,31 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
   Widget build(BuildContext context) {
     final wallet = context.watch<WalletService>();
 
-    // Enquanto o usuário não escolher o tamanho, nenhuma carteira é criada.
     if (!wallet.temSementeEmCriacao) {
       return _telaDeEscolha(wallet);
     }
 
     final seed = wallet.consumerSeed;
-    final words =
-        seed != null ? seed.split(' ') : List.filled(_quantidadeDePalavras, '...');
+    final words = seed != null
+        ? seed.split(' ')
+        : List.filled(_quantidadeDePalavras, '...');
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         automaticallyImplyLeading: false,
-        leading: (wallet.consumerAccounts.isNotEmpty || wallet.merchantAccounts.isNotEmpty) 
-          ? IconButton(
-              icon: const Icon(Icons.arrow_back, color: IrisTheme.textPrimary),
-              onPressed: () {
-                wallet.cancelWalletCreation();
-                Navigator.pop(context);
-              },
-            ) 
-          : null,
+        leading: (wallet.consumerAccounts.isNotEmpty ||
+                wallet.merchantAccounts.isNotEmpty)
+            ? IconButton(
+                icon:
+                    const Icon(Icons.arrow_back, color: IrisTheme.textPrimary),
+                onPressed: () {
+                  wallet.cancelWalletCreation();
+                  Navigator.pop(context);
+                },
+              )
+            : null,
       ),
       body: SafeArea(
         child: Center(
@@ -186,16 +189,31 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
                           color: IrisTheme.success.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Center(child: Text('🔑', style: TextStyle(fontSize: 17))),
+                        child: const Center(
+                            child: Text('🔑', style: TextStyle(fontSize: 17))),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(wallet.consumerAccounts.isNotEmpty ? 'Nova Semente (Secundária)' : 'Nova Semente', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                            Text(
+                                wallet.consumerAccounts.isNotEmpty
+                                    ? 'Nova Semente (Secundária)'
+                                    : 'Nova Semente',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 2),
-                            Text(wallet.consumerAccounts.isNotEmpty ? 'Anote a semente da sua nova carteira. Você precisará dela para backup.' : 'Anote em um lugar seguro. É a sua única forma de recuperar a conta.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: IrisTheme.textSecondary)),
+                            Text(
+                                wallet.consumerAccounts.isNotEmpty
+                                    ? 'Anote a semente da sua nova carteira. Você precisará dela para backup.'
+                                    : 'Anote em um lugar seguro. É a sua única forma de recuperar a conta.',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(color: IrisTheme.textSecondary)),
                           ],
                         ),
                       ),
@@ -206,13 +224,19 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('ANOTE EM PAPEL ANTES DE CONTINUAR', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: IrisTheme.textTertiary)),
+                    child: Text('ANOTE EM PAPEL ANTES DE CONTINUAR',
+                        style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
+                            color: IrisTheme.textTertiary)),
                   ),
                 ),
                 Expanded(
                   child: GridView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       childAspectRatio: 4.5,
                       crossAxisSpacing: 5,
@@ -226,14 +250,24 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
                           border: Border.all(color: IrisTheme.bdr),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
                         child: Row(
                           children: [
                             SizedBox(
                               width: 20,
-                              child: Text('${i + 1}.', style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: IrisTheme.textTertiary)),
+                              child: Text('${i + 1}.',
+                                  style: const TextStyle(
+                                      fontSize: 10,
+                                      fontFamily: 'monospace',
+                                      color: IrisTheme.textTertiary)),
                             ),
-                            Text(words[i], style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: IrisTheme.primary, fontWeight: FontWeight.w600)),
+                            Text(words[i],
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    fontFamily: 'monospace',
+                                    color: IrisTheme.primary,
+                                    fontWeight: FontWeight.w600)),
                           ],
                         ),
                       );
@@ -243,15 +277,20 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 13, vertical: 10),
                     decoration: BoxDecoration(
                       color: IrisTheme.primaryDark,
-                      border: Border.all(color: IrisTheme.primary.withOpacity(0.2)),
+                      border:
+                          Border.all(color: IrisTheme.primary.withOpacity(0.2)),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Text(
                       'Guarde essas palavras em lugar seguro. Se perder o celular, elas recuperam tudo.',
-                      style: TextStyle(color: IrisTheme.primaryLight, fontSize: 12, height: 1.55),
+                      style: TextStyle(
+                          color: IrisTheme.primaryLight,
+                          fontSize: 12,
+                          height: 1.55),
                     ),
                   ),
                 ),
@@ -261,9 +300,11 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       ElevatedButton(
-                        onPressed: seed != null ? () {
-                          Navigator.pushNamed(context, '/seed_confirm');
-                        } : null,
+                        onPressed: seed != null
+                            ? () {
+                                Navigator.pushNamed(context, '/seed_confirm');
+                              }
+                            : null,
                         child: const Text('Já anotei — verificar →'),
                       ),
                       const SizedBox(height: 8),
@@ -271,9 +312,13 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: IrisTheme.textSecondary,
                           side: const BorderSide(color: IrisTheme.bdr),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, fontFamily: 'Outfit'),
+                          textStyle: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'Outfit'),
                         ),
                         onPressed: () {
                           context.read<WalletService>().resetAndGenerateSeed();
@@ -284,13 +329,17 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
                       TextButton(
                         onPressed: () {
                           context.read<WalletService>().cancelWalletCreation();
-                          Navigator.of(context).popUntil((route) => route.settings.name == '/consumer_home' || route.settings.name == '/welcome' || route.isFirst);
+                          Navigator.of(context).popUntil((route) =>
+                              route.settings.name == '/consumer_home' ||
+                              route.settings.name == '/welcome' ||
+                              route.isFirst);
                         },
                         style: TextButton.styleFrom(
                           foregroundColor: IrisTheme.danger,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
-                        child: const Text('Cancelar e Voltar', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: const Text('Cancelar e Voltar',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),

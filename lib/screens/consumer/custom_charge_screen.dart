@@ -16,7 +16,7 @@ class CustomChargeScreen extends StatefulWidget {
 }
 
 class _CustomChargeScreenState extends State<CustomChargeScreen> {
-  int _inputValue = 0; // Represents cents (BRL) or sats (SATS)
+  int _inputValue = 0;
   bool? _lastSatsMode;
 
   @override
@@ -24,14 +24,12 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
     super.didChangeDependencies();
     final exchangeRate = context.watch<ExchangeRateService>();
     final isSatsMode = exchangeRate.isSatsDisplay;
-    
+
     if (_lastSatsMode != null && _lastSatsMode != isSatsMode) {
       if (isSatsMode) {
-        // Convert BRL cents to SATS
         double brl = _inputValue / 100.0;
         _inputValue = exchangeRate.brlToSats(brl);
       } else {
-        // Convert SATS to BRL cents
         double brl = exchangeRate.satsToBrl(_inputValue);
         _inputValue = (brl * 100).round();
       }
@@ -40,7 +38,7 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
   }
 
   void _handleKeyPress(String key) {
-    if (key == ',') return; // ignore comma in currency mode
+    if (key == ',') return;
     setState(() {
       final isSatsMode = context.read<ExchangeRateService>().isSatsDisplay;
       if (_inputValue.toString().length < (isSatsMode ? 12 : 10)) {
@@ -60,13 +58,14 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
 
     final exchangeRate = context.read<ExchangeRateService>();
     final isSatsMode = exchangeRate.isSatsDisplay;
-    int satsAmount = isSatsMode ? _inputValue : exchangeRate.brlToSats(_inputValue / 100.0);
+    int satsAmount =
+        isSatsMode ? _inputValue : exchangeRate.brlToSats(_inputValue / 100.0);
 
-    // Sem cotação não há como converter BRL -> sats: evita cobrança zerada
     if (satsAmount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Cotação BTC/BRL indisponível no momento. Tente novamente em instantes.'),
+          content: Text(
+              'Cotação BTC/BRL indisponível no momento. Tente novamente em instantes.'),
           backgroundColor: IrisTheme.danger,
         ),
       );
@@ -77,7 +76,10 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => ReceiveQrScreen(satsAmount: satsAmount, isStandalone: true, isMerchant: widget.isMerchant),
+        builder: (context) => ReceiveQrScreen(
+            satsAmount: satsAmount,
+            isStandalone: true,
+            isMerchant: widget.isMerchant),
       ),
     );
   }
@@ -86,16 +88,18 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
   Widget build(BuildContext context) {
     final exchangeRate = context.watch<ExchangeRateService>();
     final isSatsMode = exchangeRate.isSatsDisplay;
-    
+
     String mainDisplay = '';
     String convertedDisplay = '';
-    
+
     if (isSatsMode) {
       mainDisplay = '${CurrencyFormatter.formatSats(_inputValue)} SATS';
-      convertedDisplay = '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(_inputValue))}';
+      convertedDisplay =
+          '≈ R\$ ${CurrencyFormatter.formatBrl(exchangeRate.satsToBrl(_inputValue))}';
     } else {
       mainDisplay = 'R\$ ${CurrencyFormatter.formatBrl(_inputValue / 100.0)}';
-      convertedDisplay = '≈ ${CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(_inputValue / 100.0))}';
+      convertedDisplay =
+          '≈ ${CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(_inputValue / 100.0))}';
     }
 
     return Scaffold(
@@ -108,7 +112,8 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
           icon: const Icon(Icons.arrow_back, color: IrisTheme.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Cobrar Valor Específico', style: TextStyle(color: IrisTheme.textPrimary, fontSize: 16)),
+        title: const Text('Cobrar Valor Específico',
+            style: TextStyle(color: IrisTheme.textPrimary, fontSize: 16)),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -121,7 +126,6 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
                 children: [
                   const Center(child: CurrencyToggleBtn(ocultarSemPix: true)),
                   const SizedBox(height: 20),
-                  // Mesmo card do valor específico do PIX: rótulo + valor + numpad.
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -132,7 +136,8 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
                     child: Column(
                       children: [
                         const Text('Valor da cobrança',
-                            style: TextStyle(fontSize: 11, color: IrisTheme.textSecondary)),
+                            style: TextStyle(
+                                fontSize: 11, color: IrisTheme.textSecondary)),
                         const SizedBox(height: 8),
                         FittedBox(
                           fit: BoxFit.scaleDown,
@@ -183,5 +188,4 @@ class _CustomChargeScreenState extends State<CustomChargeScreen> {
       ),
     );
   }
-
 }

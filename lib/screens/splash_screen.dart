@@ -75,7 +75,6 @@ class _SplashScreenState extends State<SplashScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Real IRIS icon with chroma glow
               Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -118,7 +117,6 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
               ),
               const SizedBox(height: 48),
-              // Rainbow loading bar
               Container(
                 width: 120,
                 height: 3,

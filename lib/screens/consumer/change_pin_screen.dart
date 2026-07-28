@@ -6,10 +6,6 @@ import '../../services/wallet_service.dart';
 
 enum _Etapa { atual, novo, confirmar }
 
-/// Troca o PIN de uma conta em 3 passos: PIN atual → novo PIN → confirmação.
-/// Como a seed fica cifrada com uma chave derivada do PIN, a troca de verdade
-/// acontece no [WalletService] (decifra com o atual, recifra com o novo) —
-/// esta tela só coleta os dígitos.
 class ChangePinScreen extends StatefulWidget {
   final bool isMerchant;
   const ChangePinScreen({super.key, this.isMerchant = false});

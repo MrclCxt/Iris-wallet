@@ -7,10 +7,6 @@ import '../core/currency_format.dart';
 import '../core/theme.dart';
 import '../services/wallet_service.dart';
 
-/// Escuta o fluxo de recebimentos e avisa o usuário em qualquer tela do app.
-///
-/// Fica acima do Navigator, então o aviso aparece mesmo que a pessoa esteja no
-/// gerenciador de nós, no catálogo ou em qualquer outra página.
 class PaymentNotifier extends StatefulWidget {
   final GlobalKey<ScaffoldMessengerState> messengerKey;
   final Widget child;
@@ -30,7 +26,7 @@ class _PaymentNotifierState extends State<PaymentNotifier> {
   @override
   void initState() {
     super.initState();
-    // O provider já existe acima na árvore; ouvir uma vez basta.
+
     final wallet = context.read<WalletService>();
     _sub = wallet.paymentsReceived.listen(_notificar);
   }

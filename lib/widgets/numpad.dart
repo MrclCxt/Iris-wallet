@@ -28,8 +28,6 @@ class Numpad extends StatelessWidget {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(right: 12),
-                // Vírgula sempre visível, abaixo do 7. Fica inativa (cinza)
-                // quando a tela não aceita decimais (ex.: valores em sats).
                 child: _buildKey(
                   ',',
                   showDecimal ? () => onKeyPress(',') : null,

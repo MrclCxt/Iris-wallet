@@ -5,12 +5,6 @@ import '../services/exchange_rate_service.dart';
 import '../services/pix_service.dart';
 
 class CurrencyToggleBtn extends StatelessWidget {
-  /// Esconde o botão quando o Pix não está ativado nesta conta.
-  ///
-  /// Usado nas telas de ENVIAR e RECEBER: sem Pix, a conta opera só em sats e
-  /// oferecer a troca para Reais ali sugere um trilho de pagamento que não
-  /// existe. Nas telas de saldo/histórico o Real segue disponível, porque lá
-  /// ele é só uma referência de valor, não uma forma de pagar.
   final bool ocultarSemPix;
 
   const CurrencyToggleBtn({super.key, this.ocultarSemPix = false});
@@ -34,10 +28,14 @@ class CurrencyToggleBtn extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildToggleBtn(context, '⚡ SATS', isSats, () {
-            if (!isSats) context.read<ExchangeRateService>().toggleCurrencyDisplay();
+            if (!isSats) {
+              context.read<ExchangeRateService>().toggleCurrencyDisplay();
+            }
           }, IrisTheme.brandGradient),
           _buildToggleBtn(context, '🌈 R\$', !isSats, () {
-            if (isSats) context.read<ExchangeRateService>().toggleCurrencyDisplay();
+            if (isSats) {
+              context.read<ExchangeRateService>().toggleCurrencyDisplay();
+            }
           }, const LinearGradient(colors: [IrisTheme.green, IrisTheme.cyan])),
         ],
       ),
@@ -61,7 +59,10 @@ class CurrencyToggleBtn extends StatelessWidget {
           color: isOn ? null : Colors.transparent,
           borderRadius: BorderRadius.circular(18),
           boxShadow: isOn
-              ? [BoxShadow(color: IrisTheme.primary.withOpacity(0.3), blurRadius: 8)]
+              ? [
+                  BoxShadow(
+                      color: IrisTheme.primary.withOpacity(0.3), blurRadius: 8)
+                ]
               : null,
         ),
         child: Text(

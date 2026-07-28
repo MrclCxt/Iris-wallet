@@ -15,13 +15,6 @@ class AreaSwitcherBtn extends StatelessWidget {
     this.showText = true,
   });
 
-  /// Troca entre a área pessoal e a da loja.
-  ///
-  /// Vive aqui como método estático porque o botão saiu das telas iniciais e a
-  /// ação passou a ser acionada pelas Configurações — mas o comportamento
-  /// (escolher entre várias contas, pedir PIN, ou mandar para o cadastro
-  /// quando ainda não existe loja) precisa ser exatamente o mesmo nos dois
-  /// caminhos.
   static void trocarArea(BuildContext context,
       {required bool isCurrentlyConsumer}) {
     final wallet = context.read<WalletService>();
@@ -224,7 +217,7 @@ class AreaSwitcherBtn extends StatelessWidget {
                             fontWeight: FontWeight.w600)),
                     onTap: () {
                       Navigator.pop(context);
-                      // A semente é gerada na tela seguinte, depois da escolha do tamanho.
+
                       Navigator.pushNamed(context, '/seed_gen');
                     },
                   ),

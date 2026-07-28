@@ -12,10 +12,6 @@ import '../../services/product_image_store.dart';
 import '../../widgets/numpad.dart';
 import 'product_image_editor.dart';
 
-/// Cadastro e edição de produto na mesma tela: os dois fluxos pedem os mesmos
-/// campos, e manter duas cópias fazia as correções valerem só para uma delas.
-///
-/// Passe [product] para editar; sem ele, é um produto novo.
 class MerchantProductFormScreen extends StatefulWidget {
   final Product? product;
   const MerchantProductFormScreen({super.key, this.product});
@@ -31,8 +27,6 @@ class _MerchantProductFormScreenState extends State<MerchantProductFormScreen> {
   late final TextEditingController _nomeCtrl;
   late final TextEditingController _descricaoCtrl;
 
-  /// Preço sempre guardado em reais — é a unidade do modelo e do resto do app.
-  /// O switch abaixo é conveniência de digitação, não muda o que é gravado.
   late double _precoBrl;
   late bool _ativo;
   String? _imagemArquivo;
@@ -49,9 +43,7 @@ class _MerchantProductFormScreenState extends State<MerchantProductFormScreen> {
     _descricaoCtrl = TextEditingController(text: p?.description ?? '');
     _precoBrl = p?.price ?? 0;
     _ativo = p?.isActive ?? true;
-    // Só considera que há foto se o arquivo existir mesmo. Uma referência
-    // órfã fazia a tela oferecer "trocar/remover" de uma imagem inexistente —
-    // e ao salvar perpetuava o nome quebrado.
+
     final foto = p?.image;
     _imagemArquivo =
         (foto != null && ProductImageStore.existe(foto)) ? foto : null;
@@ -64,13 +56,6 @@ class _MerchantProductFormScreenState extends State<MerchantProductFormScreen> {
     super.dispose();
   }
 
-  // -------------------------------------------------------------------------
-  // Imagem
-  // -------------------------------------------------------------------------
-
-  /// Escolhe uma imagem, deixa o lojista enquadrar no 1:1 (girar, arrastar,
-  /// zoom) e guarda o resultado em arquivo. O recorte sai em 1440px com JPEG
-  /// 92 — resolução bem acima do que a tela mostra, sem perda visível.
   Future<void> _escolherImagem() async {
     setState(() => _carregandoImagem = true);
     try {
@@ -91,9 +76,9 @@ class _MerchantProductFormScreenState extends State<MerchantProductFormScreen> {
       }
 
       if (!mounted) return;
-      // Enquadramento 1:1 com giro e zoom antes de salvar.
+
       final enquadrada = await abrirEditorDeFoto(context, bytes);
-      if (enquadrada == null) return; // cancelou o enquadramento
+      if (enquadrada == null) return;
 
       final nomeArquivo = await ProductImageStore.salvar(
         enquadrada,
@@ -111,8 +96,6 @@ class _MerchantProductFormScreenState extends State<MerchantProductFormScreen> {
     }
   }
 
-  /// Abre a foto em tela cheia, com zoom e as ações de trocar e remover ao
-  /// alcance — ampliar não pode ser um beco sem saída.
   Future<void> _ampliarImagem() async {
     final caminho = ProductImageStore.caminhoDe(_imagemArquivo);
     if (caminho == null) return;
@@ -141,12 +124,6 @@ class _MerchantProductFormScreenState extends State<MerchantProductFormScreen> {
     setState(() => _erro = mensagem);
   }
 
-  // -------------------------------------------------------------------------
-  // Preço
-  // -------------------------------------------------------------------------
-
-  /// Abre o teclado numérico do app (mesmo padrão das telas de cobrança) já na
-  /// unidade escolhida no switch.
   Future<void> _abrirTecladoDePreco() async {
     final taxa = context.read<ExchangeRateService>();
     final emSats = _entrandoEmSats;
@@ -172,10 +149,6 @@ class _MerchantProductFormScreenState extends State<MerchantProductFormScreen> {
       });
     }
   }
-
-  // -------------------------------------------------------------------------
-  // Salvar
-  // -------------------------------------------------------------------------
 
   void _salvar() {
     final nome = _nomeCtrl.text.trim();
@@ -218,8 +191,6 @@ class _MerchantProductFormScreenState extends State<MerchantProductFormScreen> {
     context.read<WalletService>().removeMerchantProduct(p.id);
     Navigator.pop(context);
   }
-
-  // -------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -346,7 +317,6 @@ class _MerchantProductFormScreenState extends State<MerchantProductFormScreen> {
       child: Column(
         children: [
           GestureDetector(
-            // Com foto, o toque amplia; sem foto, abre direto o seletor.
             onTap: _carregandoImagem
                 ? null
                 : (temImagem ? _ampliarImagem : _escolherImagem),
@@ -356,8 +326,6 @@ class _MerchantProductFormScreenState extends State<MerchantProductFormScreen> {
               decoration: BoxDecoration(
                 color: IrisTheme.s1,
                 borderRadius: BorderRadius.circular(18),
-                // Sem borda destacada quando há foto: a imagem preenche o
-                // quadrado e a moldura colorida só competia com ela.
                 border: temImagem ? null : Border.all(color: IrisTheme.bdr),
               ),
               clipBehavior: Clip.antiAlias,
@@ -374,15 +342,14 @@ class _MerchantProductFormScreenState extends State<MerchantProductFormScreen> {
                           fit: StackFit.expand,
                           children: [
                             Image.file(
-                              File(ProductImageStore.caminhoDe(_imagemArquivo)!),
+                              File(
+                                  ProductImageStore.caminhoDe(_imagemArquivo)!),
                               fit: BoxFit.cover,
-                              // Arquivo pode ter sumido entre telas.
                               errorBuilder: (_, __, ___) => const Center(
                                 child: Icon(Icons.broken_image_outlined,
                                     color: IrisTheme.textTertiary),
                               ),
                             ),
-                            // Dica de que dá para ampliar.
                             Positioned(
                               right: 6,
                               bottom: 6,
@@ -448,7 +415,6 @@ class _MerchantProductFormScreenState extends State<MerchantProductFormScreen> {
 
     return Column(
       children: [
-        // Switch de unidade: muda apenas como o lojista digita e vê o valor.
         Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
@@ -556,10 +522,12 @@ class _MerchantProductFormScreenState extends State<MerchantProductFormScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text('Produto ativo',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    style:
+                        TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 SizedBox(height: 2),
                 Text('Desativado, ele não aparece para cobrança.',
-                    style: TextStyle(fontSize: 11, color: IrisTheme.textTertiary)),
+                    style:
+                        TextStyle(fontSize: 11, color: IrisTheme.textTertiary)),
               ],
             ),
           ),
@@ -607,12 +575,6 @@ class _MerchantProductFormScreenState extends State<MerchantProductFormScreen> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Foto ampliada
-// ---------------------------------------------------------------------------
-
-/// Foto em tela cheia com zoom por gesto. Devolve 'trocar' ou 'remover' quando
-/// o lojista escolhe uma das ações, ou null ao apenas fechar.
 class _VisualizadorDeFoto extends StatelessWidget {
   final String caminho;
   final String titulo;
@@ -700,12 +662,6 @@ class _VisualizadorDeFoto extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Teclado numérico do preço
-// ---------------------------------------------------------------------------
-
-/// Folha com o teclado do app. Digita em reais ou em sats conforme [emSats] e
-/// devolve sempre o valor convertido para reais, que é como o produto é salvo.
 class _FolhaDePreco extends StatefulWidget {
   final bool emSats;
   final double valorInicialBrl;
@@ -746,16 +702,15 @@ class _FolhaDePrecoState extends State<_FolhaDePreco> {
   void _tecla(String t) {
     setState(() {
       if (t == ',') {
-        // Uma vírgula só, e nunca em sats (satoshi é indivisível).
         if (widget.emSats || _digitado.contains(',')) return;
         if (_digitado.isEmpty) _digitado = '0';
         _digitado += ',';
         return;
       }
-      // Limite de dígitos: evita valores que estouram a conversão e a exibição.
+
       final soDigitos = _digitado.replaceAll(RegExp(r'[^0-9]'), '');
       if (soDigitos.length >= 15) return;
-      // Duas casas decimais no máximo, em reais.
+
       if (!widget.emSats && _digitado.contains(',')) {
         final decimais = _digitado.split(',').last;
         if (decimais.length >= 2) return;
@@ -813,8 +768,8 @@ class _FolhaDePrecoState extends State<_FolhaDePreco> {
           ),
           const SizedBox(height: 4),
           Text('≈ $equivalente',
-              style: const TextStyle(
-                  fontSize: 12, color: IrisTheme.textTertiary)),
+              style:
+                  const TextStyle(fontSize: 12, color: IrisTheme.textTertiary)),
           const SizedBox(height: 16),
           Numpad(
             onKeyPress: _tecla,

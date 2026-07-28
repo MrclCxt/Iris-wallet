@@ -5,12 +5,6 @@ import '../../services/pix_service.dart';
 import '../../widgets/max_width_container.dart';
 import 'pix_onboarding_screen.dart';
 
-/// Ativação OPCIONAL do Pix/Reais.
-///
-/// O núcleo da carteira (sats/BTC via Lightning e on-chain) funciona sem nada
-/// disto. O Pix só entra em cena quando o usuário decide receber/enviar Reais —
-/// e, para isso, precisa de uma conta DePix própria. A credencial fica só no
-/// dispositivo do usuário: o Iris nunca intermedia os Reais.
 class AtivarPixScreen extends StatefulWidget {
   const AtivarPixScreen({super.key});
 
@@ -83,11 +77,11 @@ class _AtivarPixScreenState extends State<AtivarPixScreen> {
                   'quiser depositar/sacar via Pix — e, para isso, você precisa '
                   'de uma conta DePix própria.',
                   style: TextStyle(
-                      color: IrisTheme.textSecondary, fontSize: 13, height: 1.5),
+                      color: IrisTheme.textSecondary,
+                      fontSize: 13,
+                      height: 1.5),
                 ),
                 const SizedBox(height: 24),
-
-                // ---- Onboarding automático (agent) — caminho primário ----
                 if (!enabled) ...[
                   SizedBox(
                     width: double.infinity,
@@ -97,7 +91,8 @@ class _AtivarPixScreenState extends State<AtivarPixScreen> {
                           : () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => const PixOnboardingScreen()),
+                                    builder: (_) =>
+                                        const PixOnboardingScreen()),
                               ),
                       icon: const Icon(Icons.auto_awesome, size: 18),
                       label: const Text('Ativar automaticamente'),
@@ -118,8 +113,6 @@ class _AtivarPixScreenState extends State<AtivarPixScreen> {
                   ),
                   const SizedBox(height: 24),
                 ],
-
-                // ---- Configuração manual (avançado) ----
                 _sectionTitle('Configuração manual (avançado)'),
                 const SizedBox(height: 8),
                 _infoBox(
@@ -129,29 +122,33 @@ class _AtivarPixScreenState extends State<AtivarPixScreen> {
                   'só neste aparelho.',
                 ),
                 const SizedBox(height: 20),
-
-                // ---- Provedor ----
                 _sectionTitle('Provedor'),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   value: _type,
                   dropdownColor: IrisTheme.s2,
-                  style: const TextStyle(color: IrisTheme.textPrimary, fontSize: 14),
+                  style: const TextStyle(
+                      color: IrisTheme.textPrimary, fontSize: 14),
                   decoration: const InputDecoration(labelText: 'Provedor'),
                   items: const [
                     DropdownMenuItem(
-                        value: 'depixapp', child: Text('DePix App (recomendado)')),
-                    DropdownMenuItem(value: 'rest', child: Text('REST genérico')),
+                        value: 'depixapp',
+                        child: Text('DePix App (recomendado)')),
+                    DropdownMenuItem(
+                        value: 'rest', child: Text('REST genérico')),
                     DropdownMenuItem(
                         value: 'sim', child: Text('Simulado (dev/testnet)')),
                   ],
-                  onChanged: _busy ? null : (v) => setState(() => _type = v ?? 'depixapp'),
+                  onChanged: _busy
+                      ? null
+                      : (v) => setState(() => _type = v ?? 'depixapp'),
                 ),
                 const SizedBox(height: 12),
                 if (_type == 'rest')
                   TextField(
                     controller: _urlCtrl,
-                    style: const TextStyle(color: IrisTheme.textPrimary, fontSize: 14),
+                    style: const TextStyle(
+                        color: IrisTheme.textPrimary, fontSize: 14),
                     decoration: const InputDecoration(
                       labelText: 'URL base da API',
                       hintText: 'https://api.provedor.com/v1',
@@ -162,7 +159,8 @@ class _AtivarPixScreenState extends State<AtivarPixScreen> {
                   TextField(
                     controller: _keyCtrl,
                     obscureText: true,
-                    style: const TextStyle(color: IrisTheme.textPrimary, fontSize: 14),
+                    style: const TextStyle(
+                        color: IrisTheme.textPrimary, fontSize: 14),
                     decoration: InputDecoration(
                       labelText: _type == 'depixapp'
                           ? 'Chave de API (sk_test_... ou sk_live_...)'
@@ -175,13 +173,12 @@ class _AtivarPixScreenState extends State<AtivarPixScreen> {
                     'Modo de desenvolvimento: percorre o fluxo do Pix sem mover '
                     'Reais de verdade. Use só para testar a interface.',
                   ),
-
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(_error!,
-                      style: const TextStyle(color: IrisTheme.danger, fontSize: 12)),
+                      style: const TextStyle(
+                          color: IrisTheme.danger, fontSize: 12)),
                 ],
-
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
@@ -203,7 +200,6 @@ class _AtivarPixScreenState extends State<AtivarPixScreen> {
                         : Text(enabled ? 'Atualizar Pix' : 'Ativar Pix'),
                   ),
                 ),
-
                 if (enabled) ...[
                   const SizedBox(height: 12),
                   SizedBox(
@@ -236,8 +232,7 @@ class _AtivarPixScreenState extends State<AtivarPixScreen> {
       decoration: BoxDecoration(
         color: IrisTheme.s1,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: enabled ? IrisTheme.success : IrisTheme.bdr),
+        border: Border.all(color: enabled ? IrisTheme.success : IrisTheme.bdr),
       ),
       child: Row(
         children: [
@@ -251,7 +246,8 @@ class _AtivarPixScreenState extends State<AtivarPixScreen> {
               children: [
                 Text(enabled ? 'Pix ativo' : 'Pix desativado',
                     style: TextStyle(
-                        color: enabled ? IrisTheme.success : IrisTheme.textPrimary,
+                        color:
+                            enabled ? IrisTheme.success : IrisTheme.textPrimary,
                         fontSize: 15,
                         fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),

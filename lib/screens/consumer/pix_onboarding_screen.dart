@@ -8,13 +8,6 @@ import '../../services/liquid_wallet_service.dart';
 import '../../services/pix_service.dart';
 import '../../widgets/max_width_container.dart';
 
-/// Onboarding automático de Pix para o usuário.
-///
-/// Fluxo: o usuário conecta GitHub/Google no painel da DePix e gera o
-/// operator token (`op_`); o app registra a conta de agent assinando com uma
-/// identidade Ed25519 local, usando o endereço Liquid não-custodial do próprio
-/// usuário para receber os depósitos; a chave resultante é guardada só neste
-/// dispositivo e ativa o Pix. O Iris nunca detém a conta nem o dinheiro.
 class PixOnboardingScreen extends StatefulWidget {
   const PixOnboardingScreen({super.key});
 
@@ -51,11 +44,10 @@ class _PixOnboardingScreenState extends State<PixOnboardingScreen> {
 
   Future<void> _loadLiquidAddress() async {
     try {
-      final addr = await context.read<LiquidWalletService>().getReceiveAddress();
+      final addr =
+          await context.read<LiquidWalletService>().getReceiveAddress();
       if (mounted) setState(() => _liquidAddress = addr);
-    } catch (_) {
-      // Deixado nulo: o passo de registro avisa que o endereço é obrigatório.
-    }
+    } catch (_) {}
   }
 
   Future<void> _register() async {
@@ -73,7 +65,8 @@ class _PixOnboardingScreenState extends State<PixOnboardingScreen> {
       return;
     }
     if (!opToken.startsWith('op_')) {
-      setState(() => _error = 'Cole o operator token (op_...) gerado no painel DePix.');
+      setState(() =>
+          _error = 'Cole o operator token (op_...) gerado no painel DePix.');
       return;
     }
     if (addr == null || addr.isEmpty || addr == 'indisponivel') {
@@ -125,7 +118,7 @@ class _PixOnboardingScreenState extends State<PixOnboardingScreen> {
           backgroundColor: IrisTheme.success,
         ),
       );
-      Navigator.pop(context); // volta para a tela de ativação/config
+      Navigator.pop(context);
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
     } finally {
@@ -159,15 +152,17 @@ class _PixOnboardingScreenState extends State<PixOnboardingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _step(1, 'Crie/conecte sua conta DePix',
+        _step(
+            1,
+            'Crie/conecte sua conta DePix',
             'Abra o painel da DePix e conecte seu GitHub ou Google. Isso gera '
-            'seu operator token (op_...) — é a âncora que prova que a conta é '
-            'SUA, não do app.'),
+                'seu operator token (op_...) — é a âncora que prova que a conta é '
+                'SUA, não do app.'),
         const SizedBox(height: 8),
         _copyRow(_dashboardUrl),
         const SizedBox(height: 24),
-
-        _step(2, 'Seus dados', 'Ficam na sua conta DePix; o app não os guarda.'),
+        _step(
+            2, 'Seus dados', 'Ficam na sua conta DePix; o app não os guarda.'),
         const SizedBox(height: 12),
         TextField(
           controller: _nameCtrl,
@@ -191,22 +186,21 @@ class _PixOnboardingScreenState extends State<PixOnboardingScreen> {
           ),
         ),
         const SizedBox(height: 24),
-
-        _step(3, 'Endereço de recebimento',
+        _step(
+            3,
+            'Endereço de recebimento',
             'Os depósitos DePix caem direto na SUA carteira Liquid não-custodial. '
-            'Este endereço é fixado na conta e não muda depois.'),
+                'Este endereço é fixado na conta e não muda depois.'),
         const SizedBox(height: 8),
         _liquidAddress == null
             ? const Text('Carregando endereço da sua carteira…',
                 style: TextStyle(color: IrisTheme.textTertiary, fontSize: 12))
             : _monoBox(_liquidAddress!),
-
         if (_error != null) ...[
           const SizedBox(height: 16),
           Text(_error!,
               style: const TextStyle(color: IrisTheme.danger, fontSize: 12)),
         ],
-
         const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,
@@ -258,11 +252,13 @@ class _PixOnboardingScreenState extends State<PixOnboardingScreen> {
         const SizedBox(height: 8),
         if (reg.username != null)
           Text('Usuário: ${reg.username}',
-              style: const TextStyle(color: IrisTheme.textSecondary, fontSize: 12)),
+              style: const TextStyle(
+                  color: IrisTheme.textSecondary, fontSize: 12)),
         if (reg.liquidAddress != null) ...[
           const SizedBox(height: 4),
           Text('Recebimento: ${reg.liquidAddress}',
-              style: const TextStyle(color: IrisTheme.textSecondary, fontSize: 12)),
+              style: const TextStyle(
+                  color: IrisTheme.textSecondary, fontSize: 12)),
         ],
         const SizedBox(height: 24),
         const Text('Como quer começar?',
@@ -271,7 +267,6 @@ class _PixOnboardingScreenState extends State<PixOnboardingScreen> {
                 fontSize: 14,
                 fontWeight: FontWeight.w700)),
         const SizedBox(height: 12),
-
         _choiceCard(
           title: 'Modo sandbox (recomendado)',
           subtitle:
@@ -289,7 +284,6 @@ class _PixOnboardingScreenState extends State<PixOnboardingScreen> {
           enabled: reg.liveStarterKey != null,
           onTap: () => _activateWith(reg.liveStarterKey, live: true),
         ),
-
         if (_error != null) ...[
           const SizedBox(height: 16),
           Text(_error!,
@@ -298,8 +292,6 @@ class _PixOnboardingScreenState extends State<PixOnboardingScreen> {
       ],
     );
   }
-
-  // --- pequenos blocos de UI ------------------------------------------------
 
   Widget _step(int n, String title, String body) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -362,7 +354,8 @@ class _PixOnboardingScreenState extends State<PixOnboardingScreen> {
                   const SnackBar(content: Text('Link copiado')),
                 );
               },
-              child: const Icon(Icons.copy, color: IrisTheme.textTertiary, size: 18),
+              child: const Icon(Icons.copy,
+                  color: IrisTheme.textTertiary, size: 18),
             ),
           ],
         ),

@@ -4,11 +4,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// Guarda a foto de avatar de cada conta (pessoal ou loja) em arquivo.
-///
-/// Nome determinístico por conta (`avatar_<id>.jpg`) — ao contrário das fotos
-/// de produto, só existe UM avatar por conta, então não precisa de referência
-/// guardada em `AccountProfile`: a presença do arquivo já diz se há foto.
 class AvatarImageStore {
   static String? _raiz;
 
@@ -41,8 +36,6 @@ class AvatarImageStore {
     }
   }
 
-  /// Grava os bytes já enquadrados (mesmo pipeline do editor de foto de
-  /// produto: 1:1, JPEG). Sobrescreve a foto anterior desta conta.
   static Future<bool> salvar(String accountId, Uint8List bytes) async {
     final caminho = caminhoDe(accountId);
     if (caminho == null) return false;
@@ -88,6 +81,5 @@ class AvatarImageStore {
     }
   }
 
-  /// Apaga o avatar de uma conta removida (chamado ao apagar carteira/loja).
   static Future<void> apagarConta(String accountId) => remover(accountId);
 }

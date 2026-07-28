@@ -2,24 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// ChromaService — slow rainbow hue cycling over a 24-hour period.
-///
-/// The hue advances at ~15 degrees/hour (360° / 24h).
-/// Every 20 seconds the timer fires and notifyListeners() is called,
-/// but the actual hue change per 20s is only 0.0833° — imperceptible
-/// moment-to-moment, yet after minutes you can tell it shifted.
-///
-/// The current hue + timestamp are saved to SharedPreferences on every tick
-/// so that after the app is closed and reopened, the cycle continues
-/// seamlessly from the right position.
 class ChromaService extends ChangeNotifier with WidgetsBindingObserver {
   static const _kHueKey = 'chroma_hue';
   static const _kTimestampKey = 'chroma_ts';
 
-  // Full cycle duration = 24 hours in milliseconds
   static const double _cycleDurationMs = 24 * 60 * 60 * 1000.0;
 
-  double _hue = 240.0; // start at violet-ish
+  double _hue = 240.0;
   Timer? _timer;
   int _lastSavedMs = 0;
 
@@ -30,38 +19,31 @@ class ChromaService extends ChangeNotifier with WidgetsBindingObserver {
 
   double get hue => _hue;
 
-  /// Primary color at the current hue (vivid, high-saturation)
   Color get primary => HSLColor.fromAHSL(1.0, _hue, 0.85, 0.58).toColor();
 
-  /// Lighter variant for shimmer/glow
   Color get primaryLight => HSLColor.fromAHSL(1.0, _hue, 0.80, 0.72).toColor();
 
-  /// Dark/translucent variant for backgrounds
   Color get primaryDark => HSLColor.fromAHSL(0.22, _hue, 0.85, 0.58).toColor();
 
-  /// Accent: 120° ahead on the wheel (complementary-ish)
-  Color get accent => HSLColor.fromAHSL(1.0, (_hue + 120) % 360, 0.90, 0.60).toColor();
+  Color get accent =>
+      HSLColor.fromAHSL(1.0, (_hue + 120) % 360, 0.90, 0.60).toColor();
 
-  /// Gradient: current hue → accent
   LinearGradient get brandGradient => LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [primary, accent],
       );
 
-  /// Espectro horizontal com várias paradas — pensado para o ShaderMask do
-  /// saldo: cobre a largura inteira do texto para que TODO caractere receba
-  /// cor (o gradiente de 2 cores deixava dígitos das pontas quase monocromáticos).
   LinearGradient get spectrumGradient => LinearGradient(
         begin: Alignment.centerLeft,
         end: Alignment.centerRight,
         colors: List.generate(
           6,
-          (i) => HSLColor.fromAHSL(1.0, (_hue + i * 30) % 360, 0.85, 0.62).toColor(),
+          (i) => HSLColor.fromAHSL(1.0, (_hue + i * 30) % 360, 0.85, 0.62)
+              .toColor(),
         ),
       );
 
-  /// Gradient matching the current position in the spectrum for buttons
   LinearGradient get buttonGradient => LinearGradient(
         colors: [
           HSLColor.fromAHSL(1.0, _hue, 0.88, 0.55).toColor(),
@@ -90,7 +72,6 @@ class ChromaService extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _startTimer() {
-    // Tick every 20 seconds = 0.0833° hue shift per tick
     _timer = Timer.periodic(const Duration(seconds: 20), (_) {
       final nowMs = DateTime.now().millisecondsSinceEpoch;
       final elapsedMs = nowMs - _lastSavedMs;
@@ -112,7 +93,7 @@ class ChromaService extends ChangeNotifier with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
-      _persist(); // save when app goes to background
+      _persist();
     }
   }
 

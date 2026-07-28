@@ -7,7 +7,8 @@ class ConsumerPaySuccessScreen extends StatefulWidget {
   const ConsumerPaySuccessScreen({super.key});
 
   @override
-  State<ConsumerPaySuccessScreen> createState() => _ConsumerPaySuccessScreenState();
+  State<ConsumerPaySuccessScreen> createState() =>
+      _ConsumerPaySuccessScreenState();
 }
 
 class _ConsumerPaySuccessScreenState extends State<ConsumerPaySuccessScreen> {
@@ -26,8 +27,8 @@ class _ConsumerPaySuccessScreenState extends State<ConsumerPaySuccessScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Spacer(),
-                  
-                  const Icon(Icons.check_circle, color: IrisTheme.success, size: 80),
+                  const Icon(Icons.check_circle,
+                      color: IrisTheme.success, size: 80),
                   const SizedBox(height: 24),
                   const Text(
                     'Pago com sucesso!',
@@ -47,24 +48,19 @@ class _ConsumerPaySuccessScreenState extends State<ConsumerPaySuccessScreen> {
                       color: IrisTheme.textSecondary,
                     ),
                   ),
-                  
                   const SizedBox(height: 48),
-                  
                   const Text(
                     'Os detalhes reais (hash, valor e status) ficam no histórico da carteira.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: IrisTheme.textTertiary),
+                    style:
+                        TextStyle(fontSize: 12, color: IrisTheme.textTertiary),
                   ),
-
                   const Spacer(),
-                  
                   ElevatedButton(
                     onPressed: () {
-                      // Vai direto para a home do perfil ativo, limpando
-                      // qualquer resíduo da pilha de navegação — nunca cai
-                      // no PIN ou em telas do fluxo de criação.
                       final isMerchant =
-                          context.read<WalletService>().lastSessionType == 'merchant';
+                          context.read<WalletService>().lastSessionType ==
+                              'merchant';
                       Navigator.pushNamedAndRemoveUntil(
                         context,
                         isMerchant ? '/merchant_home' : '/consumer_home',
@@ -73,7 +69,8 @@ class _ConsumerPaySuccessScreenState extends State<ConsumerPaySuccessScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      textStyle: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w600),
                     ),
                     child: const Text('Voltar ao Início'),
                   ),

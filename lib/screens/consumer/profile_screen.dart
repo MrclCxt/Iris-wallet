@@ -15,9 +15,6 @@ import '../pin_screen.dart';
 import '../merchant/product_image_editor.dart';
 import 'profile_transfer.dart';
 
-/// Perfil editável: foto (do dispositivo), cor de destaque, nome, contas e
-/// backup. Tudo salva sozinho — sem botão "Salvar". Com foto, ela é sempre o
-/// ícone da conta; sem foto, o ícone do app é o que aparece.
 class ProfileScreen extends StatefulWidget {
   final bool isMerchant;
   const ProfileScreen({super.key, this.isMerchant = false});
@@ -40,7 +37,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final _nameCtrl = TextEditingController();
   String? _color;
-  Uint8List? _avatarBytes; // preview: foto atual, quando existe
+  Uint8List? _avatarBytes;
   bool _pickingImage = false;
   bool _loaded = false;
   bool _justSaved = false;
@@ -84,8 +81,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  // --- Autosave (nome, cor) ---
-
   void _flashSaved() {
     if (!mounted) return;
     setState(() => _justSaved = true);
@@ -109,8 +104,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _nameDebounce = Timer(const Duration(milliseconds: 600), _persistNow);
   }
 
-  /// Garante que uma edição de nome ainda não salva (debounce pendente) não se
-  /// perca ao sair da tela.
   Future<void> _flushPendingSave() async {
     if (_nameDebounce?.isActive ?? false) {
       _nameDebounce!.cancel();
@@ -123,12 +116,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _persistNow();
   }
 
-  // --- Foto (do dispositivo) — único ícone da conta quando existe ---
-
-  /// O avatar tem nome de arquivo fixo por conta (AvatarImageStore): sem isto,
-  /// widgets que usam `Image.file` no resto do app (cabeçalho da tela
-  /// inicial, seletor de contas) continuariam mostrando a imagem antiga em
-  /// cache do Flutter depois de trocar/remover a foto.
   Future<void> _evictCache(String id) async {
     final caminho = AvatarImageStore.caminhoDe(id);
     if (caminho == null) return;
@@ -158,7 +145,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (!mounted) return;
       final enquadrada = await abrirEditorDeFoto(context, bytes);
-      if (enquadrada == null) return; // cancelou o enquadramento
+      if (enquadrada == null) return;
 
       final ok = await AvatarImageStore.salvar(id, enquadrada);
       if (!ok) {
@@ -194,8 +181,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       SnackBar(content: Text(msg), backgroundColor: IrisTheme.danger),
     );
   }
-
-  // --- Trocar de conta/loja ---
 
   void _showAccountSwitcher(BuildContext context) {
     final wallet = context.read<WalletService>();
@@ -248,7 +233,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           : null,
                       onTap: () async {
                         if (isActive) return;
-                        Navigator.pop(context); // fecha o diálogo
+                        Navigator.pop(context);
                         if (widget.isMerchant) {
                           await wallet.switchMerchantAccount(acc.id);
                           if (context.mounted) {
@@ -286,7 +271,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       if (widget.isMerchant) {
                         Navigator.pushNamed(context, '/merchant_setup');
                       } else {
-                        // A semente é gerada na tela seguinte, depois da escolha do tamanho.
                         Navigator.pushNamed(context, '/seed_gen');
                       }
                     },
@@ -299,8 +283,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
   }
-
-  // --- Criar nova conta/loja (confirmação) ---
 
   void _handleCreateNew(BuildContext context) {
     showDialog(
@@ -336,7 +318,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Navigator.pushNamedAndRemoveUntil(
                     context, '/merchant_setup', (route) => false);
               } else {
-                Navigator.pop(context); // fecha o diálogo
+                Navigator.pop(context);
                 Navigator.pushNamed(context, '/welcome');
               }
             },
@@ -495,7 +477,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
     } else {
-      // Sem foto: o ícone do app — igual ao que aparece no resto do app.
       conteudo = const IrisLogo(size: 88);
     }
 

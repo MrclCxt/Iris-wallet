@@ -30,8 +30,6 @@ class MerchantConfigScreen extends StatelessWidget {
                   icon: Icons.person,
                   title: 'Voltar para Consumidor',
                   subtitle: 'Acesse sua conta pessoal',
-                  // Mesma rotina do antigo botão das telas iniciais, com o
-                  // seletor de contas quando há mais de uma carteira pessoal.
                   onTap: () => AreaSwitcherBtn.trocarArea(context,
                       isCurrentlyConsumer: false),
                 ),

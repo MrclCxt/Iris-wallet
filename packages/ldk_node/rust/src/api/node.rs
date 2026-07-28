@@ -97,10 +97,7 @@ impl LdkNode {
         announce_channel: bool,
         channel_config: Option<ChannelConfig>,
     ) -> Result<UserChannelId, LdkNodeError> {
-        // PORTE 0.7.0: `announce_channel` deixou de ser um bool e virou a
-        // escolha do MÉTODO — `open_announced_channel` versus `open_channel`.
-        // O parâmetro continua na nossa API para o Dart não mudar; aqui ele só
-        // decide para onde despachar. O config também deixou de ser `Arc`.
+
         let node_id = node_id.try_into()?;
         let address = socket_address
             .try_into()

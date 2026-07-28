@@ -5,15 +5,6 @@ use std::sync::Arc;
 
 use crate::frb_generated::RustOpaque;
 use crate::utils::error::LdkNodeError;
-/// An `Offer` is a potentially long-lived proposal for payment of a good or service.
-///
-/// An offer is a precursor to an [InvoiceRequest]. A merchant publishes an offer from which a
-/// customer may request an [Bolt12Invoice] for a specific quantity and using an amount sufficient
-/// to cover that quantity (i.e., at least `quantity * amount`).
-///
-/// Offers may be denominated in currency other than bitcoin but are ultimately paid using the
-/// latter.
-///
 
 pub struct Offer {
     pub s: String,
@@ -32,10 +23,6 @@ impl From<ldk_node::lightning::offers::offer::Offer> for Offer {
         }
     }
 }
-///A Refund is a request to send an `Bolt12Invoice` without a preceding `Offer`.
-//
-// Typically, after an invoice is paid, the recipient may publish a refund allowing the sender to recoup their funds.
-// A refund may be used more generally as an “offer for money”, such as with a bitcoin ATM.
 
 pub struct Refund {
     pub s: String,
@@ -58,8 +45,7 @@ impl From<ldk_node::lightning::offers::refund::Refund> for Refund {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-///A Bolt12Invoice is a payment request, typically corresponding to an Offer or a Refund.
-// An invoice may be sent in response to an InvoiceRequest in the case of an offer or sent directly after scanning a refund. It includes all the information needed to pay a recipient.
+
 pub struct Bolt12Invoice {
     pub data: Vec<u8>,
 }

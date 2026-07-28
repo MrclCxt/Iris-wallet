@@ -18,7 +18,6 @@ class MerchantProductsScreen extends StatefulWidget {
 }
 
 class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
-
   @override
   Widget build(BuildContext context) {
     final products = context.watch<WalletService>().merchantProducts;
@@ -33,13 +32,15 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const CurrencyToggleBtn(),
-                const Text('Produtos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                const Text('Produtos',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Replicar o catálogo em outros aparelhos da loja.
                     PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert, color: IrisTheme.textSecondary),
+                      icon: const Icon(Icons.more_vert,
+                          color: IrisTheme.textSecondary),
                       color: IrisTheme.s2,
                       tooltip: 'Catálogo',
                       onSelected: (v) {
@@ -79,34 +80,36 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
               ],
             ),
           ),
-          
           Expanded(
             child: products.isEmpty
                 ? _buildEmptyState(context)
                 : MediaQuery.of(context).size.width >= 850
-                ? GridView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 350,
-                      mainAxisExtent: 100,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                    ),
-                    itemCount: products.length,
-                    itemBuilder: (context, index) {
-                      final p = products[index];
-                      return _buildProductItem(context, p, exchangeRate);
-                    },
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    itemCount: products.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final p = products[index];
-                      return _buildProductItem(context, p, exchangeRate);
-                    },
-                  ),
+                    ? GridView.builder(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 8),
+                        gridDelegate:
+                            const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 350,
+                          mainAxisExtent: 100,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                        ),
+                        itemCount: products.length,
+                        itemBuilder: (context, index) {
+                          final p = products[index];
+                          return _buildProductItem(context, p, exchangeRate);
+                        },
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 8),
+                        itemCount: products.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final p = products[index];
+                          return _buildProductItem(context, p, exchangeRate);
+                        },
+                      ),
           ),
         ],
       ),
@@ -137,7 +140,8 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.inventory_2_outlined, size: 48, color: IrisTheme.textTertiary),
+            const Icon(Icons.inventory_2_outlined,
+                size: 48, color: IrisTheme.textTertiary),
             const SizedBox(height: 16),
             const Text(
               'Nenhum produto cadastrado',
@@ -147,7 +151,8 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
             const Text(
               'Cadastre os itens da sua loja para gerar cobranças com um toque.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: IrisTheme.textTertiary, height: 1.4),
+              style: TextStyle(
+                  fontSize: 13, color: IrisTheme.textTertiary, height: 1.4),
             ),
             const SizedBox(height: 24),
             OutlinedButton.icon(
@@ -157,17 +162,19 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: IrisTheme.primary,
                 side: const BorderSide(color: IrisTheme.primary),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24)),
               ),
             ),
             const SizedBox(height: 12),
-            // Segundo aparelho da mesma loja começa por aqui.
             TextButton.icon(
               onPressed: () => showCatalogImportDialog(context),
               icon: const Icon(Icons.download, size: 18),
               label: const Text('Importar de outro aparelho'),
-              style: TextButton.styleFrom(foregroundColor: IrisTheme.textSecondary),
+              style: TextButton.styleFrom(
+                  foregroundColor: IrisTheme.textSecondary),
             ),
           ],
         ),
@@ -175,7 +182,8 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
     );
   }
 
-  Widget _buildProductItem(BuildContext context, Product p, ExchangeRateService exchangeRate) {
+  Widget _buildProductItem(
+      BuildContext context, Product p, ExchangeRateService exchangeRate) {
     return InkWell(
       onTap: () {
         if (!p.isActive) return;
@@ -185,7 +193,6 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
             backgroundColor: Colors.transparent,
             insetPadding: const EdgeInsets.all(16),
             child: ConstrainedBox(
-              // Alto o suficiente para o conteúdo caber sem scroll.
               constraints: const BoxConstraints(maxWidth: 450, maxHeight: 780),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
@@ -214,7 +221,8 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                 children: [
                   Text(
                     p.name,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w600),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -222,7 +230,8 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                     const SizedBox(height: 2),
                     Text(
                       p.description,
-                      style: const TextStyle(fontSize: 11, color: IrisTheme.textTertiary),
+                      style: const TextStyle(
+                          fontSize: 11, color: IrisTheme.textTertiary),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -230,9 +239,11 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                   const SizedBox(height: 4),
                   Text(
                     exchangeRate.isSatsDisplay
-                        ? CurrencyFormatter.formatBtcOrSats(exchangeRate.brlToSats(p.price))
+                        ? CurrencyFormatter.formatBtcOrSats(
+                            exchangeRate.brlToSats(p.price))
                         : 'R\$ ${CurrencyFormatter.formatBrlCompact(p.price)}',
-                    style: const TextStyle(fontFamily: 'monospace', color: IrisTheme.success),
+                    style: const TextStyle(
+                        fontFamily: 'monospace', color: IrisTheme.success),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -253,13 +264,21 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: p.isActive ? IrisTheme.primary.withOpacity(0.14) : IrisTheme.s3,
+                    color: p.isActive
+                        ? IrisTheme.primary.withOpacity(0.14)
+                        : IrisTheme.s3,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text('⚡', style: TextStyle(fontSize: 16, color: p.isActive ? IrisTheme.primary : IrisTheme.textTertiary)),
+                  child: Text('⚡',
+                      style: TextStyle(
+                          fontSize: 16,
+                          color: p.isActive
+                              ? IrisTheme.primary
+                              : IrisTheme.textTertiary)),
                 ),
                 const SizedBox(width: 10),
-                const Icon(Icons.qr_code, color: IrisTheme.textTertiary, size: 20),
+                const Icon(Icons.qr_code,
+                    color: IrisTheme.textTertiary, size: 20),
               ],
             ),
           ],

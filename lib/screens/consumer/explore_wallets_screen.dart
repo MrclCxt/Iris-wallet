@@ -5,8 +5,6 @@ import '../../core/currency_format.dart';
 import '../../services/wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
 
-/// Popup de exploração de carteiras: abre ao tocar no saldo total e mostra
-/// as duas carteiras que guardam valor (Lightning e on-chain), ambas em sats.
 Future<void> showExploreWalletsSheet(BuildContext context,
     {required bool isMerchant}) {
   return showModalBottomSheet<void>(

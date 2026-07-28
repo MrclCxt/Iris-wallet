@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
 
-/// Aparência de cada estado de uma transação. Fica num só lugar para que a
-/// lista do consumidor, a da loja e o histórico digam sempre a mesma coisa.
 class TxStatusStyle {
   final String label;
   final IconData icon;
@@ -25,7 +23,6 @@ class TxStatusStyle {
   }
 }
 
-/// Selo de status para tabelas e listas.
 class TxStatusChip extends StatelessWidget {
   final String status;
   final bool compact;
@@ -61,8 +58,6 @@ class TxStatusChip extends StatelessWidget {
   }
 }
 
-/// Faixa que aparece no topo do saldo quando existe dinheiro on-chain ainda
-/// no mempool. Some sozinha assim que tudo confirma.
 class PendingBanner extends StatelessWidget {
   final int pendingSats;
   final bool hide;

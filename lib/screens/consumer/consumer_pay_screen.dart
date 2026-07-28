@@ -30,28 +30,23 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
     with WidgetsBindingObserver {
   final TextEditingController _invoiceCtrl = TextEditingController();
 
-  /// Canal para perguntar ao Android sobre o hardware do aparelho.
   static const _deviceChannel = MethodChannel('app.iriswallet/device');
 
-  // Câmera: sempre inicia desligada; o usuário liga quando quiser escanear.
   MobileScannerController? _scannerController;
   bool _cameraOn = false;
-  bool _cameraDetected = false; // existe câmera conectada no dispositivo?
+  bool _cameraDetected = false;
   bool _cameraProbeDone = false;
-  bool _hasNfcHardware = false; // o aparelho tem chip de NFC?
-  bool _isNfcAvailable = false; // ...e o adaptador está ligado?
+  bool _hasNfcHardware = false;
+  bool _isNfcAvailable = false;
   bool _hasScanned = false;
   bool _isResolving = false;
 
-  // Pipeline Windows: preview via camera_windows + captura periódica +
-  // decodificação QR com ZXing (o mobile_scanner não tem backend Windows).
   cam.CameraController? _winCamCtrl;
   Timer? _winScanTimer;
   bool _winDecoding = false;
 
   bool get _useWindowsPipeline => Platform.isWindows;
 
-  /// Linux não tem backend de câmera em nenhum dos plugins.
   bool get _cameraSupported => !Platform.isLinux;
 
   @override
@@ -64,12 +59,9 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Ao voltar das configurações do sistema o usuário pode ter ligado o NFC.
     if (state == AppLifecycleState.resumed) _initNfc();
   }
 
-  /// Enumera as câmeras do dispositivo SEM abri-las: a opção de ligar só
-  /// aparece se existir hardware de verdade; sem câmera, a área some.
   Future<void> _detectCamera() async {
     if (!_cameraSupported) {
       _cameraDetected = false;
@@ -83,15 +75,11 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
     } on cam.CameraException {
       _cameraDetected = false;
     } catch (_) {
-      // Plataforma sem enumeração (ex.: macOS): o scanner tem suporte,
-      // então deixamos o usuário tentar ligar.
       _cameraDetected = !Platform.isWindows;
     }
     _cameraProbeDone = true;
     if (mounted) setState(() {});
   }
-
-  // ---- Pipeline de scan do Windows (captura + ZXing) ----
 
   Future<void> _startWindowsCamera() async {
     final cameras = await cam.availableCameras();
@@ -103,8 +91,9 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
     );
     await ctrl.initialize();
     _winCamCtrl = ctrl;
-    // Captura um quadro por segundo e tenta decodificar o QR
-    _winScanTimer = Timer.periodic(const Duration(seconds: 1), (_) => _winCaptureAndDecode());
+
+    _winScanTimer = Timer.periodic(
+        const Duration(seconds: 1), (_) => _winCaptureAndDecode());
   }
 
   Future<void> _stopWindowsCamera() async {
@@ -120,8 +109,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
   Future<void> _winCaptureAndDecode() async {
     final ctrl = _winCamCtrl;
     if (ctrl == null || _winDecoding || _hasScanned || _isResolving) return;
-    // O timer pode disparar depois que a câmera foi desligada ou a tela saiu:
-    // usar o controller descartado enche o log de erro a cada segundo.
+
     if (!mounted || !ctrl.value.isInitialized) return;
     _winDecoding = true;
     try {
@@ -135,7 +123,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
       if (text != null && mounted && !_hasScanned) {
         _hasScanned = true;
         setState(() => _invoiceCtrl.text = text);
-        _toggleCamera(); // desliga após a leitura
+        _toggleCamera();
         await _handlePay();
         Future.delayed(const Duration(seconds: 3), () {
           if (mounted) _hasScanned = false;
@@ -148,14 +136,15 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
     }
   }
 
-  /// Decodifica um QR de uma imagem capturada usando ZXing (Dart puro).
   Future<String?> _decodeQrFromImage(Uint8List bytes) async {
     final decoded = img.decodeImage(bytes);
     if (decoded == null) return null;
-    final rgba = decoded.convert(numChannels: 4).getBytes(order: img.ChannelOrder.rgba);
+    final rgba =
+        decoded.convert(numChannels: 4).getBytes(order: img.ChannelOrder.rgba);
     final pixels = Int32List(decoded.width * decoded.height);
     for (int i = 0, p = 0; i < pixels.length; i++, p += 4) {
-      pixels[i] = (0xFF << 24) | (rgba[p] << 16) | (rgba[p + 1] << 8) | rgba[p + 2];
+      pixels[i] =
+          (0xFF << 24) | (rgba[p] << 16) | (rgba[p + 1] << 8) | rgba[p + 2];
     }
     final source = zx.RGBLuminanceSource(decoded.width, decoded.height, pixels);
     try {
@@ -163,14 +152,10 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
           zx.QRCodeReader().decode(zx.BinaryBitmap(zx.HybridBinarizer(source)));
       return result.text;
     } catch (_) {
-      return null; // nenhum QR neste quadro
+      return null;
     }
   }
 
-  /// Descobre se o aparelho TEM NFC (hardware) e, separadamente, se o
-  /// adaptador está ligado. O plugin só responde a segunda pergunta, e um
-  /// celular com o NFC desligado continua sendo compatível — por isso o
-  /// hardware é consultado direto no Android.
   Future<void> _initNfc() async {
     if (Platform.isAndroid) {
       try {
@@ -180,14 +165,14 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
         _hasNfcHardware = false;
       }
     } else {
-      _hasNfcHardware = false; // desktop não tem NFC
+      _hasNfcHardware = false;
     }
     try {
       _isNfcAvailable = await NfcManager.instance.isAvailable();
     } catch (_) {
       _isNfcAvailable = false;
     }
-    // Se o adaptador respondeu que está ligado, o hardware obviamente existe.
+
     if (_isNfcAvailable) _hasNfcHardware = true;
     if (mounted) setState(() {});
   }
@@ -243,20 +228,17 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
     return s.trim();
   }
 
-  /// Chave PIX avulsa: CPF (11 dígitos), telefone (+55...) ou chave aleatória
-  /// (UUID). E-mails são tratados como Lightning Address (LUD-16).
   bool _looksLikePixKey(String input) {
     final s = input.trim();
-    if (RegExp(r'^\d{11}$').hasMatch(s)) return true; // CPF
-    if (RegExp(r'^\+\d{12,14}$').hasMatch(s)) return true; // telefone E.164
+    if (RegExp(r'^\d{11}$').hasMatch(s)) return true;
+    if (RegExp(r'^\+\d{12,14}$').hasMatch(s)) return true;
     if (RegExp(
             r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
             caseSensitive: false)
-        .hasMatch(s)) return true; // chave aleatória
+        .hasMatch(s)) return true;
     return false;
   }
 
-  /// Endereço Bitcoin (testnet: tb1/m/n/2; mainnet: bc1/1/3) ou URI BIP21.
   bool _looksLikeBitcoin(String input) {
     final s = input.toLowerCase();
     if (s.startsWith('bitcoin:')) return true;
@@ -264,7 +246,6 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
         RegExp(r'^[mn2][a-km-zA-HJ-NP-Z1-9]{25,39}$').hasMatch(input.trim());
   }
 
-  /// Decompõe URI BIP21: endereço, valor (sats) e fatura Lightning unificada.
   ({String address, int? sats, String? lightning}) _parseBip21(String input) {
     var s = input.trim();
     if (s.toLowerCase().startsWith('bitcoin:')) s = s.substring(8);
@@ -284,7 +265,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
   bool _looksLikeLiquid(String input) {
     final s = input.toLowerCase();
     if (s.startsWith('liquid:') || s.startsWith('liquidtestnet:')) return true;
-    // Prefixos de endereços Liquid (mainnet e testnet, confidenciais ou não)
+
     return s.startsWith('lq1') ||
         s.startsWith('tlq1') ||
         s.startsWith('vjl') ||
@@ -302,8 +283,6 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
     return s;
   }
 
-  /// Interpreta o conteúdo (QR, colagem ou NFC) e roteia para o fluxo real:
-  /// fatura BOLT11 -> LDK | LNURL/Lightning Address -> LUD-06 | Liquid -> LWK.
   Future<void> _handlePay() async {
     if (_isResolving) return;
     final input = _sanitize(_invoiceCtrl.text);
@@ -312,13 +291,12 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
     setState(() => _isResolving = true);
     try {
       if (BrCode.looksLikeBrCode(input)) {
-        // QR PIX (BR Code EMV): exige Pix ativo (conta DePix própria).
         if (!context.read<PixService>().isPixEnabled) {
           _showError('Este é um QR PIX. Ative o Pix em Configurações › Ativar '
               'Pix (requer conta DePix) para pagar em Reais.');
           return;
         }
-        // decodifica chave, nome e valor reais
+
         final decoded = BrCode.decode(input);
         if (!mounted) return;
         Navigator.push(
@@ -338,7 +316,8 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
       } else if (Bolt11.looksLikeInvoice(input)) {
         final parsed = Bolt11.decode(input);
         if (!parsed.isTestnet) {
-          _showError('Fatura da mainnet detectada — este app opera apenas na testnet4.');
+          _showError(
+              'Fatura da mainnet detectada — este app opera apenas na testnet4.');
           return;
         }
         if (parsed.isExpired) {
@@ -375,8 +354,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
         );
       } else if (_looksLikeBitcoin(input)) {
         final parsed = _parseBip21(input);
-        // Política de roteamento: Lightning para o dia a dia; acima do
-        // limiar (ou sem fatura unificada) vai pela rede Bitcoin on-chain.
+
         final useLightning = parsed.lightning != null &&
             parsed.sats != null &&
             !TxPolicy.shouldUseOnchain(parsed.sats!);
@@ -388,7 +366,9 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
             MaterialPageRoute(
               builder: (context) => PayConfirmScreen(
                 satsAmount: inv.amountSats ?? parsed.sats ?? 0,
-                destination: inv.description.isNotEmpty ? inv.description : 'Fatura Lightning',
+                destination: inv.description.isNotEmpty
+                    ? inv.description
+                    : 'Fatura Lightning',
                 rawInvoice: parsed.lightning,
                 editableAmount: inv.amountSats == null,
               ),
@@ -410,7 +390,8 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
         }
       } else if (_looksLikePixKey(input)) {
         if (!context.read<PixService>().isPixEnabled) {
-          _showError('Isto parece uma chave PIX. Ative o Pix em Configurações › '
+          _showError(
+              'Isto parece uma chave PIX. Ative o Pix em Configurações › '
               'Ativar Pix (requer conta DePix) para enviar em Reais.');
           return;
         }
@@ -441,7 +422,8 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
           ),
         );
       } else {
-        _showError('Código não reconhecido. Use fatura Lightning, LNURL, QR PIX, endereço Bitcoin ou Liquid.');
+        _showError(
+            'Código não reconhecido. Use fatura Lightning, LNURL, QR PIX, endereço Bitcoin ou Liquid.');
       }
     } on Bolt11ParseException catch (e) {
       _showError('Fatura inválida: ${e.message}');
@@ -463,11 +445,10 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Column(
           children: [
-            // Header
             const Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                SizedBox(width: 48), // Balance for centering
+                SizedBox(width: 48),
                 Text(
                   'Enviar',
                   style: TextStyle(
@@ -480,163 +461,168 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
               ],
             ),
             const SizedBox(height: 24),
-
-            // Scanner Area — câmera sempre inicia desligada.
-            // Sem câmera conectada: a área simplesmente não aparece.
             if (_cameraProbeDone && !_cameraDetected)
               const Spacer()
             else
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: IrisTheme.s1,
-                    border: Border.all(color: IrisTheme.bdr),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: !_cameraOn
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.videocam_off_outlined,
-                                      size: 48, color: IrisTheme.textTertiary),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    !_cameraProbeDone ? 'Procurando câmera...' : 'Câmera desligada',
-                                    style: const TextStyle(
-                                        color: IrisTheme.textPrimary,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  if (_cameraDetected)
-                                    ElevatedButton.icon(
-                                      onPressed: _toggleCamera,
-                                      icon: const Icon(Icons.videocam_outlined, size: 20),
-                                      label: const Text('Ligar câmera'),
-                                      style: ElevatedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 24, vertical: 12),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            )
-                          : _useWindowsPipeline
-                              ? Stack(
-                                  alignment: Alignment.center,
-                                  fit: StackFit.expand,
-                                  children: [
-                                    if (_winCamCtrl != null && _winCamCtrl!.value.isInitialized)
-                                      // Preserva a proporção real da câmera:
-                                      // preenche a área cortando as bordas
-                                      // (cover), nunca esticando a imagem.
-                                      Positioned.fill(
-                                        child: FittedBox(
-                                          fit: BoxFit.cover,
-                                          clipBehavior: Clip.hardEdge,
-                                          child: SizedBox(
-                                            width: _winCamCtrl!.value.previewSize?.width ?? 1280,
-                                            height: _winCamCtrl!.value.previewSize?.height ?? 720,
-                                            child: cam.CameraPreview(_winCamCtrl!),
-                                          ),
-                                        ),
-                                      ),
-                                    const Positioned(
-                                      bottom: 16,
-                                      left: 0,
-                                      right: 0,
-                                      child: Text(
-                                        'Aponte para o QR Code',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          backgroundColor: Colors.black54,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                    Positioned(
-                                      top: 12,
-                                      right: 12,
-                                      child: IconButton(
-                                        onPressed: _toggleCamera,
-                                        tooltip: 'Desligar câmera',
-                                        style: IconButton.styleFrom(
-                                            backgroundColor: Colors.black54),
-                                        icon: const Icon(Icons.videocam_off,
-                                            color: Colors.white, size: 20),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : Stack(
-                              alignment: Alignment.center,
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: IrisTheme.s1,
+                      border: Border.all(color: IrisTheme.bdr),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: !_cameraOn
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                MobileScanner(
-                                  controller: _scannerController!,
-                                  errorBuilder: (context, error, child) => Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(24),
-                                      child: Text(
-                                        'Não foi possível acessar a câmera: ${error.errorCode.name}',
-                                        style: const TextStyle(
-                                            color: IrisTheme.textSecondary, fontSize: 13),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                  onDetect: (capture) {
-                                    if (_hasScanned) return;
-                                    final List<Barcode> barcodes = capture.barcodes;
-                                    if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
-                                      _hasScanned = true;
-                                      setState(() {
-                                        _invoiceCtrl.text = barcodes.first.rawValue!;
-                                      });
-                                      _handlePay();
-
-                                      // Reset scan state after a delay
-                                      Future.delayed(const Duration(seconds: 3), () {
-                                        if (mounted) _hasScanned = false;
-                                      });
-                                    }
-                                  },
+                                const Icon(Icons.videocam_off_outlined,
+                                    size: 48, color: IrisTheme.textTertiary),
+                                const SizedBox(height: 16),
+                                Text(
+                                  !_cameraProbeDone
+                                      ? 'Procurando câmera...'
+                                      : 'Câmera desligada',
+                                  style: const TextStyle(
+                                      color: IrisTheme.textPrimary,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600),
                                 ),
-                                const Positioned(
-                                  bottom: 16,
-                                  child: Text(
-                                    'Aponte para o QR Code',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      backgroundColor: Colors.black54,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 12,
-                                  right: 12,
-                                  child: IconButton(
+                                const SizedBox(height: 16),
+                                if (_cameraDetected)
+                                  ElevatedButton.icon(
                                     onPressed: _toggleCamera,
-                                    tooltip: 'Desligar câmera',
-                                    style: IconButton.styleFrom(
-                                        backgroundColor: Colors.black54),
-                                    icon: const Icon(Icons.videocam_off,
-                                        color: Colors.white, size: 20),
+                                    icon: const Icon(Icons.videocam_outlined,
+                                        size: 20),
+                                    label: const Text('Ligar câmera'),
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 24, vertical: 12),
+                                    ),
                                   ),
-                                ),
                               ],
                             ),
+                          )
+                        : _useWindowsPipeline
+                            ? Stack(
+                                alignment: Alignment.center,
+                                fit: StackFit.expand,
+                                children: [
+                                  if (_winCamCtrl != null &&
+                                      _winCamCtrl!.value.isInitialized)
+                                    Positioned.fill(
+                                      child: FittedBox(
+                                        fit: BoxFit.cover,
+                                        clipBehavior: Clip.hardEdge,
+                                        child: SizedBox(
+                                          width: _winCamCtrl!
+                                                  .value.previewSize?.width ??
+                                              1280,
+                                          height: _winCamCtrl!
+                                                  .value.previewSize?.height ??
+                                              720,
+                                          child:
+                                              cam.CameraPreview(_winCamCtrl!),
+                                        ),
+                                      ),
+                                    ),
+                                  const Positioned(
+                                    bottom: 16,
+                                    left: 0,
+                                    right: 0,
+                                    child: Text(
+                                      'Aponte para o QR Code',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        backgroundColor: Colors.black54,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 12,
+                                    right: 12,
+                                    child: IconButton(
+                                      onPressed: _toggleCamera,
+                                      tooltip: 'Desligar câmera',
+                                      style: IconButton.styleFrom(
+                                          backgroundColor: Colors.black54),
+                                      icon: const Icon(Icons.videocam_off,
+                                          color: Colors.white, size: 20),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  MobileScanner(
+                                    controller: _scannerController!,
+                                    errorBuilder: (context, error, child) =>
+                                        Center(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(24),
+                                        child: Text(
+                                          'Não foi possível acessar a câmera: ${error.errorCode.name}',
+                                          style: const TextStyle(
+                                              color: IrisTheme.textSecondary,
+                                              fontSize: 13),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
+                                    onDetect: (capture) {
+                                      if (_hasScanned) return;
+                                      final List<Barcode> barcodes =
+                                          capture.barcodes;
+                                      if (barcodes.isNotEmpty &&
+                                          barcodes.first.rawValue != null) {
+                                        _hasScanned = true;
+                                        setState(() {
+                                          _invoiceCtrl.text =
+                                              barcodes.first.rawValue!;
+                                        });
+                                        _handlePay();
+
+                                        Future.delayed(
+                                            const Duration(seconds: 3), () {
+                                          if (mounted) _hasScanned = false;
+                                        });
+                                      }
+                                    },
+                                  ),
+                                  const Positioned(
+                                    bottom: 16,
+                                    child: Text(
+                                      'Aponte para o QR Code',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        backgroundColor: Colors.black54,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 12,
+                                    right: 12,
+                                    child: IconButton(
+                                      onPressed: _toggleCamera,
+                                      tooltip: 'Desligar câmera',
+                                      style: IconButton.styleFrom(
+                                          backgroundColor: Colors.black54),
+                                      icon: const Icon(Icons.videocam_off,
+                                          color: Colors.white, size: 20),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                  ),
                 ),
               ),
-            ),
-
             const SizedBox(height: 24),
-
-            // Paste Input
             TextField(
               controller: _invoiceCtrl,
               decoration: InputDecoration(
@@ -665,110 +651,119 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
                 ),
               ),
             ),
-
-            // NFC: só aparece quando o aparelho realmente tem o chip. Se tiver o
-            // chip mas o adaptador estiver desligado, o campo continua visível
-            // e leva o usuário às configurações do sistema.
             if (_hasNfcHardware) ...[
-            const SizedBox(height: 16),
-
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: IrisTheme.s1,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: IrisTheme.bdr),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _isNfcAvailable
-                          ? null
-                          : () => _deviceChannel.invokeMethod('openNfcSettings'),
-                      behavior: HitTestBehavior.opaque,
-                      child: Row(
-                        children: [
-                          const Icon(Icons.contactless, color: IrisTheme.textSecondary),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text('Pagar por aproximação',
-                                    overflow: TextOverflow.ellipsis),
-                                if (!_isNfcAvailable)
-                                  const Text(
-                                    'NFC desligado · toque para ativar',
-                                    style: TextStyle(
-                                        fontSize: 11, color: IrisTheme.textTertiary),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                              ],
+              const SizedBox(height: 16),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: IrisTheme.s1,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: IrisTheme.bdr),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _isNfcAvailable
+                            ? null
+                            : () =>
+                                _deviceChannel.invokeMethod('openNfcSettings'),
+                        behavior: HitTestBehavior.opaque,
+                        child: Row(
+                          children: [
+                            const Icon(Icons.contactless,
+                                color: IrisTheme.textSecondary),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text('Pagar por aproximação',
+                                      overflow: TextOverflow.ellipsis),
+                                  if (!_isNfcAvailable)
+                                    const Text(
+                                      'NFC desligado · toque para ativar',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: IrisTheme.textTertiary),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  Switch(
-                    value: context.watch<WalletService>().isNfcEnabled,
-                    activeColor: IrisTheme.primary,
-                    onChanged: _isNfcAvailable ? (val) async {
-                      context.read<WalletService>().toggleNfc(val);
-                      if (val) {
-                        try {
-                          await NfcManager.instance.startSession(onDiscovered: (NfcTag tag) async {
-                            final ndef = Ndef.from(tag);
-                            if (ndef != null && ndef.cachedMessage != null) {
-                              for (var record in ndef.cachedMessage!.records) {
-                                final payload = String.fromCharCodes(record.payload);
-                                // The payload often contains a language code prefix, e.g. "en"
-                                final invoice = payload.length > 3 ? payload.substring(3) : payload;
-                                if (mounted) {
-                                  setState(() {
-                                    _invoiceCtrl.text = invoice;
+                    Switch(
+                      value: context.watch<WalletService>().isNfcEnabled,
+                      activeColor: IrisTheme.primary,
+                      onChanged: _isNfcAvailable
+                          ? (val) async {
+                              context.read<WalletService>().toggleNfc(val);
+                              if (val) {
+                                try {
+                                  await NfcManager.instance.startSession(
+                                      onDiscovered: (NfcTag tag) async {
+                                    final ndef = Ndef.from(tag);
+                                    if (ndef != null &&
+                                        ndef.cachedMessage != null) {
+                                      for (var record
+                                          in ndef.cachedMessage!.records) {
+                                        final payload = String.fromCharCodes(
+                                            record.payload);
+
+                                        final invoice = payload.length > 3
+                                            ? payload.substring(3)
+                                            : payload;
+                                        if (mounted) {
+                                          setState(() {
+                                            _invoiceCtrl.text = invoice;
+                                          });
+                                        }
+                                        NfcManager.instance.stopSession();
+                                        _handlePay();
+                                        if (mounted) {
+                                          context
+                                              .read<WalletService>()
+                                              .toggleNfc(false);
+                                        }
+                                        break;
+                                      }
+                                    }
                                   });
+                                } catch (e) {
+                                  debugPrint('NFC error: $e');
                                 }
+                              } else {
                                 NfcManager.instance.stopSession();
-                                _handlePay();
-                                if (mounted) {
-                                  context.read<WalletService>().toggleNfc(false);
-                                }
-                                break;
                               }
                             }
-                          });
-                        } catch (e) {
-                          debugPrint('NFC error: $e');
-                        }
-                      } else {
-                        NfcManager.instance.stopSession();
-                      }
-                    } : null,
-                  ),
-                ],
+                          : null,
+                    ),
+                  ],
+                ),
               ),
-            ),
             ],
-
             const SizedBox(height: 24),
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _isResolving ? null : _handlePay,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  textStyle: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 child: _isResolving
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.black),
                       )
                     : const Text('Confirmar e Enviar'),
               ),

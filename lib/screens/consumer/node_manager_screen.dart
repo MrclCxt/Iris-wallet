@@ -13,9 +13,6 @@ import '../../widgets/tx_status.dart';
 import '../../core/theme.dart';
 import '../../core/currency_format.dart';
 
-/// Cache em memória dos últimos dados do nó, para reabrir a tela sem spinner
-/// de tela cheia (a busca real hita o nó e pode demorar). Vive enquanto o app
-/// vive; não é dado sensível (endereço público, saldo, canais).
 class _NodeCache {
   static bool hasData = false;
   static int onChainBalance = 0;
@@ -45,8 +42,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
   @override
   void initState() {
     super.initState();
-    // Mostra os últimos dados carregados na hora (sem spinner de tela cheia),
-    // e atualiza em segundo plano — reabrir a tela deixa de "travar".
+
     if (_NodeCache.hasData) {
       _onChainAddress = _NodeCache.onChainAddress;
       _onChainBalance = _NodeCache.onChainBalance;
@@ -56,8 +52,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
       _isLoading = false;
     }
     _loadNodeData();
-    // Atualização periódica mais espaçada — 30s deixava a tela "sempre
-    // atualizando"; 90s é suficiente para saldo/canais on-chain.
+
     _syncTimer =
         Timer.periodic(const Duration(seconds: 90), (_) => _syncNode());
   }
@@ -69,7 +64,6 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
   }
 
   Future<void> _loadNodeData() async {
-    // Só bloqueia com spinner se ainda não há nada em cache para mostrar.
     if (!_NodeCache.hasData && mounted) setState(() => _isLoading = true);
     try {
       final wallet = context.read<WalletService>();
@@ -224,11 +218,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                         try {
                           setStateModal(() => isOpening = true);
                           final sats = int.tryParse(amountCtrl.text) ?? 0;
-                          // Não é limite do protocolo Lightning (o LDK não
-                          // impõe um mínimo alto) — é só uma margem de
-                          // segurança do app para o canal não nascer perto
-                          // demais do limite de "dust"/reserva e virar
-                          // praticamente inutilizável.
+
                           if (sats < 5000) {
                             throw Exception('Capacidade mínima é 5.000 sats');
                           }
@@ -240,7 +230,6 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                                 amountSats: sats,
                               );
 
-                          // Abrir canal é demorado: a tela pode ter saído.
                           if (!mounted) return;
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -272,8 +261,6 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
     );
   }
 
-  /// Configuração do backend: nó embarcado (padrão) ou daemon local
-  /// iris-noded via REST em 127.0.0.1 (arquitetura híbrida A+B).
   void _showBackendDialog() {
     final wallet = context.read<WalletService>();
     final urlCtrl = TextEditingController(text: wallet.consumerDaemonUrl ?? '');
@@ -404,16 +391,6 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
     );
   }
 
-  /// Só Android: liga/desliga o serviço em primeiro plano que impede o
-  /// sistema de suspender o app quando ele é minimizado — sem isso, o nó
-  /// para de sincronizar assim que o app sai da tela. Opt-in (mostra uma
-  /// notificação persistente).
-  /// A "identidade" do nó deste dispositivo: a chave pública (Node ID) que
-  /// OUTRO dispositivo precisa saber para se conectar a ele e abrir um canal.
-  /// Sem isto visível, não tem como dois dispositivos se acharem na rede —
-  /// era exatamente a peça que faltava antes desta tela.
-  /// Recupera saldo parado em endereços de índice alto — o caso de quem
-  /// recebeu num endereço antigo e depois teve a carteira recriada do zero.
   Widget _buildDeepScanCard() {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -493,7 +470,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
   }
 
   Widget _buildNodeIdentityCard() {
-    const port = 9735; // porta do nó pessoal (a loja usa 9736)
+    const port = 9735;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -615,10 +592,6 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
     );
   }
 
-  /// Aparece quando o backend Esplora escolhido no boot do nó parou de
-  /// responder bem (ex.: rate-limit) — o app já está tentando se recuperar
-  /// sozinho (reiniciando o nó para escolher outro backend), isto só avisa
-  /// que a sincronização está temporariamente atrasada.
   Widget _buildSyncDegradedBanner() {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -942,7 +915,6 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // Barra de liquidez visual
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: Row(
@@ -966,11 +938,6 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                       ],
                     ),
                   ),
-                  // Editor de taxa de roteamento removido: o app deixou de
-                  // perseguir a ideia de o usuário ganhar roteando (o nó de um
-                  // celular não roteia — fica atrás de CGNAT e não aceita
-                  // conexão de entrada). Ajustar ppm aqui só daria a impressão
-                  // de uma receita que não existe.
                 ],
               ),
             );
@@ -978,5 +945,4 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
       ],
     );
   }
-
 }

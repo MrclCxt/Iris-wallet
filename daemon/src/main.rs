@@ -1,20 +1,3 @@
-//! iris-noded — daemon local do nó Lightning do Iris Wallet.
-//!
-//! Roda o LDK Node como processo/serviço no próprio dispositivo e expõe uma
-//! API REST **apenas em 127.0.0.1** (nunca na rede). O app Flutter conecta
-//! neste daemon quando o "modo daemon" está configurado — útil para desktops
-//! PDV que ficam ligados o dia todo. As chaves nunca saem da máquina.
-//!
-//! Uso:
-//!   iris-noded --mnemonic-file ./seed.txt --data-dir ./iris_node_data \
-//!              --port 8380 --esplora https://mempool.space/testnet4/api
-//!
-//! A API espelha o contrato do `RemoteNodeApi` do app:
-//!   GET  /health           GET  /node_id         GET  /balances
-//!   POST /invoice          POST /pay             GET  /onchain_address
-//!   GET  /channels         POST /open_channel    POST /sync
-//!   POST /set_forwarding_fee                     GET  /event
-//!   POST /event_handled
 
 use clap::Parser;
 use ldk_node::bitcoin::Network;
@@ -29,19 +12,16 @@ use std::sync::Arc;
 #[derive(Parser)]
 #[command(version, about)]
 struct Args {
-    /// Arquivo texto contendo a mnemônica BIP39 (12/24 palavras)
+
     #[arg(long)]
     mnemonic_file: String,
 
-    /// Diretório de dados do nó
     #[arg(long, default_value = "./iris_node_data")]
     data_dir: String,
 
-    /// Porta local (bind sempre em 127.0.0.1)
     #[arg(long, default_value_t = 8380)]
     port: u16,
 
-    /// Servidor Esplora (testnet4 por padrão)
     #[arg(long, default_value = "https://mempool.space/testnet4/api")]
     esplora: String,
 }
@@ -145,12 +125,9 @@ fn handle(node: &Arc<Node>, method: &str, path: &str, body: Value) -> Result<Val
                         "usable": ch.is_usable,
                         "public": ch.is_public,
                         "counterparty": ch.counterparty_node_id.to_string(),
-                        // Necessários para /set_forwarding_fee mirar este canal.
+
                         "user_channel_id": ch.user_channel_id.0.to_string(),
-                        // Taxa de roteamento HOJE deste canal — 100% do usuário,
-                        // creditada pelo próprio protocolo Lightning quando este
-                        // nó encaminha um pagamento de terceiros. O daemon/app
-                        // nunca retêm nada disso.
+
                         "forwarding_fee_proportional_ppm": ch.config.forwarding_fee_proportional_millionths(),
                         "forwarding_fee_base_msat": ch.config.forwarding_fee_base_msat(),
                     })
@@ -172,13 +149,7 @@ fn handle(node: &Arc<Node>, method: &str, path: &str, body: Value) -> Result<Val
             Ok(json!({}))
         }
         ("POST", "/set_forwarding_fee") => {
-            // Define a taxa de roteamento QUE ESTE USUÁRIO cobra quando o
-            // próprio nó dele encaminha um pagamento de outra pessoa pela
-            // rede. É nativo do protocolo Lightning: o LDK credita o valor
-            // direto no saldo deste nó — nunca passa pelo Iris, nunca vira
-            // receita do app. O usuário decide a taxa (ou deixa 0 para
-            // priorizar ser escolhido em rotas, já que taxa menor atrai mais
-            // roteamento).
+
             let user_channel_id_str = body["user_channel_id"]
                 .as_str()
                 .ok_or("user_channel_id ausente")?;
@@ -226,16 +197,8 @@ fn handle(node: &Arc<Node>, method: &str, path: &str, body: Value) -> Result<Val
     }
 }
 
-/// Backends Esplora candidatos, na ordem de preferência: o passado por
-/// `--esplora` primeiro (respeita a escolha explícita do usuário), depois os
-/// mesmos dois usados pelo nó embarcado (ver `escolherEsplora` em
-/// `node_backend.dart`). Servidores públicos de testnet oscilam (429 de
-/// rate-limit, timeout) — sem isto, uma falha transitória de UM servidor
-/// derrubava o daemon inteiro com panic (`FeerateEstimationUpdateFailed`),
-/// já observado na prática.
 fn escolher_esplora(preferido: &str) -> String {
-    // Testnet4: só o mempool.space serve API HTTP nessa rede (o
-    // blockstream.info devolve HTML nesse caminho). Sem fallback real.
+
     let fallback = ["https://mempool.space/testnet4/api"];
     let mut candidatos: Vec<&str> = vec![preferido];
     candidatos.extend(fallback.iter().filter(|&&u| u != preferido));
@@ -258,10 +221,6 @@ fn escolher_esplora(preferido: &str) -> String {
     preferido.to_string()
 }
 
-/// Constrói e inicia o nó, tentando de novo (com uma nova escolha de Esplora
-/// a cada tentativa) se a primeira falhar — a causa mais comum é o backend
-/// escolhido ter degradado bem no momento do boot, não um problema real da
-/// carteira. Só desiste (panic) depois de esgotar as tentativas.
 fn construir_e_iniciar(mnemonic: &str, args: &Args) -> Node {
     const TENTATIVAS: u32 = 3;
     let mut ultimo_erro = None;
@@ -273,17 +232,11 @@ fn construir_e_iniciar(mnemonic: &str, args: &Args) -> Node {
             mnemonic.parse().expect("mnemônica inválida"),
             None,
         );
-        // ldk-node 0.3 não conhece Testnet4 (depende do crate bitcoin 0.30;
-        // testnet4 só existe a partir do 0.32). Os dados da cadeia vêm da
-        // testnet4 pelo Esplora acima e os endereços são iguais nas duas
-        // redes; o que fica na testnet3 é só o ChainHash anunciado no
-        // Lightning. Ver a mesma nota em `node_backend.dart`.
+
         builder.set_network(Network::Testnet);
         builder.set_storage_dir_path(args.data_dir.clone());
         builder.set_esplora_server(esplora);
 
-        // build() e start() erram com tipos diferentes (BuildError vs Error);
-        // normaliza os dois para String antes de encadear.
         let build_result = builder
             .build()
             .map_err(|e| e.to_string())
@@ -315,7 +268,7 @@ fn main() {
     let node = Arc::new(construir_e_iniciar(&mnemonic, &args));
 
     println!("iris-noded: nó {} rodando (testnet4)", node.node_id());
-    // Bind exclusivamente no loopback: o daemon nunca é exposto à rede.
+
     let server = tiny_http::Server::http(("127.0.0.1", args.port))
         .expect("falha ao abrir a porta local");
     println!("iris-noded: API REST em http://127.0.0.1:{}", args.port);

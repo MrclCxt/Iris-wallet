@@ -9,10 +9,6 @@ import '../services/wallet_service.dart';
 import '../screens/consumer/profile_screen.dart';
 import 'iris_widgets.dart';
 
-/// Avatar puro (sem toque): foto da conta se existir, senão o ícone do app.
-/// Com foto, desenha um anel na cor de destaque escolhida no Perfil (ou uma
-/// borda neutra, se nenhuma cor foi escolhida) — sem foto, mostra só o ícone
-/// do app, como o logo já aparecia antes.
 class AvatarCircle extends StatelessWidget {
   final String? accountId;
   final String? colorHex;
@@ -48,14 +44,11 @@ class AvatarCircle extends StatelessWidget {
         ),
       );
     }
-    // Sem foto: o ícone do app, do jeito que sempre foi exibido — sem anel.
+
     return IrisLogo(size: size);
   }
 }
 
-/// Avatar da conta ATIVA (pessoal ou loja). Ao tocar, abre o Perfil — a mesma
-/// tela edita o que já existe ou deixa adicionar o que ainda falta (foto,
-/// nome, cor).
 class AccountAvatar extends StatelessWidget {
   final bool isMerchant;
   final double size;

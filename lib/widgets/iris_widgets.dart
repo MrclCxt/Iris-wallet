@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/chroma_service.dart';
 
-/// A primary action button whose gradient slowly shifts through the
-/// colour spectrum via [ChromaService].
 class IrisButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -65,8 +63,6 @@ class IrisButton extends StatelessWidget {
   }
 }
 
-/// A logo widget that shows the real IRIS app icon (PNG).
-/// Used in splash, app bars, and welcome screens.
 class IrisLogo extends StatelessWidget {
   final double size;
   const IrisLogo({super.key, this.size = 56});
@@ -81,7 +77,6 @@ class IrisLogo extends StatelessWidget {
   }
 }
 
-/// A compact IRIS app bar title: icon + "IRIS" in a gradient.
 class IrisAppBarTitle extends StatelessWidget {
   const IrisAppBarTitle({super.key});
 

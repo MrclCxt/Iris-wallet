@@ -245,6 +245,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     if (emUso != _appEmPrimeiroPlano) {
       _appEmPrimeiroPlano = emUso;
       if (_syncTimer != null) _reagendarSyncTimer();
+      if (_fastWatchTimer != null) _reagendarFastWatch();
     }
     if (!emUso) return;
     final agora = DateTime.now();
@@ -704,42 +705,6 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  static const int _janelaDeEnderecos = 200;
-
-  Future<void> _garantirJanelaDeEnderecos(_NodeHandle handle) async {
-    final fp = handle.runningSeedFingerprint;
-    if (fp == null || handle.api == null) return;
-
-    final chaveFeitos = 'janela_enderecos_v2_$fp';
-    const porLote = 25;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      var feitos = prefs.getInt(chaveFeitos) ?? 0;
-      if (feitos >= _janelaDeEnderecos) return;
-
-      while (feitos < _janelaDeEnderecos) {
-        final alvo = (feitos + porLote).clamp(0, _janelaDeEnderecos);
-        for (; feitos < alvo; feitos++) {
-          try {
-            final addr = await handle.api!.newOnchainAddress();
-            await _registrarEnderecoProprio(addr);
-          } catch (e) {
-            debugPrint('Endereço $feitos da janela falhou: $e');
-          }
-        }
-        await prefs.setInt(chaveFeitos, feitos);
-
-        await Future.delayed(const Duration(milliseconds: 200));
-      }
-
-      debugPrint(
-          'Janela de $_janelaDeEnderecos endereços garantida — este aparelho '
-          'passa a enxergar o que os outros usaram.');
-      await atualizarAgora();
-    } catch (e) {
-      debugPrint('Falha ao ampliar a janela de endereços: $e');
-    }
-  }
 
   Future<int> reconstruirHistoricoDoNo({bool forMerchant = false}) async {
     final handle = forMerchant ? _merchantNode : _consumerNode;
@@ -1558,10 +1523,6 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       }
 
       await _refreshBalances(handle);
-
-      unawaited(reconstruirHistoricoDoNo(forMerchant: isMerchant));
-
-      unawaited(_garantirJanelaDeEnderecos(handle));
       _runEventLoop(handle, isMerchant: isMerchant);
       _ensureSyncTimer();
 
@@ -1906,7 +1867,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     _syncTimer?.cancel();
     final intervalo = _appEmPrimeiroPlano
         ? const Duration(seconds: 45)
-        : const Duration(seconds: 180);
+        : const Duration(seconds: 120);
     _syncTimer = Timer.periodic(intervalo, (_) => _dispararSync?.call());
   }
 
@@ -1918,8 +1879,15 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   int _vigiaEmEspera = 0;
 
   void _ensureFastWatch() {
-    _fastWatchTimer ??=
-        Timer.periodic(const Duration(seconds: 5), (_) => _vigiarEndereco());
+    _reagendarFastWatch();
+  }
+
+  void _reagendarFastWatch() {
+    _fastWatchTimer?.cancel();
+    final intervalo = _appEmPrimeiroPlano
+        ? const Duration(seconds: 5)
+        : const Duration(seconds: 30);
+    _fastWatchTimer = Timer.periodic(intervalo, (_) => _vigiarEndereco());
   }
 
   Future<void> _vigiarEndereco() async {
@@ -2567,6 +2535,8 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   Future<int> deepScan({int ateIndice = 150, bool forMerchant = false}) async {
     final handle = forMerchant ? _merchantNode : _consumerNode;
     if (handle.api == null) return 0;
+
+    await reconstruirHistoricoDoNo(forMerchant: forMerchant);
 
     var revelados = 0;
     for (var i = 0; i < ateIndice; i++) {

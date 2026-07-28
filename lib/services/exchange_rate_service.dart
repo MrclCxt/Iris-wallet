@@ -21,7 +21,10 @@ class ExchangeRateService extends ChangeNotifier {
     fetchRate();
     _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(interval, (_) => fetchRate());
+    WidgetsBinding.instance.addObserver(_RetomadaCotacao(this));
   }
+
+  void atualizarAgora() => fetchRate();
 
   Future<void> loadDisplayPref() async {
     try {
@@ -91,5 +94,15 @@ class ExchangeRateService extends ChangeNotifier {
     if (_btcToBrlRate <= 0) return 0.0;
     double btcAmount = satsAmount / 100000000;
     return btcAmount * _btcToBrlRate;
+  }
+}
+
+class _RetomadaCotacao extends WidgetsBindingObserver {
+  final ExchangeRateService _servico;
+  _RetomadaCotacao(this._servico);
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _servico.atualizarAgora();
   }
 }

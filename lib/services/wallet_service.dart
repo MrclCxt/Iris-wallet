@@ -713,10 +713,19 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
     final lista = forMerchant ? _merchantTransactions : _consumerTransactions;
     var recuperadas = 0;
+    var statusMudou = false;
     try {
       for (final p in await handle.api!.listPayments()) {
         if (p.amountSats <= 0) continue;
-        if (lista.any((t) => t.id == p.id)) continue;
+
+        final indice = lista.indexWhere((t) => t.id == p.id);
+        if (indice >= 0) {
+          if (lista[indice].status != p.status) {
+            lista[indice].status = p.status;
+            statusMudou = true;
+          }
+          continue;
+        }
 
         lista.add(Transaction(
           id: p.id,
@@ -735,7 +744,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
         ));
         recuperadas++;
       }
-      if (recuperadas > 0) {
+      if (recuperadas > 0 || statusMudou) {
         lista.sort((a, b) => b.date.compareTo(a.date));
         await _salvarHistorico(forMerchant);
         notifyListeners();
@@ -1903,6 +1912,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
         handle.saldoConfirmadoPorSync = true;
         await _refreshBalances(handle);
+        await reconstruirHistoricoDoNo(forMerchant: handle.isMerchant);
         handle.consecutiveSyncFailures = 0;
       } catch (e) {
         handle.consecutiveSyncFailures++;
@@ -1996,9 +2006,24 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       }
 
       if (_ultimoTotalVisto != null && total > _ultimoTotalVisto!) {
+        final chegando = total - _ultimoTotalVisto!;
+        final aindaNoMempool =
+            ((mem['funded_txo_sum'] as num?)?.toInt() ?? 0) > 0;
+
         debugPrint(
-            'Vigia rápida: recebimento detectado em $addr — sincronizando já.');
+            'Vigia rápida: recebimento de $chegando sats detectado em $addr — sincronizando já.');
         _ultimoTotalVisto = total;
+
+        if (aindaNoMempool && chegando > 0) {
+          _emitirRecebimento(ReceivedPayment(
+            paymentHashHex: '',
+            amountSats: chegando,
+            isOnchain: true,
+            isMerchant: handle.isMerchant,
+            isPending: true,
+          ));
+        }
+
         await _dispararSync?.call();
       } else {
         _ultimoTotalVisto = total;

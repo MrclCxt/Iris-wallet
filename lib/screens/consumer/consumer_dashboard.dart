@@ -9,6 +9,7 @@ import '../../services/chroma_service.dart';
 import '../../widgets/currency_toggle_btn.dart';
 import '../../widgets/account_avatar.dart';
 import '../../widgets/tx_status.dart';
+import '../../widgets/tx_details_sheet.dart';
 import 'explore_wallets_screen.dart';
 
 class ConsumerDashboard extends StatefulWidget {
@@ -322,20 +323,34 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                                     if (i > 0)
                                       const Divider(
                                           color: IrisTheme.bdr, height: 20),
-                                    _buildTxRow(
-                                      wallet.consumerTransactions[i].emoji,
-                                      wallet.consumerTransactions[i].title,
-                                      '${wallet.consumerTransactions[i].date.day.toString().padLeft(2, '0')}/${wallet.consumerTransactions[i].date.month.toString().padLeft(2, '0')}',
-                                      wallet.consumerTransactions[i].isIncoming
-                                          ? wallet.consumerTransactions[i]
-                                              .amountSats
-                                          : -wallet.consumerTransactions[i]
-                                              .amountSats,
-                                      exchangeRate.isSatsDisplay,
-                                      exchangeRate,
-                                      hide: wallet.hideBalance,
-                                      status:
-                                          wallet.consumerTransactions[i].status,
+                                    InkWell(
+                                      onTap: () => TxDetailsSheet.abrir(
+                                        context,
+                                        tx: wallet.consumerTransactions[i],
+                                        showSats: exchangeRate.isSatsDisplay,
+                                        brlRate: exchangeRate.btcToBrlRate,
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 4),
+                                        child: _buildTxRow(
+                                          wallet.consumerTransactions[i].emoji,
+                                          wallet.consumerTransactions[i].title,
+                                          '${wallet.consumerTransactions[i].date.day.toString().padLeft(2, '0')}/${wallet.consumerTransactions[i].date.month.toString().padLeft(2, '0')}',
+                                          wallet.consumerTransactions[i]
+                                                  .isIncoming
+                                              ? wallet.consumerTransactions[i]
+                                                  .amountSats
+                                              : -wallet.consumerTransactions[i]
+                                                  .amountSats,
+                                          exchangeRate.isSatsDisplay,
+                                          exchangeRate,
+                                          hide: wallet.hideBalance,
+                                          status: wallet
+                                              .consumerTransactions[i].status,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ],
@@ -410,11 +425,21 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                     ? '${isPos ? '+' : ''}${CurrencyFormatter.formatBtcOrSats(sats)}'
                     : '${isPos ? '+' : '-'}R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(sats.abs()))}');
 
+            void abrirDetalhes() => TxDetailsSheet.abrir(
+                  context,
+                  tx: tx,
+                  showSats: exchangeRate.isSatsDisplay,
+                  brlRate: exchangeRate.btcToBrlRate,
+                );
+
             return DataRow(
+              onSelectChanged: (_) => abrirDetalhes(),
               cells: [
-                DataCell(Text(
-                    '${tx.date.day.toString().padLeft(2, '0')}/${tx.date.month.toString().padLeft(2, '0')} ${tx.date.hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')}',
-                    style: const TextStyle(color: IrisTheme.textSecondary))),
+                DataCell(
+                    Text(
+                        '${tx.date.day.toString().padLeft(2, '0')}/${tx.date.month.toString().padLeft(2, '0')} ${tx.date.hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')}',
+                        style: const TextStyle(color: IrisTheme.textSecondary)),
+                    onTap: abrirDetalhes),
                 DataCell(Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

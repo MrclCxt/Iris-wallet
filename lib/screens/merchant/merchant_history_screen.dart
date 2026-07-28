@@ -7,6 +7,7 @@ import '../../services/wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
 import '../../widgets/currency_toggle_btn.dart';
 import '../../widgets/tx_status.dart';
+import '../../widgets/tx_details_sheet.dart';
 
 class MerchantHistoryScreen extends StatelessWidget {
   const MerchantHistoryScreen({super.key});
@@ -44,12 +45,21 @@ class MerchantHistoryScreen extends StatelessWidget {
                         itemCount: wallet.merchantTransactions.length,
                         itemBuilder: (context, index) {
                           final tx = wallet.merchantTransactions[index];
-                          return _buildTxItem(
-                            tx.title,
-                            '${tx.date.day.toString().padLeft(2, '0')}/${tx.date.month.toString().padLeft(2, '0')} - ${tx.date.hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')}',
-                            tx.amountSats,
-                            exchangeRate,
-                            status: tx.status,
+                          return InkWell(
+                            onTap: () => TxDetailsSheet.abrir(
+                              context,
+                              tx: tx,
+                              showSats: exchangeRate.isSatsDisplay,
+                              brlRate: exchangeRate.btcToBrlRate,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                            child: _buildTxItem(
+                              tx.title,
+                              '${tx.date.day.toString().padLeft(2, '0')}/${tx.date.month.toString().padLeft(2, '0')} - ${tx.date.hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')}',
+                              tx.amountSats,
+                              exchangeRate,
+                              status: tx.status,
+                            ),
                           );
                         },
                       ),

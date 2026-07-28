@@ -731,8 +731,17 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       // compara o que já está gravado — e prender a limpeza a `sync()` significa
       // que um aparelho sem rede, ou com o Esplora recusando, fica exibindo a
       // duplicata indefinidamente. Era o que estava acontecendo.
-      if (_removerProvisoriosJaCobertos(isMerchant: isMerchant) > 0 ||
-          _corrigirTitulosIncoerentes(isMerchant: isMerchant) > 0) {
+      _dump('lido do disco ${destino.length}',
+          destino.map((t) => '${_curto(t.id)}|${t.amountSats}|${t.status}'));
+
+      final limpou = _removerProvisoriosLegados(isMerchant: isMerchant) > 0;
+      final titulos = _corrigirTitulosIncoerentes(isMerchant: isMerchant) > 0;
+      final fundidas = _fundirDuplicatasInvertidas(isMerchant: isMerchant) > 0;
+
+      // A fusão também roda AQUI, não só depois de falar com o nó: duas linhas
+      // gravadas com grafias diferentes do mesmo txid são um problema do disco,
+      // e resolvê-lo não depende de rede.
+      if (limpou || titulos || fundidas) {
         await _salvarHistorico(isMerchant);
         notifyListeners();
       }
@@ -793,11 +802,38 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     var recuperadas = 0;
     var statusMudou = false;
     try {
-      for (final p in await handle.api!.listPayments()) {
+      final doNo = await handle.api!.listPayments();
+      _dump('nó devolveu ${doNo.length}',
+          doNo.map((p) => '${_curto(p.id)}|${p.amountSats}|${p.status}'
+              '|${p.isOnchain ? "chain" : "ln"}|${p.isIncoming ? "in" : "out"}'));
+
+      for (final p in doNo) {
         if (p.amountSats <= 0) continue;
 
-        final indice = lista.indexWhere((t) => t.id == p.id);
+        // Por identidade canônica, não por igualdade de texto: a linha gravada
+        // pode estar com o id na outra ordem de bytes, e comparar cru faria o nó
+        // adicioná-la de novo — recriando a duplicata logo depois de ela ser
+        // fundida.
+        final alvo = _idCanonico(p.id);
+        var indice = lista.indexWhere((t) => _idCanonico(t.id) == alvo);
+
         if (indice >= 0) {
+          // Converge a grafia para a que o nó usa hoje, senão a próxima rodada
+          // repete este mesmo trabalho.
+          if (lista[indice].id != p.id) {
+            final antigo = lista[indice];
+            lista[indice] = Transaction(
+              id: p.id,
+              title: antigo.title,
+              emoji: antigo.emoji,
+              amountSats: antigo.amountSats,
+              isIncoming: antigo.isIncoming,
+              date: antigo.date,
+              status: antigo.status,
+            );
+            statusMudou = true;
+          }
+
           if (lista[indice].status != p.status) {
             lista[indice].status = p.status;
             statusMudou = true;
@@ -831,26 +867,15 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
           status: p.status,
         );
 
-        // O provisório e o registro do nó são o MESMO dinheiro por dois
-        // caminhos, e os ids nunca batem: um é `onchain_<millis>`, o outro é o
-        // txid. Sem casá-los, um único recebimento vira duas linhas e o banner
-        // de pendente soma o valor em dobro. O real toma o lugar do provisório.
-        final iProvisorio = p.isOnchain && p.isIncoming
-            ? _indiceDoProvisorio(lista, p)
-            : -1;
-
-        if (iProvisorio >= 0) {
-          lista[iProvisorio] = novo;
-          statusMudou = true;
-        } else {
-          lista.add(novo);
-          recuperadas++;
-        }
+        lista.add(novo);
+        recuperadas++;
       }
-      if (_removerProvisoriosJaCobertos(isMerchant: forMerchant) > 0) {
+      if (_removerProvisoriosLegados(isMerchant: forMerchant) > 0) {
         statusMudou = true;
       }
       _fundirDuplicatasInvertidas(isMerchant: forMerchant);
+      _dump('histórico com ${lista.length}',
+          lista.map((t) => '${_curto(t.id)}|${t.amountSats}|${t.status}'));
 
       if (recuperadas > 0 || statusMudou) {
         lista.sort((a, b) => b.date.compareTo(a.date));
@@ -863,37 +888,23 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     return recuperadas;
   }
 
-  // Os provisórios nascem em `_refreshBalances`, que só enxerga o saldo subir e
-  // ainda não tem txid — daí o id sintético. Eles existem para o usuário ver o
-  // dinheiro chegando na hora, antes de o nó listar o pagamento.
+  // Diagnóstico do histórico. Sem ver os ids CRUS não dá para distinguir "o nó
+  // devolveu a mesma transação duas vezes" de "o app guardou duas linhas para uma
+  // transação só" — e sem essa distinção a correção vira chute.
+  static String _curto(String id) =>
+      id.length <= 14 ? id : '${id.substring(0, 10)}…${id.substring(id.length - 4)}';
+
+  static void _dump(String rotulo, Iterable<String> itens) {
+    debugPrint('[histórico] $rotulo: ${itens.join("  ·  ")}');
+  }
+
+  // `onchain_<millis>` e `onchain_pend_<millis>` eram ids inventados pelo app
+  // quando ele mesmo criava a linha do recebimento. Isso não existe mais — a
+  // movimentação vem do nó, com txid. Envios usam o txid como id e pagamentos
+  // Lightning usam o hash, então este prefixo identifica exclusivamente os
+  // registros paralelos das versões antigas.
   static bool _ehProvisorioOnchain(Transaction t) =>
       t.id.startsWith('onchain_');
-
-  // Janela generosa de propósito: o provisório é datado de quando o app
-  // percebeu, o registro do nó de quando a transação entrou. Se o aparelho ficou
-  // desligado, a distância cresce. O par (valor exato + entrada + on-chain) já é
-  // restritivo o bastante; a janela só evita casar com algo de outra semana.
-  static const Duration _janelaDoProvisorio = Duration(days: 2);
-
-  int _indiceDoProvisorio(List<Transaction> lista, PaymentRecord p) {
-    var melhor = -1;
-    Duration? menorDistancia;
-
-    for (var i = 0; i < lista.length; i++) {
-      final t = lista[i];
-      if (!_ehProvisorioOnchain(t)) continue;
-      if (!t.isIncoming || t.amountSats != p.amountSats) continue;
-
-      final distancia = t.date.difference(p.date).abs();
-      if (distancia > _janelaDoProvisorio) continue;
-
-      if (menorDistancia == null || distancia < menorDistancia) {
-        menorDistancia = distancia;
-        melhor = i;
-      }
-    }
-    return melhor;
-  }
 
   // O título precisa concordar com o status: "Recebido" numa linha marcada como
   // aguardando confirmação diz duas coisas contrárias na mesma tela.
@@ -901,36 +912,29 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       ? 'Recebido on-chain (Bitcoin)'
       : 'Recebendo on-chain — aguardando confirmação';
 
-  // A absorção acima só age quando o registro do nó chega pela PRIMEIRA vez. Quem
-  // já tem as duas linhas gravadas no histórico ficaria com elas para sempre —
-  // inclusive somando em dobro no banner de "aguardando confirmação". Esta
-  // passagem limpa o que já está no disco, casando um provisório para cada
-  // registro real (1 para 1, para não apagar dois recebimentos legítimos de
-  // mesmo valor).
-  int _removerProvisoriosJaCobertos({required bool isMerchant}) {
+  // Apaga TODOS os provisórios, sem tentar casar cada um com um registro do nó.
+  //
+  // A versão anterior exigia encontrar o par definitivo antes de apagar, e por
+  // isso deixava para trás justamente os casos que o usuário via na tela. Como o
+  // app não cria mais esses registros, todo `onchain_*` no disco é resto de
+  // versão antiga — não há par a procurar.
+  //
+  // O que se perde: se o nó, por algum motivo, não listar um recebimento, a
+  // linha some da tela. O dinheiro não some junto (o saldo é lido do nó, não
+  // desta lista), e uma linha que o nó não confirma não era confiável de
+  // qualquer forma.
+  int _removerProvisoriosLegados({required bool isMerchant}) {
     final lista = isMerchant ? _merchantTransactions : _consumerTransactions;
 
-    final provisorios = lista.where(_ehProvisorioOnchain).toList();
-    if (provisorios.isEmpty) return 0;
+    final antes = lista.length;
+    lista.removeWhere(_ehProvisorioOnchain);
+    final removidos = antes - lista.length;
 
-    final remover = <Transaction>[];
-    for (final real in lista) {
-      if (_ehProvisorioOnchain(real)) continue;
-      // '₿' é o que distingue on-chain de Lightning no histórico salvo; um
-      // recebimento Lightning de mesmo valor não pode absorver o provisório.
-      if (!real.isIncoming || real.emoji != '₿') continue;
-
-      final i = provisorios.indexWhere((t) =>
-          t.amountSats == real.amountSats &&
-          t.date.difference(real.date).abs() <= _janelaDoProvisorio);
-      if (i >= 0) remover.add(provisorios.removeAt(i));
+    if (removidos > 0) {
+      debugPrint('$removidos registro(s) provisório(s) antigo(s) removido(s) '
+          'do histórico — a movimentação agora vem só do nó.');
     }
-
-    if (remover.isEmpty) return 0;
-    lista.removeWhere((t) => remover.any((r) => identical(r, t)));
-    debugPrint('${remover.length} recebimento(s) provisório(s) removido(s): já '
-        'existe o registro definitivo do nó.');
-    return remover.length;
+    return removidos;
   }
 
   void _registrarTransacao(Transaction tx, {required bool isMerchant}) {
@@ -943,22 +947,52 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     unawaited(_salvarHistorico(isMerchant));
   }
 
+  // Identidade de uma transação, independente de COMO o id foi escrito.
+  //
+  // O mesmo txid aparece no app em até três formas: lista de bytes crua
+  // (`[99,178,...]`), hex na ordem interna, e hex invertido — que é a ordem de
+  // exibição convencional e a que `node_backend._idDePagamento` produz hoje para
+  // on-chain (`ehOnchain ? bytes.reversed : bytes`).
+  //
+  // A versão anterior só desfazia a forma de colchetes. Duas linhas em hex, uma
+  // gravada por versão antiga sem a inversão e outra vinda do nó com ela, caíam
+  // em grupos diferentes e nunca eram fundidas — era exatamente a duplicata
+  // visível na tela, com o agravante de as duas parecerem legítimas (mesmo
+  // título, mesmo valor, só o status divergindo).
+  //
+  // Ordem de bytes é convenção de escrita, não identidade. Escolher sempre a
+  // menor das duas formas dá uma chave estável para as duas grafias.
+  @visibleForTesting
+  static String idCanonico(String id) => _idCanonico(id);
+
   static String _idCanonico(String id) {
+    List<int>? bytes;
+
     if (id.startsWith('[') && id.endsWith(']')) {
       try {
-        final bytes = id
+        bytes = id
             .substring(1, id.length - 1)
             .split(',')
             .map((s) => int.parse(s.trim()))
             .toList();
-        if (bytes.length == 32) {
-          return bytes.reversed
-              .map((b) => b.toRadixString(16).padLeft(2, '0'))
-              .join();
-        }
-      } catch (_) {}
+      } catch (_) {
+        return id;
+      }
+    } else if (id.length == 64 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(id)) {
+      bytes = [
+        for (var i = 0; i < 64; i += 2)
+          int.parse(id.substring(i, i + 2), radix: 16)
+      ];
     }
-    return id;
+
+    if (bytes == null || bytes.length != 32) return id;
+
+    String hex(Iterable<int> b) =>
+        b.map((x) => x.toRadixString(16).padLeft(2, '0')).join();
+
+    final direto = hex(bytes);
+    final invertido = hex(bytes.reversed);
+    return direto.compareTo(invertido) <= 0 ? direto : invertido;
   }
 
   int _fundirDuplicatasInvertidas({required bool isMerchant}) {

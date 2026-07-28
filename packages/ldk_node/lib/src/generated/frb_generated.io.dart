@@ -6,6 +6,7 @@
 import 'api/bolt11.dart';
 import 'api/bolt12.dart';
 import 'api/builder.dart';
+import 'api/diag.dart';
 import 'api/graph.dart';
 import 'api/node.dart';
 import 'api/on_chain.dart';
@@ -4784,6 +4785,21 @@ class coreWire implements BaseWire {
       _wire__crate__api__builder__ldk_mnemonic_generatePtr
           .asFunction<void Function(int)>();
 
+  void wire__crate__api__diag__instalar_gancho_de_panico(
+    int port_,
+  ) {
+    return _wire__crate__api__diag__instalar_gancho_de_panico(
+      port_,
+    );
+  }
+
+  late final _wire__crate__api__diag__instalar_gancho_de_panicoPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+          'frbgen_ldk_node_wire__crate__api__diag__instalar_gancho_de_panico');
+  late final _wire__crate__api__diag__instalar_gancho_de_panico =
+      _wire__crate__api__diag__instalar_gancho_de_panicoPtr
+          .asFunction<void Function(int)>();
+
   void wire__crate__api__graph__ldk_network_graph_channel(
     int port_,
     ffi.Pointer<wire_cst_ldk_network_graph> that,
@@ -6638,6 +6654,25 @@ class coreWire implements BaseWire {
               ffi.Int32)>>('frbgen_ldk_node_cst_new_list_socket_address');
   late final _cst_new_list_socket_address = _cst_new_list_socket_addressPtr
       .asFunction<ffi.Pointer<wire_cst_list_socket_address> Function(int)>();
+
+  int __android_log_write(
+    int prio,
+    ffi.Pointer<ffi.Int8> tag,
+    ffi.Pointer<ffi.Int8> text,
+  ) {
+    return ___android_log_write(
+      prio,
+      tag,
+      text,
+    );
+  }
+
+  late final ___android_log_writePtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int32 Function(ffi.Int32, ffi.Pointer<ffi.Int8>,
+              ffi.Pointer<ffi.Int8>)>>('__android_log_write');
+  late final ___android_log_write = ___android_log_writePtr.asFunction<
+      int Function(int, ffi.Pointer<ffi.Int8>, ffi.Pointer<ffi.Int8>)>();
 
   int dummy_method_to_enforce_bundling() {
     return _dummy_method_to_enforce_bundling();

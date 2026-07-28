@@ -2497,6 +2497,11 @@ pub extern "C" fn frbgen_ldk_node_wire__crate__api__builder__ldk_mnemonic_genera
 }
 
 #[no_mangle]
+pub extern "C" fn frbgen_ldk_node_wire__crate__api__diag__instalar_gancho_de_panico(port_: i64) {
+    wire__crate__api__diag__instalar_gancho_de_panico_impl(port_)
+}
+
+#[no_mangle]
 pub extern "C" fn frbgen_ldk_node_wire__crate__api__graph__ldk_network_graph_channel(
     port_: i64,
     that: *mut wire_cst_ldk_network_graph,

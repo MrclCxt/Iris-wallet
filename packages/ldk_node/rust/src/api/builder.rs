@@ -96,6 +96,7 @@ impl NodeBuilder {
         })
     }
     pub fn build(self) -> anyhow::Result<LdkNode, LdkBuilderError> {
+        crate::api::diag::instalar_gancho_de_panico();
         match self.builder.build() {
             Ok(e) => Ok(LdkNode {
                 ptr: RustOpaque::new(e),
@@ -104,6 +105,7 @@ impl NodeBuilder {
         }
     }
     pub fn build_with_fs_store(self) -> anyhow::Result<LdkNode, LdkBuilderError> {
+        crate::api::diag::instalar_gancho_de_panico();
         match self.builder.build_with_fs_store() {
             Ok(e) => Ok(LdkNode {
                 ptr: RustOpaque::new(e),

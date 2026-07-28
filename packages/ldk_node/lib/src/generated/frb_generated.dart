@@ -6,6 +6,7 @@
 import 'api/bolt11.dart';
 import 'api/bolt12.dart';
 import 'api/builder.dart';
+import 'api/diag.dart';
 import 'api/graph.dart';
 import 'api/node.dart';
 import 'api/on_chain.dart';
@@ -64,7 +65,7 @@ class core extends BaseEntrypoint<coreApi, coreApiImpl, coreWire> {
   String get codegenVersion => '2.0.0';
 
   @override
-  int get rustContentHash => 1924780707;
+  int get rustContentHash => 2109549055;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -185,6 +186,8 @@ abstract class coreApi extends BaseApi {
       LiquiditySourceConfig? liquiditySourceConfig});
 
   Future<LdkMnemonic> crateApiBuilderLdkMnemonicGenerate();
+
+  Future<void> crateApiDiagInstalarGanchoDePanico();
 
   Future<ChannelInfo?> crateApiGraphLdkNetworkGraphChannel(
       {required LdkNetworkGraph that, required BigInt shortChannelId});
@@ -1154,6 +1157,28 @@ class coreApiImpl extends coreApiImplPlatform implements coreApi {
   TaskConstMeta get kCrateApiBuilderLdkMnemonicGenerateConstMeta =>
       const TaskConstMeta(
         debugName: "ldk_mnemonic_generate",
+        argNames: [],
+      );
+
+  @override
+  Future<void> crateApiDiagInstalarGanchoDePanico() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        return wire.wire__crate__api__diag__instalar_gancho_de_panico(port_);
+      },
+      codec: DcoCodec(
+        decodeSuccessData: dco_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiDiagInstalarGanchoDePanicoConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDiagInstalarGanchoDePanicoConstMeta =>
+      const TaskConstMeta(
+        debugName: "instalar_gancho_de_panico",
         argNames: [],
       );
 

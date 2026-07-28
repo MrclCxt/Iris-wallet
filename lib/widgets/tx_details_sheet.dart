@@ -291,7 +291,8 @@ class _TxDetailsSheetState extends State<TxDetailsSheet> {
               if (_trocoOmitido) ...[
                 const SizedBox(height: 10),
                 const Text(
-                  'O troco que voltou para a sua carteira não é listado aqui.',
+                  'Só as carteiras desta transação aparecem aqui. O troco que '
+                  'voltou para você e os saldos das carteiras não são exibidos.',
                   style:
                       TextStyle(fontSize: 11, color: IrisTheme.textTertiary),
                 ),
@@ -428,24 +429,10 @@ class _TxDetailsSheetState extends State<TxDetailsSheet> {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: IrisTheme.bdr),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        it.endereco ?? '(endereço não legível)',
-                        style: const TextStyle(
-                            fontSize: 11, fontFamily: 'monospace'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      CurrencyFormatter.formatBtcOrSats(it.valor),
-                      style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          fontFamily: 'monospace'),
-                    ),
-                  ],
+                child: Text(
+                  it.endereco ?? '(endereço não legível)',
+                  style:
+                      const TextStyle(fontSize: 11, fontFamily: 'monospace'),
                 ),
               ),
             ),

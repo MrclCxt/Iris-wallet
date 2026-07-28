@@ -1,3 +1,4 @@
+pub mod diag;
 pub mod bolt11;
 pub mod bolt12;
 pub mod builder;

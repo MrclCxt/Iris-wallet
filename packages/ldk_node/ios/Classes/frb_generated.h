@@ -805,6 +805,8 @@ void frbgen_ldk_node_wire__crate__api__builder__NodeBuilder_create_builder(int64
 
 void frbgen_ldk_node_wire__crate__api__builder__ldk_mnemonic_generate(int64_t port_);
 
+void frbgen_ldk_node_wire__crate__api__diag__instalar_gancho_de_panico(int64_t port_);
+
 void frbgen_ldk_node_wire__crate__api__graph__ldk_network_graph_channel(int64_t port_,
                                                                         struct wire_cst_ldk_network_graph *that,
                                                                         uint64_t short_channel_id);
@@ -1104,6 +1106,8 @@ struct wire_cst_list_prim_u_8_strict *frbgen_ldk_node_cst_new_list_prim_u_8_stri
 struct wire_cst_list_public_key *frbgen_ldk_node_cst_new_list_public_key(int32_t len);
 
 struct wire_cst_list_socket_address *frbgen_ldk_node_cst_new_list_socket_address(int32_t len);
+
+extern int32_t __android_log_write(int32_t prio, const int8_t *tag, const int8_t *text);
 static int64_t dummy_method_to_enforce_bundling(void) {
     int64_t dummy_var = 0;
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_cst_new_box_autoadd_address);
@@ -1202,6 +1206,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__builder__NodeBuilder_build_with_fs_store);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__builder__NodeBuilder_create_builder);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__builder__ldk_mnemonic_generate);
+    dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__diag__instalar_gancho_de_panico);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__graph__ldk_network_graph_channel);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__graph__ldk_network_graph_list_channels);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__graph__ldk_network_graph_list_nodes);

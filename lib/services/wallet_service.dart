@@ -206,6 +206,7 @@ class _NodeHandle {
   String? runningSeed;
 
   int consecutiveSyncFailures = 0;
+  int leiturasZeradas = 0;
 
   bool saldoConfirmadoPorSync = false;
   bool _eventLoopActive = false;
@@ -1740,16 +1741,34 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       var newLightning = balances.lightningSats;
 
       final tudoZerado = newTotal == 0 && newLightning == 0;
-      if (tudoZerado && !handle.saldoConfirmadoPorSync) {
+
+      if (tudoZerado) {
+        handle.leiturasZeradas++;
+
         final ultimo = await _loadLastKnownBalance(handle);
-        if (ultimo != null && (ultimo.total > 0 || ultimo.lightning > 0)) {
+        final tinhaSaldo =
+            ultimo != null && (ultimo.total > 0 || ultimo.lightning > 0);
+
+        // Uma carteira não fica zerada sozinha: ou houve um envio, que o app
+        // conhece, ou a leitura falhou. Zero contradizendo saldo conhecido é
+        // tratado como suspeito até se repetir — antes bastava uma leitura
+        // ruim depois do primeiro sync para o saldo sumir da tela.
+        if (tinhaSaldo && handle.leiturasZeradas < _leiturasZeradasParaAceitar) {
           newTotal = ultimo.total;
           newSpendable = ultimo.spendable;
           newLightning = ultimo.lightning;
+          _saldoSobSuspeita = true;
           debugPrint(
-              'Saldo lido como zero antes do primeiro sync — mantendo último '
-              'valor conhecido ($newTotal sats on-chain).');
+              'Saldo lido como zero (${handle.leiturasZeradas}/$_leiturasZeradasParaAceitar) '
+              'contra $newTotal sats conhecidos — mantendo o valor anterior.');
+        } else if (tinhaSaldo) {
+          debugPrint(
+              'Saldo zero confirmado em $_leiturasZeradasParaAceitar leituras seguidas — aceitando.');
+          _saldoSobSuspeita = false;
         }
+      } else {
+        handle.leiturasZeradas = 0;
+        _saldoSobSuspeita = false;
       }
 
       handle.lightningBalanceSats = newLightning;
@@ -1982,6 +2001,11 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     _reagendarSyncTimer();
     _ensureFastWatch();
   }
+
+  bool _saldoSobSuspeita = false;
+  bool get saldoSobSuspeita => _saldoSobSuspeita;
+
+  static const int _leiturasZeradasParaAceitar = 3;
 
   bool _appEmPrimeiroPlano = true;
 

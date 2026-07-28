@@ -285,14 +285,48 @@ class _TxDetailsSheetState extends State<TxDetailsSheet> {
             ],
             if (_rede != null) ...[
               const SizedBox(height: 22),
-              _secaoEnderecos('De', _rede!.entradas),
+              _secaoEnderecos('De', _origem),
               const SizedBox(height: 16),
-              _secaoEnderecos('Para', _rede!.saidas),
+              _secaoEnderecos('Para', _destino),
+              if (_trocoOmitido) ...[
+                const SizedBox(height: 10),
+                const Text(
+                  'O troco que voltou para a sua carteira não é listado aqui.',
+                  style:
+                      TextStyle(fontSize: 11, color: IrisTheme.textTertiary),
+                ),
+              ],
             ],
           ],
         ),
       ),
     );
+  }
+
+  bool _trocoOmitido = false;
+
+  List<({String? endereco, int valor})> get _origem =>
+      _rede?.entradas ?? const [];
+
+  /// Numa transação Bitcoin a moeda é gasta inteira e a diferença volta como
+  /// troco para a própria carteira. Esse troco não é a outra parte do
+  /// pagamento, então a saída mostrada é a que bate com o valor da transação.
+  List<({String? endereco, int valor})> get _destino {
+    final saidas = _rede?.saidas ?? const <({String? endereco, int valor})>[];
+    if (saidas.length < 2) {
+      _trocoOmitido = false;
+      return saidas;
+    }
+
+    final alvo = widget.tx.amountSats;
+    final exatas = saidas.where((o) => o.valor == alvo).toList();
+    if (exatas.isNotEmpty && exatas.length < saidas.length) {
+      _trocoOmitido = true;
+      return exatas;
+    }
+
+    _trocoOmitido = false;
+    return saidas;
   }
 
   String get _statusEfetivo {

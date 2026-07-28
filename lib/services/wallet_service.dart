@@ -767,41 +767,47 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     unawaited(_salvarHistorico(isMerchant));
   }
 
-  static String? _idInvertido(String id) {
-    if (id.length != 64) return null;
-    try {
-      final bytes = <int>[];
-      for (var i = 0; i < 64; i += 2) {
-        bytes.add(int.parse(id.substring(i, i + 2), radix: 16));
-      }
-      return bytes.reversed
-          .map((b) => b.toRadixString(16).padLeft(2, '0'))
-          .join();
-    } catch (_) {
-      return null;
+  static String _idCanonico(String id) {
+    if (id.startsWith('[') && id.endsWith(']')) {
+      try {
+        final bytes = id
+            .substring(1, id.length - 1)
+            .split(',')
+            .map((s) => int.parse(s.trim()))
+            .toList();
+        if (bytes.length == 32) {
+          return bytes.reversed
+              .map((b) => b.toRadixString(16).padLeft(2, '0'))
+              .join();
+        }
+      } catch (_) {}
     }
+    return id;
   }
 
   int _fundirDuplicatasInvertidas({required bool isMerchant}) {
     final lista = isMerchant ? _merchantTransactions : _consumerTransactions;
-    final porId = {for (final t in lista) t.id: t};
-    final remover = <String>{};
 
+    final grupos = <String, List<Transaction>>{};
     for (final t in lista) {
-      if (remover.contains(t.id)) continue;
-      final espelho = _idInvertido(t.id);
-      if (espelho == null || espelho == t.id) continue;
+      grupos.putIfAbsent(_idCanonico(t.id), () => []).add(t);
+    }
 
-      final gemea = porId[espelho];
-      if (gemea == null) continue;
+    final remover = <Transaction>[];
+    for (final grupo in grupos.values) {
+      if (grupo.length < 2) continue;
 
-      final manter = t.status == 'confirmed' ? t : gemea;
-      final descartar = identical(manter, t) ? gemea : t;
-      remover.add(descartar.id);
+      grupo.sort((a, b) {
+        final aBom = a.status == 'confirmed' ? 0 : 1;
+        final bBom = b.status == 'confirmed' ? 0 : 1;
+        if (aBom != bBom) return aBom - bBom;
+        return a.id.startsWith('[') ? 1 : -1;
+      });
+      remover.addAll(grupo.skip(1));
     }
 
     if (remover.isEmpty) return 0;
-    lista.removeWhere((t) => remover.contains(t.id));
+    lista.removeWhere((t) => remover.any((r) => identical(r, t)));
     debugPrint(
         '${remover.length} duplicata(s) de transação removida(s) do histórico.');
     unawaited(_salvarHistorico(isMerchant));

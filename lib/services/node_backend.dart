@@ -241,19 +241,42 @@ class EmbeddedNodeApi implements NodeApi {
     return inv.signedRawInvoice;
   }
 
-  static String _idDePagamento(String bruto, bool ehOnchain) {
-    if (!ehOnchain || bruto.length != 64) return bruto;
-    try {
-      final bytes = <int>[];
-      for (var i = 0; i < 64; i += 2) {
-        bytes.add(int.parse(bruto.substring(i, i + 2), radix: 16));
+  static String idDePagamentoParaTeste(dynamic campo, bool ehOnchain) =>
+      _idDePagamento(campo, ehOnchain);
+
+  static String _idDePagamento(dynamic campo, bool ehOnchain) {
+    List<int>? bytes;
+
+    if (campo is List<int>) {
+      bytes = campo;
+    } else {
+      final texto = campo.toString();
+
+      if (texto.startsWith('[') && texto.endsWith(']')) {
+        try {
+          bytes = texto
+              .substring(1, texto.length - 1)
+              .split(',')
+              .map((s) => int.parse(s.trim()))
+              .toList();
+        } catch (_) {}
+      } else if (texto.length == 64 &&
+          RegExp(r'^[0-9a-fA-F]+$').hasMatch(texto)) {
+        bytes = [
+          for (var i = 0; i < 64; i += 2)
+            int.parse(texto.substring(i, i + 2), radix: 16)
+        ];
       }
-      return bytes.reversed
-          .map((b) => b.toRadixString(16).padLeft(2, '0'))
-          .join();
-    } catch (_) {
-      return bruto;
+
+      if (bytes == null) return texto;
     }
+
+    if (bytes.length != 32) {
+      return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    }
+
+    final ordem = ehOnchain ? bytes.reversed : bytes;
+    return ordem.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   }
 
   @override
@@ -267,7 +290,7 @@ class EmbeddedNodeApi implements NodeApi {
           if (msat == null) continue;
           final ehOnchain = p.kind is ldk.PaymentKind_Onchain;
           out.add(PaymentRecord(
-            id: _idDePagamento(p.id.field0.toString(), ehOnchain),
+            id: _idDePagamento(p.id.field0, ehOnchain),
             amountSats: (msat.toInt() / 1000).round(),
             isIncoming: p.direction == ldk.PaymentDirection.inbound,
             isOnchain: ehOnchain,

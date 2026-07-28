@@ -12,13 +12,9 @@ anyhow = "1.0.68"
 [dependencies]
 flutter_rust_bridge = "=2.0.0"
 anyhow = { version = "1.0.71"}
-# PORTE EM ANDAMENTO: 0.3.0 -> 0.7.0, para ter Network::Testnet4 nativo.
-# A 0.3.0 não conhece testnet4, então o nó anunciava o ChainHash da testnet3
-# enquanto as transações caíam na testnet4 — nenhum nó real aceitava os canais.
-#
-# A cópia local (vendor/ldk-node) era a 0.3.0 com patches nossos; ela sai de
-# cena aqui. Os patches estão registrados na memória do projeto e precisam ser
-# reavaliados contra a 0.7.0 (vários podem já estar corrigidos upstream).
+# 0.7.0 é a primeira versão com Network::Testnet4. Não voltar para a 0.3.0:
+# lá o nó anuncia o ChainHash da testnet3 enquanto as transações caem na
+# testnet4, e nenhum nó real aceita abrir canal.
 ldk-node = { version = "0.7.0" }
 
 # Cópia local do lightning-invoice 0.34.1 com UM patch: `From<Network> for

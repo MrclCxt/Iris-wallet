@@ -231,6 +231,8 @@ class _NodeHandle {
   bool houveSaidaDesdeLeituraBoa = false;
   bool varreduraDeResgatePedida = false;
 
+  Future<int>? varreduraEmAndamento;
+
   bool saldoConfirmadoPorSync = false;
   bool _eventLoopActive = false;
 
@@ -1921,17 +1923,15 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
     debugPrint('Saldo zerado contra valor conhecido — varredura completa de '
         'resgate disparada.');
-    try {
-      await handle.api!.fullScan();
-    } catch (e) {
-      debugPrint('Varredura de resgate falhou: $e');
-      handle.varreduraDeResgatePedida = false;
-      return;
-    }
 
-    handle.saldoConfirmadoPorSync = true;
-    await _refreshBalances(handle, aposVarreduraCompleta: true);
-    notifyListeners();
+    // Passa por deepScan em vez de chamar fullScan direto: assim o resgate
+    // divide o mesmo controle de "uma varredura por vez" com a varredura de
+    // boot, grava o marcador e reconstrói o histórico — em vez de repetir aqui
+    // uma versão pela metade disso tudo.
+    final delta = await deepScan(forMerchant: handle.isMerchant);
+    if (delta == 0 && handle.totalSats == 0) {
+      handle.varreduraDeResgatePedida = false;
+    }
   }
 
   String _lastBalanceKey(_NodeHandle handle) =>
@@ -2776,8 +2776,31 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
-  Future<int> deepScan({bool forMerchant = false}) async {
+  // Uma varredura completa são centenas de consultas ao Esplora (gap 150 nas duas
+  // cadeias, 4 concorrentes). Duas em paralelo é pedir 429 — e era o que
+  // acontecia: o nó reiniciava, o timer de 20s de `_varrerSePendente` armava de
+  // novo e duas varreduras se atropelavam, derrubando as duas. Quem chega depois
+  // espera o resultado da que já está correndo em vez de abrir outra.
+  Future<int> deepScan({bool forMerchant = false}) {
     final handle = forMerchant ? _merchantNode : _consumerNode;
+    final emAndamento = handle.varreduraEmAndamento;
+    if (emAndamento != null) {
+      debugPrint('Varredura completa já em andamento — aguardando aquela.');
+      return emAndamento;
+    }
+
+    final futuro = _deepScanInterno(handle, forMerchant: forMerchant);
+    handle.varreduraEmAndamento = futuro;
+    futuro.whenComplete(() {
+      if (identical(handle.varreduraEmAndamento, futuro)) {
+        handle.varreduraEmAndamento = null;
+      }
+    });
+    return futuro;
+  }
+
+  Future<int> _deepScanInterno(_NodeHandle handle,
+      {required bool forMerchant}) async {
     if (handle.api == null) return 0;
 
     final saldoAntes = handle.totalSats;

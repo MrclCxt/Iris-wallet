@@ -73,8 +73,16 @@ android {
             // Em desenvolvimento compila as libs Rust (ldk_node/lwk) só para a
             // ABI do aparelho de teste (arm64). Compilar as 4 ABIs levava horas
             // e enchia o disco. O release continua universal.
-            ndk {
-                abiFilters "arm64-v8a"
+            //
+            // O `if` não é decoração: com `flutter build apk --split-per-abi` o
+            // Gradle recusa abiFilters em QUALQUER buildType, mesmo o split
+            // valendo só para o release — a checagem é no módulo inteiro, e o
+            // build morre em "Conflicting configuration". A propriedade
+            // `split-per-abi` é definida pelo próprio Flutter nesse modo.
+            if (!project.hasProperty('split-per-abi')) {
+                ndk {
+                    abiFilters "arm64-v8a"
+                }
             }
             // Assina o debug com a MESMA chave permanente do release: assim o
             // app no aparelho pode ser atualizado sempre, sem desinstalar (o

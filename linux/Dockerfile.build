@@ -1,0 +1,57 @@
+# Compila a versão Linux num contêiner Ubuntu.
+#
+# Existe porque `flutter build linux` não roda a partir do Windows, e a máquina
+# de desenvolvimento é Windows. É a alternativa sem custo ao runner do GitHub
+# (repositório privado ⇒ minutos de Actions são cobrados).
+#
+#   docker build -f linux/Dockerfile.build -t iris-linux .
+#   docker create --name iris-tmp iris-linux
+#   docker cp iris-tmp:/saida/iris-wallet-linux-x64.tar.gz .
+#   docker rm iris-tmp
+#
+# O build acontece DENTRO da imagem, não num diretório montado: bind mount do
+# Windows para o contêiner é lento e mistura artefatos Linux com os do Windows
+# na mesma pasta `build/`.
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH="/flutter/bin:/root/.cargo/bin:${PATH}"
+
+# clang/cmake/ninja/pkg-config: exigidos pelo desktop embedder do Flutter.
+# libgtk-3-dev: o Flutter Linux desenha via GTK.
+# libsecret/libjsoncpp: flutter_secure_storage guarda a semente no chaveiro.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl git unzip xz-utils zip ca-certificates \
+        clang cmake ninja-build pkg-config \
+        libgtk-3-dev liblzma-dev libstdc++-12-dev \
+        libsecret-1-dev libjsoncpp-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Mesma versão do desenvolvimento local, para não introduzir diferença de SDK
+# entre o que foi testado e o que é distribuído.
+RUN git clone --depth 1 --branch 3.24.5 https://github.com/flutter/flutter.git /flutter \
+    && git config --global --add safe.directory /flutter \
+    && flutter --version
+
+# O cargokit compila ldk_node e lwk na hora; sem rustup ele aborta o build.
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable \
+    && rustup toolchain install nightly \
+    && rustup component add rust-src --toolchain nightly
+
+WORKDIR /app
+COPY . .
+
+# `flutter build` devolve 0 mesmo quando o cargokit falha em compilar o Rust —
+# ele reaproveita a biblioteca anterior e segue. Este projeto já distribuiu
+# binário desatualizado por semanas por causa disso. Recusar é o ponto.
+RUN flutter pub get \
+    && flutter build linux --release 2>&1 | tee /tmp/build.log \
+    && if grep -q SEVERE /tmp/build.log; then \
+         echo "cargokit reportou SEVERE — o Rust não compilou"; exit 1; \
+       fi
+
+RUN mkdir -p /saida \
+    && tar -czf /saida/iris-wallet-linux-x64.tar.gz \
+         -C build/linux/x64/release/bundle . \
+    && ls -la /saida

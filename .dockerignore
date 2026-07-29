@@ -1,0 +1,28 @@
+# Contexto enviado ao Docker no build da versão Linux.
+#
+# Sem isto o Docker copia `build/` e os `target/` do cargo — dezenas de GB de
+# artefatos de Windows e Android que não servem para nada dentro do contêiner,
+# e que fariam o envio do contexto demorar mais que a compilação em si.
+
+build/
+**/target/
+.dart_tool/
+.git/
+
+# Artefatos nativos já compilados de outras plataformas.
+**/*.so
+**/*.dll
+**/*.dylib
+**/*.apk
+**/*.aab
+**/Pods/
+**/.gradle/
+**/.cxx/
+
+# Segredos de assinatura. Não são necessários para o build Linux e não têm por
+# que entrar numa imagem.
+android/key.properties
+**/*.jks
+**/*.keystore
+
+**/.DS_Store

@@ -731,9 +731,6 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       // compara o que já está gravado — e prender a limpeza a `sync()` significa
       // que um aparelho sem rede, ou com o Esplora recusando, fica exibindo a
       // duplicata indefinidamente. Era o que estava acontecendo.
-      _dump('lido do disco ${destino.length}',
-          destino.map((t) => '${_curto(t.id)}|${t.amountSats}|${t.status}'));
-
       final limpou = _removerProvisoriosLegados(isMerchant: isMerchant) > 0;
       final titulos = _corrigirTitulosIncoerentes(isMerchant: isMerchant) > 0;
       final fundidas = _fundirDuplicatasInvertidas(isMerchant: isMerchant) > 0;
@@ -802,12 +799,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     var recuperadas = 0;
     var statusMudou = false;
     try {
-      final doNo = await handle.api!.listPayments();
-      _dump('nó devolveu ${doNo.length}',
-          doNo.map((p) => '${_curto(p.id)}|${p.amountSats}|${p.status}'
-              '|${p.isOnchain ? "chain" : "ln"}|${p.isIncoming ? "in" : "out"}'));
-
-      for (final p in doNo) {
+      for (final p in await handle.api!.listPayments()) {
         if (p.amountSats <= 0) continue;
 
         // Por identidade canônica, não por igualdade de texto: a linha gravada
@@ -874,9 +866,6 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
         statusMudou = true;
       }
       _fundirDuplicatasInvertidas(isMerchant: forMerchant);
-      _dump('histórico com ${lista.length}',
-          lista.map((t) => '${_curto(t.id)}|${t.amountSats}|${t.status}'));
-
       if (recuperadas > 0 || statusMudou) {
         lista.sort((a, b) => b.date.compareTo(a.date));
         await _salvarHistorico(forMerchant);
@@ -888,15 +877,10 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     return recuperadas;
   }
 
-  // Diagnóstico do histórico. Sem ver os ids CRUS não dá para distinguir "o nó
-  // devolveu a mesma transação duas vezes" de "o app guardou duas linhas para uma
-  // transação só" — e sem essa distinção a correção vira chute.
-  static String _curto(String id) =>
-      id.length <= 14 ? id : '${id.substring(0, 10)}…${id.substring(id.length - 4)}';
-
-  static void _dump(String rotulo, Iterable<String> itens) {
-    debugPrint('[histórico] $rotulo: ${itens.join("  ·  ")}');
-  }
+  // Encurta um id para caber numa linha de log sem virar ruído.
+  static String _curto(String id) => id.length <= 14
+      ? id
+      : '${id.substring(0, 10)}…${id.substring(id.length - 4)}';
 
   // `onchain_<millis>` e `onchain_pend_<millis>` eram ids inventados pelo app
   // quando ele mesmo criava a linha do recebimento. Isso não existe mais — a

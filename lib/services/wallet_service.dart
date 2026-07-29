@@ -937,6 +937,42 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     return removidos;
   }
 
+  /// Grava o status que a rede confirmou para uma transação.
+  ///
+  /// A tela de detalhes consulta o Esplora e sabe a verdade — se a transação
+  /// entrou em bloco e há quantas confirmações. Antes ela usava esse dado só
+  /// para pintar o próprio selo e o descartava ao fechar, então a lista e o
+  /// banner de "aguardando" continuavam com o valor velho: o usuário via
+  /// "Confirmada" no detalhe e "Aguardando confirmação" na mesma tela atrás.
+  ///
+  /// Casa por identidade canônica porque a linha gravada pode estar com o id na
+  /// outra ordem de bytes.
+  Future<void> aplicarStatusDaRede(
+    String id, {
+    required bool confirmada,
+    required bool isMerchant,
+  }) async {
+    final lista = isMerchant ? _merchantTransactions : _consumerTransactions;
+    final alvo = _idCanonico(id);
+    final novo = confirmada ? 'confirmed' : 'pending';
+
+    var mudou = false;
+    for (final t in lista) {
+      if (_idCanonico(t.id) != alvo) continue;
+      if (t.status == novo) continue;
+
+      t.status = novo;
+      if (t.isIncoming && t.emoji == '₿') {
+        t.title = tituloEntradaOnchain(novo);
+      }
+      mudou = true;
+    }
+
+    if (!mudou) return;
+    await _salvarHistorico(isMerchant);
+    notifyListeners();
+  }
+
   void _registrarTransacao(Transaction tx, {required bool isMerchant}) {
     final lista = isMerchant ? _merchantTransactions : _consumerTransactions;
 
@@ -2341,11 +2377,54 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       } else {
         _ultimoTotalVisto = total;
       }
+
+      await _conferirUmPendente(base, isMerchant: handle.isMerchant);
     } catch (e) {
       _vigiaEmEspera = 6;
       debugPrint('Vigia rápida pausada após falha: $e');
     }
   }
+
+  int _proximoPendente = 0;
+
+  /// Confere na rede o status de UMA transação pendente por ciclo.
+  ///
+  /// A tela de detalhes consultava o Esplora na hora e por isso confirmava
+  /// primeiro, enquanto a lista só mudava no ciclo de sync do nó — a cada 5
+  /// minutos. As duas mostravam a mesma transação com estados diferentes.
+  ///
+  /// Uma por ciclo, em rodízio: o que trava a sincronização não é a frequência
+  /// e sim o orçamento de requisições (o mempool.space devolve 429 e derruba o
+  /// sync inteiro). Como pendentes são poucos, o rodízio cobre todos em poucos
+  /// segundos sem somar carga relevante. Roda depois da checagem de endereço, o
+  /// que a faz herdar a mesma pausa por 429.
+  Future<void> _conferirUmPendente(String base,
+      {required bool isMerchant}) async {
+    final lista = isMerchant ? _merchantTransactions : _consumerTransactions;
+    final pendentes = lista
+        .where((t) => t.status == 'pending' && _pareceTxid(t.id))
+        .toList();
+    if (pendentes.isEmpty) return;
+
+    _proximoPendente = (_proximoPendente + 1) % pendentes.length;
+    final alvo = pendentes[_proximoPendente];
+
+    final r = await http
+        .get(Uri.parse('$base/tx/${alvo.id}'))
+        .timeout(const Duration(seconds: 8));
+    if (r.statusCode != 200) return;
+
+    final j = jsonDecode(r.body) as Map<String, dynamic>;
+    final st = (j['status'] as Map<String, dynamic>?) ?? const {};
+    if (st['confirmed'] != true) return;
+
+    debugPrint('Vigia rápida: ${_curto(alvo.id)} confirmou na rede.');
+    await aplicarStatusDaRede(alvo.id,
+        confirmada: true, isMerchant: isMerchant);
+  }
+
+  static bool _pareceTxid(String id) =>
+      id.length == 64 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(id);
 
   Future<void> _recoverDegradedNode(_NodeHandle handle) async {
     final seed = handle.runningSeed;

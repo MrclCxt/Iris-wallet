@@ -51,6 +51,10 @@ class MerchantHistoryScreen extends StatelessWidget {
                               tx: tx,
                               showSats: exchangeRate.isSatsDisplay,
                               brlRate: exchangeRate.btcToBrlRate,
+                              aoDescobrirStatus: (confirmada) =>
+                                  wallet.aplicarStatusDaRede(tx.id,
+                                      confirmada: confirmada,
+                                      isMerchant: true),
                             ),
                             borderRadius: BorderRadius.circular(10),
                             child: _buildTxItem(

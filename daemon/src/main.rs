@@ -144,7 +144,11 @@ fn handle(node: &Arc<Node>, method: &str, path: &str, body: Value) -> Result<Val
             let addr = format!("{host}:{port}")
                 .parse()
                 .map_err(|_| "endereço inválido")?;
-            node.connect_open_channel(pubkey, addr, amount, None, None, true)
+            // Canal privado, igual ao backend embarcado: anunciar publica o
+            // canal para a rede rotear, e o que este nó tem para anunciar é um
+            // endereço de rede local. Receber pagamento não depende disso —
+            // BOLT11 leva route hints e BOLT12 usa caminhos cegos.
+            node.connect_open_channel(pubkey, addr, amount, None, None, false)
                 .map_err(|e| e.to_string())?;
             Ok(json!({}))
         }

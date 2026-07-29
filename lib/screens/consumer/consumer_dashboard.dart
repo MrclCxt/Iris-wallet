@@ -329,6 +329,12 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                                         tx: wallet.consumerTransactions[i],
                                         showSats: exchangeRate.isSatsDisplay,
                                         brlRate: exchangeRate.btcToBrlRate,
+                                        aoDescobrirStatus: (confirmada) =>
+                                            wallet.aplicarStatusDaRede(
+                                          wallet.consumerTransactions[i].id,
+                                          confirmada: confirmada,
+                                          isMerchant: false,
+                                        ),
                                       ),
                                       borderRadius: BorderRadius.circular(10),
                                       child: Padding(
@@ -430,6 +436,9 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                   tx: tx,
                   showSats: exchangeRate.isSatsDisplay,
                   brlRate: exchangeRate.btcToBrlRate,
+                  aoDescobrirStatus: (confirmada) =>
+                      wallet.aplicarStatusDaRede(tx.id,
+                          confirmada: confirmada, isMerchant: false),
                 );
 
             return DataRow(

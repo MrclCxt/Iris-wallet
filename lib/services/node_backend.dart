@@ -405,11 +405,24 @@ class EmbeddedNodeApi implements NodeApi {
     required int port,
     required int amountSats,
   }) async {
+    // Canal PRIVADO (não anunciado). Duas razões, uma prática e uma correta:
+    //
+    // 1. `announceChannel: true` cai em `open_announced_channel`, que exige
+    //    `may_announce_channel`: endereços de escuta E um *node alias*. O alias
+    //    não está exposto na API Dart do ldk_node, então a chamada falhava
+    //    sempre com `Failed to create channel` — antes mesmo de tentar conectar.
+    //
+    // 2. Anunciar é publicar o canal para a rede toda rotear. Uma carteira num
+    //    celular ou num PC atrás de NAT não é nó de encaminhamento, e o que
+    //    seria anunciado é um IP de rede local, inútil para terceiros.
+    //
+    // Canal privado recebe pagamento normalmente: faturas BOLT11 carregam route
+    // hints e o BOLT12 usa caminhos cegos.
     await _n.connectOpenChannel(
       channelAmountSats: BigInt.from(amountSats),
       nodeId: ldk.PublicKey(hex: nodeId),
       socketAddress: ldk.SocketAddress.hostname(addr: host, port: port),
-      announceChannel: true,
+      announceChannel: false,
     );
   }
 

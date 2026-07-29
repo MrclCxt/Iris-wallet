@@ -33,11 +33,16 @@ class TxDetailsSheet extends StatefulWidget {
   final bool showSats;
   final double brlRate;
 
+  /// Recebe o status que a rede confirmou, para que a lista e o banner de
+  /// "aguardando" não fiquem contradizendo este mesmo painel.
+  final Future<void> Function(bool confirmada)? aoDescobrirStatus;
+
   const TxDetailsSheet({
     super.key,
     required this.tx,
     required this.showSats,
     required this.brlRate,
+    this.aoDescobrirStatus,
   });
 
   static Future<void> abrir(
@@ -45,13 +50,18 @@ class TxDetailsSheet extends StatefulWidget {
     required Transaction tx,
     required bool showSats,
     required double brlRate,
+    Future<void> Function(bool confirmada)? aoDescobrirStatus,
   }) {
     return showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) =>
-          TxDetailsSheet(tx: tx, showSats: showSats, brlRate: brlRate),
+      builder: (_) => TxDetailsSheet(
+        tx: tx,
+        showSats: showSats,
+        brlRate: brlRate,
+        aoDescobrirStatus: aoDescobrirStatus,
+      ),
     );
   }
 
@@ -148,6 +158,13 @@ class _TxDetailsSheetState extends State<TxDetailsSheet> {
           saidas: mapear(j['vout'] as List<dynamic>? ?? const [], false),
         );
       });
+
+      // A rede é a autoridade sobre confirmação. Devolver o resultado para o
+      // histórico evita o painel dizer "Confirmada" enquanto a lista atrás dele
+      // ainda mostra "Aguardando confirmação".
+      if (widget.tx.status != (confirmada ? 'confirmed' : 'pending')) {
+        await widget.aoDescobrirStatus?.call(confirmada);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {

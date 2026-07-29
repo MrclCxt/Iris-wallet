@@ -18,6 +18,18 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PATH="/flutter/bin:/root/.cargo/bin:${PATH}"
 
+# Compilação em série. O perfil de release deste projeto usa `lto = true` e
+# `codegen-units = 1` (ver packages/ldk_node/rust/Cargo.toml), o que deixa o LLVM
+# com um pico de memória alto por crate. Com o cargo compilando vários em
+# paralelo dentro do contêiner, a primeira tentativa derrubou o próprio Docker
+# Desktop: o clang crashou em `libsqlite3-sys` com stack dump do LLVM, `bitcoin`
+# e `miniscript` falharam junto, e a conexão com o daemon morreu com EOF —
+# assinatura de OOM, não de erro de código.
+#
+# Um job por vez troca tempo por memória. É lento e é o ponto.
+ENV CARGO_BUILD_JOBS=1
+ENV CMAKE_BUILD_PARALLEL_LEVEL=1
+
 # clang/cmake/ninja/pkg-config: exigidos pelo desktop embedder do Flutter.
 # libgtk-3-dev: o Flutter Linux desenha via GTK.
 # libsecret/libjsoncpp: flutter_secure_storage guarda a semente no chaveiro.

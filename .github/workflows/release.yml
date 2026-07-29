@@ -1,16 +1,18 @@
-# Gera instaladores para todas as plataformas e anexa a uma release.
+# Gera instaladores para Android, Linux, Windows e macOS e anexa a uma release.
 #
-# Dispare com uma tag (`git tag v0.1.0 && git push origin v0.1.0`) ou pelo botão
-# "Run workflow" na aba Actions.
+# SÓ RODA SE VOCÊ MANDAR. O gatilho por tag foi removido de propósito: este
+# repositório é privado, então minutos de Actions são COBRADOS, e o runner macOS
+# custa 10x. Com gatilho automático, um `git push --tags` de rotina viraria uma
+# execução paga sem ninguém pedir.
 #
-# ATENÇÃO AO CUSTO: o repositório é privado, então os minutos de Actions são
-# medidos. O runner macOS é cobrado a 10x, e compilar Rust em release é lento —
-# uma execução completa consome uma fatia relevante da cota gratuita mensal.
+# Para usar: aba Actions > Release > Run workflow.
+#
+# Enquanto isso, Android e Windows saem de graça na própria máquina, via
+# `publicar_release.ps1`. Este arquivo existe para o dia em que Linux e macOS
+# forem necessários — eles não têm como ser compilados no Windows local.
 name: Release
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
     inputs:
       versao:

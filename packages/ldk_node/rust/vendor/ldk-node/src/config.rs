@@ -98,7 +98,12 @@ pub(crate) const LDK_EVENT_HANDLER_SHUTDOWN_TIMEOUT_SECS: u64 = 30;
 pub(crate) const BACKGROUND_TASK_SHUTDOWN_TIMEOUT_SECS: u64 = 5;
 
 // The timeout after which we abort a fee rate cache update operation.
-pub(crate) const FEE_RATE_CACHE_UPDATE_TIMEOUT_SECS: u64 = 5;
+//
+// PATCH IRIS: era 5 (padrao do upstream). Este patch JA EXISTIA e se perdeu no
+// porte da 0.3 para a 0.7 — o valor voltou sozinho ao padrao. Cinco segundos nao
+// bastam contra o provedor unico de testnet4: medido no log do no, o timeout
+// estourava em exatamente 5,000s, em laco, e a partida nunca completava.
+pub(crate) const FEE_RATE_CACHE_UPDATE_TIMEOUT_SECS: u64 = 75;
 
 // The timeout after which we abort a transaction broadcast operation.
 //

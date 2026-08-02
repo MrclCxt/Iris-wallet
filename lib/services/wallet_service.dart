@@ -2255,6 +2255,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
     _reagendarSyncTimer();
     _ensureFastWatch();
+    _ensureVigiaDoNo();
   }
 
   bool _saldoSobSuspeita = false;
@@ -2268,6 +2269,49 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
         ? const Duration(minutes: 5)
         : const Duration(minutes: 10);
     _syncTimer = Timer.periodic(intervalo, (_) => _dispararSync?.call());
+  }
+
+  Timer? _vigiaDoNo;
+
+  /// Mantém o nó no ar enquanto o app existir, **independente de bloqueio**.
+  ///
+  /// Travar por inatividade não desliga o nó — `lock()` só troca duas flags, e
+  /// nenhuma chamada de `stop()` está ligada a ele. Mas o nó pode cair por conta
+  /// própria: falha na partida, recuperação por sync degradado, ou o sistema
+  /// matando a biblioteca nativa. Sem esta vigia, ele só voltava quando o
+  /// usuário desbloqueava e navegava — exatamente quando ele já não estava lá
+  /// para receber.
+  ///
+  /// Receber não exige carteira desbloqueada: o PIN protege *gastar* e *ver*, e
+  /// o nó precisa estar de pé para o dinheiro chegar.
+  void _ensureVigiaDoNo() {
+    _vigiaDoNo?.cancel();
+    _vigiaDoNo = Timer.periodic(const Duration(seconds: 30), (_) {
+      unawaited(_reerguerNoSeCaiu());
+    });
+  }
+
+  Future<void> _reerguerNoSeCaiu() async {
+    if (_startEmAndamento != null) return;
+
+    final conta = activeConsumer ?? activeMerchant;
+    final seed = conta?.seed;
+    if (seed == null || seed.isEmpty) return;
+
+    final handle = _deviceNode;
+    final fp = _seedFingerprint(seed);
+    final noPe = handle.isRunning &&
+        handle.api != null &&
+        handle.runningSeedFingerprint == fp;
+    if (noPe) return;
+
+    debugPrint('Vigia do nó: não está de pé para a carteira ativa — subindo.');
+    try {
+      await _startNode(handle, seed, _nodeDirFor(seed),
+          isMerchant: handle.isMerchant);
+    } catch (e) {
+      debugPrint('Vigia do nó: falha ao subir ($e) — nova tentativa em 30s.');
+    }
   }
 
   Timer? _fastWatchTimer;
@@ -3344,6 +3388,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _syncTimer?.cancel();
     _fastWatchTimer?.cancel();
+    _vigiaDoNo?.cancel();
     _paymentsCtrl.close();
     _consumerNode.stop();
     _merchantNode.stop();

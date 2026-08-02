@@ -251,9 +251,28 @@ impl Node {
 			e
 		})?;
 
-		// Block to ensure we update our fee rate cache once on startup
+		// PATCH IRIS: a atualizacao do cache de taxa NAO pode mais derrubar a partida.
+		//
+		// O original tinha `?` aqui, entao uma unica requisicao HTTP lenta impedia o no de
+		// existir. Medido no log de producao: `Updating fee rate estimates timed out` em
+		// exatamente 5,000s, seguido de novo `Starting up LDK Node`, em laco infinito — canal
+		// carregado corretamente, saldo zerado na tela, Lightning inacessivel. O usuario perdia a
+		// carteira inteira por causa da estimativa de taxa.
+		//
+		// Seguir sem o cache e seguro: `OnchainFeeEstimator::estimate_fee_rate` faz
+		// `unwrap_or(&fallback_rate)` quando o alvo nao esta no cache (fee_estimator.rs:70), e a
+		// tarefa periodica logo abaixo repopula. Taxa so importa na hora de enviar, e ate la o
+		// cache ja se encheu — enquanto RECEBER e ver saldo nao dependem dela em nada.
 		let chain_source = Arc::clone(&self.chain_source);
-		self.runtime.block_on(async move { chain_source.update_fee_rate_estimates().await })?;
+		if let Err(e) =
+			self.runtime.block_on(async move { chain_source.update_fee_rate_estimates().await })
+		{
+			log_error!(
+				self.logger,
+				"Cache de taxa nao atualizou na partida ({:?}); subindo assim mesmo — a tarefa periodica repoe.",
+				e
+			);
+		}
 
 		// Spawn background task continuously syncing onchain, lightning, and fee rate cache.
 		let stop_sync_receiver = self.stop_sender.subscribe();

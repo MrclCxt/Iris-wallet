@@ -4,6 +4,7 @@ import '../../widgets/max_width_container.dart';
 import '../consumer/security_screen.dart';
 import '../consumer/profile_screen.dart';
 import '../../widgets/area_switcher_btn.dart';
+import '../../widgets/pix_dev_gate.dart';
 
 class MerchantConfigScreen extends StatelessWidget {
   const MerchantConfigScreen({super.key});
@@ -67,12 +68,11 @@ class MerchantConfigScreen extends StatelessWidget {
                   icon: Icons.pix,
                   title: 'Pix / Reais · em breve',
                   subtitle: 'Em desenvolvimento e testes de integração',
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                          'Pix/Reais chega em breve. Por enquanto, a loja recebe '
-                          'em Bitcoin — Lightning e on-chain.'),
-                    ),
+                  onTap: () => PixDevGate.aoTocar(
+                    context,
+                    mensagemEmBreve:
+                        'Pix/Reais chega em breve. Por enquanto, a loja recebe '
+                        'em Bitcoin — Lightning e on-chain.',
                   ),
                 ),
               ],

@@ -4,6 +4,7 @@ import '../../widgets/max_width_container.dart';
 import 'security_screen.dart';
 import 'profile_screen.dart';
 import '../../widgets/area_switcher_btn.dart';
+import '../../widgets/pix_dev_gate.dart';
 
 class ConsumerConfigScreen extends StatelessWidget {
   const ConsumerConfigScreen({super.key});
@@ -68,12 +69,11 @@ class ConsumerConfigScreen extends StatelessWidget {
                   icon: Icons.pix,
                   title: 'Pix / Reais · em breve',
                   subtitle: 'Em desenvolvimento e testes de integração',
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                          'Pix/Reais chega em breve. Por enquanto, a carteira opera '
-                          'em Bitcoin — Lightning e on-chain.'),
-                    ),
+                  onTap: () => PixDevGate.aoTocar(
+                    context,
+                    mensagemEmBreve:
+                        'Pix/Reais chega em breve. Por enquanto, a carteira opera '
+                        'em Bitcoin — Lightning e on-chain.',
                   ),
                 ),
               ],

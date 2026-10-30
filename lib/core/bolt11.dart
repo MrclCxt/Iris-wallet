@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'rede.dart';
 
 class Bolt11ParseException implements Exception {
   final String message;
@@ -27,6 +28,7 @@ class Bolt11Data {
   int? get amountSats => amountMsat == null ? null : amountMsat! ~/ 1000;
   bool get isTestnet =>
       network == 'tb' || network == 'tbs' || network == 'bcrt';
+  bool get daRedeAtual => Rede.hrpFatura.contains(network);
   bool get isExpired => DateTime.now().isAfter(timestamp.add(expiry));
 }
 

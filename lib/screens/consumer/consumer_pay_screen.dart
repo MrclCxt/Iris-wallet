@@ -7,6 +7,7 @@ import 'package:image/image.dart' as img;
 import 'package:zxing2/qrcode.dart' as zx;
 import '../../core/theme.dart';
 import '../../core/bolt11.dart';
+import '../../core/rede.dart';
 import '../../core/brcode.dart';
 import '../../core/lnurl.dart';
 import '../../core/tx_policy.dart';
@@ -243,7 +244,7 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
     final s = input.toLowerCase();
     if (s.startsWith('bitcoin:')) return true;
     return RegExp(r'^(tb1|bc1)[a-z0-9]{20,}$').hasMatch(s) ||
-        RegExp(r'^[mn2][a-km-zA-HJ-NP-Z1-9]{25,39}$').hasMatch(input.trim());
+        RegExp(r'^[mn213][a-km-zA-HJ-NP-Z1-9]{25,39}$').hasMatch(input.trim());
   }
 
   ({String address, int? sats, String? lightning}) _parseBip21(String input) {
@@ -315,9 +316,9 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
         );
       } else if (Bolt11.looksLikeInvoice(input)) {
         final parsed = Bolt11.decode(input);
-        if (!parsed.isTestnet) {
+        if (!parsed.daRedeAtual) {
           _showError(
-              'Fatura da mainnet detectada — este app opera apenas na testnet4.');
+              'Fatura de outra rede — esta carteira opera na ${Rede.rotulo}.');
           return;
         }
         if (parsed.isExpired) {

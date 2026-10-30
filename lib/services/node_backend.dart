@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:ldk_node/ldk_node.dart' as ldk;
+import '../core/rede.dart';
 import 'esplora_servidores.dart';
 
 class PaymentRecord {
@@ -152,7 +153,8 @@ class EmbeddedNodeApi implements NodeApi {
         final builder = ldk.Builder()
           ..setEntropyBip39Mnemonic(
               mnemonic: ldk.Mnemonic(seedPhrase: mnemonic))
-          ..setNetwork(ldk.Network.testnet4)
+          ..setNetwork(
+              Rede.principal ? ldk.Network.bitcoin : ldk.Network.testnet4)
           ..setStorageDirPath(storagePath)
           ..setListeningAddresses([
             ldk.SocketAddress.hostname(addr: '0.0.0.0', port: listeningPort)
@@ -500,7 +502,7 @@ class RemoteNodeApi implements NodeApi {
     if (health['status'] != 'ok') {
       throw Exception('Daemon local não está saudável: $health');
     }
-    if (health['network'] != 'testnet4') {
+    if (health['network'] != Rede.nome) {
       throw Exception('Daemon local está em outra rede ou desatualizado '
           '(${health['network'] ?? 'sem rede informada'}); atualize o iris-noded.');
     }

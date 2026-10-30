@@ -12,6 +12,7 @@ import '../../widgets/currency_toggle_btn.dart';
 import '../../widgets/esplora_servers_dialog.dart';
 import '../../widgets/tx_status.dart';
 import '../../core/theme.dart';
+import '../../core/rede.dart';
 import '../../core/currency_format.dart';
 
 class _NodeCache {
@@ -368,7 +369,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
             tooltip: 'Sincronizar Nós',
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Sincronizando nó com a Testnet4...')));
+                  content: Text('Sincronizando nó com a ${Rede.rotulo}...')));
               _syncNode();
             },
           ),
@@ -706,7 +707,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
             ),
             const SizedBox(height: 16),
             const Center(
-                child: Text('Endereço Testnet4 (SegWit)',
+                child: Text('Endereço ${Rede.rotulo} (SegWit)',
                     style: TextStyle(
                         color: IrisTheme.textSecondary, fontSize: 12))),
             const SizedBox(height: 4),
@@ -741,15 +742,16 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Use um faucet de TESTNET4 neste endereço. Confira no explorador do faucet se o link é /testnet4/ — endereços de testnet3 e testnet4 são idênticos, e enviar na rede errada some com as moedas.',
-              style: TextStyle(
-                  color: IrisTheme.textTertiary,
-                  fontSize: 11,
-                  fontStyle: FontStyle.italic),
-              textAlign: TextAlign.center,
-            ),
+            if (!Rede.principal) const SizedBox(height: 8),
+            if (!Rede.principal)
+              const Text(
+                'Use um faucet de TESTNET4 neste endereço. Confira no explorador do faucet se o link é /testnet4/ — endereços de testnet3 e testnet4 são idênticos, e enviar na rede errada some com as moedas.',
+                style: TextStyle(
+                    color: IrisTheme.textTertiary,
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic),
+                textAlign: TextAlign.center,
+              ),
           ]
         ],
       ),

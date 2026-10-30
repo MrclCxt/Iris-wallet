@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:iris_wallet/core/rede.dart';
 import 'package:iris_wallet/services/node_backend.dart';
 
 /// Contrato entre o app e o iris-noded: as respostas abaixo são as que o
@@ -16,10 +17,19 @@ void main() {
         }),
       );
 
-  test('aceita daemon da testnet4', () async {
+  test('aceita daemon da mesma rede do build', () async {
     await api({
-      '/health': {'status': 'ok', 'network': 'testnet4'}
+      '/health': {'status': 'ok', 'network': Rede.nome}
     }).start();
+  });
+
+  test('recusa daemon de outra rede', () async {
+    final outra = Rede.principal ? 'testnet4' : 'bitcoin';
+    expect(
+        api({
+          '/health': {'status': 'ok', 'network': outra}
+        }).start(),
+        throwsException);
   });
 
   test('recusa daemon antigo, que não informa a rede', () async {

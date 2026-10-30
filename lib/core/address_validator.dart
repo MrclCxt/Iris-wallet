@@ -1,3 +1,6 @@
+import 'package:crypto/crypto.dart';
+import 'rede.dart';
+
 class ResultadoEndereco {
   final bool valido;
   final String? motivo;
@@ -37,6 +40,87 @@ class AddressValidator {
       out.add(c & 31);
     }
     return out;
+  }
+
+  static ResultadoEndereco validar(String entrada) =>
+      Rede.principal ? validarPrincipal(entrada) : validarTestnet(entrada);
+
+  static const _base58 =
+      '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+  static List<int>? _base58Check(String s) {
+    var n = BigInt.zero;
+    for (final c in s.split('')) {
+      final v = _base58.indexOf(c);
+      if (v < 0) return null;
+      n = n * BigInt.from(58) + BigInt.from(v);
+    }
+    final bytes = <int>[];
+    while (n > BigInt.zero) {
+      bytes.insert(0, (n % BigInt.from(256)).toInt());
+      n = n ~/ BigInt.from(256);
+    }
+    for (final c in s.split('')) {
+      if (c != '1') break;
+      bytes.insert(0, 0);
+    }
+    if (bytes.length != 25) return null;
+    final corpo = bytes.sublist(0, 21);
+    final soma = sha256.convert(sha256.convert(corpo).bytes).bytes;
+    for (var i = 0; i < 4; i++) {
+      if (soma[i] != bytes[21 + i]) return null;
+    }
+    return corpo;
+  }
+
+  static ResultadoEndereco validarPrincipal(String entrada) {
+    final addr = entrada.trim();
+    if (addr.isEmpty) return const ResultadoEndereco.erro('Endereço vazio.');
+
+    if (addr.contains(RegExp(r'\s'))) {
+      return const ResultadoEndereco.erro(
+          'O endereço contém espaços. Verifique se colou completo.');
+    }
+
+    final minusculo = addr.toLowerCase();
+
+    if (minusculo.startsWith('tb1') ||
+        minusculo.startsWith('bcrt1') ||
+        RegExp(r'^[mn2][a-km-zA-HJ-NP-Z1-9]{25,34}$').hasMatch(addr)) {
+      return const ResultadoEndereco.erro(
+          'Este é um endereço de rede de testes. '
+          'Enviar bitcoin de verdade para ele perderia os fundos.');
+    }
+
+    if (minusculo.startsWith('ltc1') || minusculo.startsWith('ln')) {
+      return const ResultadoEndereco.erro(
+          'Isto não é um endereço on-chain. Use a tela de Lightning.');
+    }
+
+    if (minusculo.startsWith('bc1')) {
+      if (addr != minusculo && addr != addr.toUpperCase()) {
+        return const ResultadoEndereco.erro(
+            'Endereço com maiúsculas e minúsculas misturadas é inválido.');
+      }
+      final r = _validarBech32(minusculo);
+      if (!r.valido) return r;
+      return ResultadoEndereco.ok(r.tipo!.replaceAll('(testnet)', '').trim());
+    }
+
+    if (RegExp(r'^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$').hasMatch(addr)) {
+      final corpo = _base58Check(addr);
+      if (corpo == null) {
+        return const ResultadoEndereco.erro(
+            'Endereço inválido: a verificação de integridade falhou. '
+            'Algum caractere está errado — confira ou peça de novo.');
+      }
+      if (corpo[0] == 0x00) return const ResultadoEndereco.ok('legado');
+      if (corpo[0] == 0x05) return const ResultadoEndereco.ok('script (P2SH)');
+      return const ResultadoEndereco.erro('Endereço de versão desconhecida.');
+    }
+
+    return const ResultadoEndereco.erro(
+        'Endereço não reconhecido. Endereços Bitcoin começam com "bc1", "1" ou "3".');
   }
 
   static ResultadoEndereco validarTestnet(String entrada) {

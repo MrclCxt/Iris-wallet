@@ -1,21 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/rede.dart';
 
 /// Servidores Esplora de onde o nó lê a blockchain. O padrão mistura
 /// operadores independentes; quem quiser põe o próprio servidor na frente.
 /// Nenhum entra na lista sem provar que está na mesma rede que o app.
 class EsploraServidores {
-  static const String genesisTestnet4 =
-      '00000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf043';
+  static const List<String> padrao = Rede.esploraPadrao;
 
-  static const List<String> padrao = [
-    'https://mempool.space/testnet4/api',
-    'https://blockstream.info/testnet4/api',
-    'https://mempool.va1.mempool.space/testnet4/api',
-  ];
-
-  static const String _chave = 'esplora_custom_tn4';
+  static const String _chave = Rede.chaveEsploraProprios;
 
   static String normalizar(String url) {
     var u = url.trim();
@@ -58,7 +52,7 @@ class EsploraServidores {
           .get(Uri.parse('$base/block-height/0'))
           .timeout(const Duration(seconds: 10));
       if (g.statusCode != 200) return 'não respondeu (HTTP ${g.statusCode})';
-      if (g.body.trim() != genesisTestnet4) return 'está em outra rede';
+      if (g.body.trim() != Rede.genesis) return 'está em outra rede';
       final f = await http
           .get(Uri.parse('$base/fee-estimates'))
           .timeout(const Duration(seconds: 10));

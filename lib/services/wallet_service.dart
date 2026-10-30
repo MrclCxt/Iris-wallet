@@ -13,6 +13,7 @@ import 'package:cryptography/cryptography.dart' show SecretKey;
 
 import '../core/address_validator.dart';
 import '../core/bolt11.dart';
+import '../core/rede.dart';
 import '../core/seed_crypto.dart';
 import '../core/vault_crypto.dart';
 import 'node_backend.dart';
@@ -485,7 +486,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   String? get deviceSeed => _deviceSeed;
 
   static String _nodeDirFor(String seed) =>
-      'ldk_tn4n_${_seedFingerprint(seed)}';
+      Rede.pastaNo(_seedFingerprint(seed));
 
   static String _seedFingerprint(String seed) {
     final normal = seed.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
@@ -701,7 +702,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
   String? _chaveDeArmazenamentoHistorico(bool isMerchant) {
     final id = isMerchant ? _activeMerchantId : _activeConsumerId;
-    return id == null ? null : 'tx_hist_v2_$id';
+    return id == null ? null : Rede.chaveHistorico(id);
   }
 
   Future<void> _carregarHistorico(bool isMerchant) async {
@@ -784,7 +785,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     _chavesDeHistorico.remove(accountId);
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('tx_hist_v2_$accountId');
+      await prefs.remove(Rede.chaveHistorico(accountId));
     } catch (e) {
       debugPrint('Falha ao apagar histórico da conta: $e');
     }
@@ -1866,7 +1867,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
       notifyListeners();
       debugPrint(
-          'Nó (${isMerchant ? 'loja' : 'pessoal'}) iniciado na testnet4 — backend ${handle.isRemote ? 'daemon local' : 'embarcado'}.');
+          'Nó (${isMerchant ? 'loja' : 'pessoal'}) iniciado na ${Rede.rotulo} — backend ${handle.isRemote ? 'daemon local' : 'embarcado'}.');
     } catch (e) {
       debugPrint(
           'Falha ao iniciar nó (${isMerchant ? 'loja' : 'pessoal'}): $e');
@@ -2123,7 +2124,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   String _lastBalanceKey(_NodeHandle handle) =>
-      'last_balance_tn4_${handle.runningSeedFingerprint ?? 'desconhecido'}';
+      Rede.chaveUltimoSaldo(handle.runningSeedFingerprint ?? 'desconhecido');
 
   final Map<String, ({int total, int spendable, int lightning})>
       _saldosConhecidos = {};
@@ -2165,7 +2166,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     if (_saldosConhecidos.containsKey(fp)) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString('last_balance_tn4_$fp');
+      final raw = prefs.getString(Rede.chaveUltimoSaldo(fp));
       if (raw == null) return;
       final p = raw.split(':');
       if (p.length != 3) return;
@@ -2482,12 +2483,12 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     final prefs = await SharedPreferences.getInstance();
     for (final a in _merchantAccounts) {
       await prefs.remove('merchant_products_${a.id}');
-      await prefs.remove('tx_hist_v2_${a.id}');
+      await prefs.remove(Rede.chaveHistorico(a.id));
       await ProductImageStore.apagarLoja(a.id);
       await AvatarImageStore.apagarConta(a.id);
     }
     for (final a in _consumerAccounts) {
-      await prefs.remove('tx_hist_v2_${a.id}');
+      await prefs.remove(Rede.chaveHistorico(a.id));
       await AvatarImageStore.apagarConta(a.id);
     }
 
@@ -2632,7 +2633,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   final Map<String, String> _enderecosProprios = {};
   String? _fpDosEnderecosProprios;
 
-  String _chaveEnderecosProprios(String fp) => 'meus_enderecos_tn4_$fp';
+  String _chaveEnderecosProprios(String fp) => Rede.chaveEnderecosProprios(fp);
 
   Future<void> _carregarEnderecosProprios(String fingerprint) async {
     if (_fpDosEnderecosProprios == fingerprint) return;
@@ -2686,28 +2687,28 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     final id = isMerchant ? _activeMerchantId : _activeConsumerId;
     if (id == null) return null;
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('fixed_invoice_tn4n_$id');
+    return prefs.getString(Rede.chaveFaturaFixa(id));
   }
 
   Future<void> _saveFixedInvoice(bool isMerchant, String invoice) async {
     final id = isMerchant ? _activeMerchantId : _activeConsumerId;
     if (id == null) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('fixed_invoice_tn4n_$id', invoice);
+    await prefs.setString(Rede.chaveFaturaFixa(id), invoice);
   }
 
   Future<String?> _loadOnchainAddress(bool isMerchant) async {
     final id = isMerchant ? _activeMerchantId : _activeConsumerId;
     if (id == null) return null;
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('onchain_addr_tn4_$id');
+    return prefs.getString(Rede.chaveEnderecoOnchain(id));
   }
 
   Future<void> _saveOnchainAddress(bool isMerchant, String address) async {
     final id = isMerchant ? _activeMerchantId : _activeConsumerId;
     if (id == null) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('onchain_addr_tn4_$id', address);
+    await prefs.setString(Rede.chaveEnderecoOnchain(id), address);
   }
 
   Future<void> restartNode({bool forMerchant = false}) async {
@@ -3225,6 +3226,9 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     }
 
     final parsed = Bolt11.decode(invoiceStr);
+    if (!parsed.daRedeAtual) {
+      throw Exception('Fatura de outra rede — esta carteira opera na ${Rede.rotulo}.');
+    }
     if (parsed.isExpired) {
       throw Exception('Fatura expirada.');
     }
@@ -3263,7 +3267,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       'status': 'sent',
       'paymentHash': parsed.paymentHashHex,
       'nerdData':
-          '[ LIGHTNING LDK ]\nPayment Hash: ${parsed.paymentHashHex}\nValor: $sats sats\nRede: Testnet4',
+          '[ LIGHTNING LDK ]\nPayment Hash: ${parsed.paymentHashHex}\nValor: $sats sats\nRede: ${Rede.rotulo}',
     };
   }
 
@@ -3271,7 +3275,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       {required String address, required int sats}) async {
     final handle = _consumerNode;
 
-    final endereco = AddressValidator.validarTestnet(address);
+    final endereco = AddressValidator.validar(address);
     if (!endereco.valido) {
       throw Exception(endereco.motivo);
     }

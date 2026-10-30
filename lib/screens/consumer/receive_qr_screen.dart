@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import '../../core/theme.dart';
+import '../../core/rede.dart';
 import '../../core/currency_format.dart';
 import '../../core/bolt11.dart';
 import '../../core/tx_policy.dart';
@@ -629,7 +630,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Text(
-                        'Endereço Bitcoin testnet4 — confirmação em ~10 min por bloco',
+                        'Endereço Bitcoin ${Rede.rotulo} — confirmação em ~10 min por bloco',
                         style: TextStyle(
                             color: IrisTheme.primary,
                             fontSize: 11,

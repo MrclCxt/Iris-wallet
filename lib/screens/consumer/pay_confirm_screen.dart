@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
+import '../../core/rede.dart';
 import '../../core/currency_format.dart';
 import '../../core/bolt11.dart';
 import '../../core/lnurl.dart';
@@ -429,8 +430,8 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
         : _isLiquid
             ? 'Liquid (testnet)'
             : _isOnchain
-                ? 'Bitcoin on-chain (testnet4)'
-                : 'Lightning (testnet4)';
+                ? 'Bitcoin on-chain (${Rede.rotulo})'
+                : 'Lightning (${Rede.rotulo})';
 
     final availableSats = _availableSats(wallet, liquid);
     final amountSats = _amountSats(exchangeRate);

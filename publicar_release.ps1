@@ -1,6 +1,7 @@
 # Gera os instaladores e publica uma release no GitHub.
 #
 #   .\publicar_release.ps1 -Versao v0.1.0
+#   .\publicar_release.ps1 -Versao v0.1.0 -Rede bitcoin   # rede principal
 #
 # O repositório é PRIVADO: os links exigem login no GitHub com acesso a ele.
 # Isso é proposital — é uma carteira em desenvolvimento, na testnet4.
@@ -8,6 +9,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$Versao,
     [string]$Notas = "",
+    [ValidateSet("testnet4", "bitcoin")][string]$Rede = "testnet4",
     [switch]$PularBuild
 )
 
@@ -15,13 +17,15 @@ $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
 $saida = Join-Path $PSScriptRoot "build\release"
+$defineRede = "--dart-define=IRIS_REDE=$Rede"
+$sufixo = if ($Rede -eq "bitcoin") { "" } else { "-testnet4" }
 New-Item -ItemType Directory -Force $saida | Out-Null
 
 if (-not $PularBuild) {
     # O APK universal traz arm64, arm 32-bit e x86_64 — instala em qualquer
     # aparelho. Demora porque o Rust é recompilado em release por arquitetura.
     Write-Host "==> APK universal (demorado: Rust em release por arquitetura)"
-    flutter build apk --release
+    flutter build apk --release $defineRede
     if ($LASTEXITCODE -ne 0) { throw "build do APK falhou" }
 
     # O cargokit pode falhar em compilar o Rust e o Gradle segue empacotando a
@@ -29,7 +33,7 @@ if (-not $PularBuild) {
     # semanas despercebido: verificar é obrigatório, não zelo extra.
     Write-Host "==> Windows"
     $log = Join-Path $env:TEMP "iris_win_build.log"
-    flutter build windows --release 2>&1 | Tee-Object -FilePath $log
+    flutter build windows --release $defineRede 2>&1 | Tee-Object -FilePath $log
     if ($LASTEXITCODE -ne 0) {
         if (Select-String -Path $log -Pattern "LNK1104" -Quiet) {
             throw "LNK1104: feche o Iris Wallet no PC — ele segura o iris_wallet.exe"
@@ -43,14 +47,14 @@ if (-not $PularBuild) {
 
 $apkOrigem = "build\app\outputs\flutter-apk\app-release.apk"
 if (-not (Test-Path $apkOrigem)) { throw "APK não encontrado em $apkOrigem" }
-$apk = Join-Path $saida "iris-wallet-$Versao.apk"
+$apk = Join-Path $saida "iris-wallet-$Versao$sufixo.apk"
 Copy-Item $apkOrigem $apk -Force
 
 # O .exe sozinho não roda: precisa das DLLs do Flutter, das bibliotecas Rust
 # (ldk_node/lwk) e da pasta data. Vai a pasta inteira, compactada.
 $winDir = "build\windows\x64\runner\Release"
 if (-not (Test-Path "$winDir\iris_wallet.exe")) { throw "executável não encontrado em $winDir" }
-$zip = Join-Path $saida "iris-wallet-$Versao-windows.zip"
+$zip = Join-Path $saida "iris-wallet-$Versao$sufixo-windows.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path "$winDir\*" -DestinationPath $zip
 
@@ -82,7 +86,7 @@ Commit: $(git rev-parse --short HEAD)
 
 Write-Host ""
 Write-Host "==> Publicando release $Versao"
-gh release create $Versao $apk $zip --title "Iris Wallet $Versao" --notes $corpo
+gh release create $Versao $apk $zip --title "Iris Wallet $Versao ($Rede)" --notes $corpo
 if ($LASTEXITCODE -ne 0) { throw "gh release create falhou" }
 
 gh release view $Versao --json url --jq .url

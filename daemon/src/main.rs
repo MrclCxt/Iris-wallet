@@ -9,14 +9,56 @@ use std::fs;
 use std::str::FromStr;
 use std::sync::Arc;
 
-const GENESIS_TESTNET4: &str =
-    "00000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf043";
+#[derive(Clone, Copy, PartialEq, clap::ValueEnum)]
+enum Rede {
+    Testnet4,
+    Bitcoin,
+}
 
-const ESPLORAS_PADRAO: [&str; 3] = [
-    "https://mempool.space/testnet4/api",
-    "https://blockstream.info/testnet4/api",
-    "https://mempool.va1.mempool.space/testnet4/api",
-];
+impl Rede {
+    fn network(self) -> Network {
+        match self {
+            Rede::Testnet4 => Network::Testnet4,
+            Rede::Bitcoin => Network::Bitcoin,
+        }
+    }
+
+    fn nome(self) -> &'static str {
+        match self {
+            Rede::Testnet4 => "testnet4",
+            Rede::Bitcoin => "bitcoin",
+        }
+    }
+
+    fn genesis(self) -> &'static str {
+        match self {
+            Rede::Testnet4 => "00000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf043",
+            Rede::Bitcoin => "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
+        }
+    }
+
+    fn esploras(self) -> [&'static str; 3] {
+        match self {
+            Rede::Testnet4 => [
+                "https://mempool.space/testnet4/api",
+                "https://blockstream.info/testnet4/api",
+                "https://mempool.va1.mempool.space/testnet4/api",
+            ],
+            Rede::Bitcoin => [
+                "https://mempool.space/api",
+                "https://blockstream.info/api",
+                "https://mempool.va1.mempool.space/api",
+            ],
+        }
+    }
+
+    fn pasta_padrao(self) -> &'static str {
+        match self {
+            Rede::Testnet4 => "./iris_node_data_tn4n",
+            Rede::Bitcoin => "./iris_node_data_main",
+        }
+    }
+}
 
 #[derive(Parser)]
 #[command(version, about)]
@@ -24,8 +66,12 @@ struct Args {
     #[arg(long)]
     mnemonic_file: String,
 
-    #[arg(long, default_value = "./iris_node_data_tn4n")]
-    data_dir: String,
+    #[arg(long, value_enum, default_value = "testnet4")]
+    rede: Rede,
+
+    /// Padrão: ./iris_node_data_tn4n na testnet4, ./iris_node_data_main na Bitcoin.
+    #[arg(long)]
+    data_dir: Option<String>,
 
     #[arg(long, default_value_t = 8380)]
     port: u16,
@@ -98,9 +144,9 @@ fn pagamentos(node: &Node) -> Value {
     json!({ "payments": lista })
 }
 
-fn handle(node: &Arc<Node>, method: &str, path: &str, body: Value) -> Result<Value, String> {
+fn handle(node: &Arc<Node>, rede: Rede, method: &str, path: &str, body: Value) -> Result<Value, String> {
     match (method, path) {
-        ("GET", "/health") => Ok(json!({ "status": "ok", "network": "testnet4" })),
+        ("GET", "/health") => Ok(json!({ "status": "ok", "network": rede.nome() })),
         ("GET", "/node_id") => Ok(json!({ "node_id": node.node_id().to_string() })),
         ("GET", "/balances") => {
             let b = node.list_balances();
@@ -155,7 +201,7 @@ fn handle(node: &Arc<Node>, method: &str, path: &str, body: Value) -> Result<Val
             let address = address_str
                 .parse::<ldk_node::bitcoin::Address<_>>()
                 .map_err(|e| format!("endereço inválido: {e}"))?
-                .require_network(Network::Testnet4)
+                .require_network(rede.network())
                 .map_err(|_| "endereço de outra rede".to_string())?;
             let txid = node
                 .onchain_payment()
@@ -237,13 +283,13 @@ fn handle(node: &Arc<Node>, method: &str, path: &str, body: Value) -> Result<Val
 }
 
 /// `None` quando o servidor está pronto; senão, o motivo.
-fn verificar_esplora(base: &str) -> Option<String> {
+fn verificar_esplora(base: &str, rede: Rede) -> Option<String> {
     let timeout = std::time::Duration::from_secs(8);
     let genesis = match ureq::get(&format!("{base}/block-height/0")).timeout(timeout).call() {
         Ok(r) => r.into_string().unwrap_or_default(),
         Err(e) => return Some(format!("indisponível ({e})")),
     };
-    if genesis.trim() != GENESIS_TESTNET4 {
+    if genesis.trim() != rede.genesis() {
         return Some("está em outra rede".into());
     }
     match ureq::get(&format!("{base}/fee-estimates")).timeout(timeout).call() {
@@ -252,17 +298,17 @@ fn verificar_esplora(base: &str) -> Option<String> {
     }
 }
 
-fn esploras_em_ordem(proprios: &[String]) -> Vec<String> {
+fn esploras_em_ordem(proprios: &[String], rede: Rede) -> Vec<String> {
     let mut lista: Vec<String> = Vec::new();
     for u in proprios.iter().map(|s| s.trim_end_matches('/').to_string())
-        .chain(ESPLORAS_PADRAO.iter().map(|s| s.to_string()))
+        .chain(rede.esploras().iter().map(|s| s.to_string()))
     {
         if !lista.contains(&u) {
             lista.push(u);
         }
     }
     for i in 0..lista.len() {
-        match verificar_esplora(&lista[i]) {
+        match verificar_esplora(&lista[i], rede) {
             None => {
                 println!("iris-noded: Esplora escolhido: {}", lista[i]);
                 lista.rotate_left(i);
@@ -277,15 +323,17 @@ fn esploras_em_ordem(proprios: &[String]) -> Vec<String> {
 
 fn construir_e_iniciar(mnemonic: &str, args: &Args) -> Node {
     const TENTATIVAS: usize = 3;
-    let esploras = esploras_em_ordem(&args.esplora);
+    let esploras = esploras_em_ordem(&args.esplora, args.rede);
     let mut ultimo_erro = None;
 
     for tentativa in 0..TENTATIVAS {
         let esplora = esploras[tentativa % esploras.len()].clone();
         let mut builder = Builder::new();
         builder.set_entropy_bip39_mnemonic(mnemonic.parse().expect("mnemônica inválida"), None);
-        builder.set_network(Network::Testnet4);
-        builder.set_storage_dir_path(args.data_dir.clone());
+        builder.set_network(args.rede.network());
+        builder.set_storage_dir_path(
+            args.data_dir.clone().unwrap_or_else(|| args.rede.pasta_padrao().to_string()),
+        );
         builder.set_chain_source_esplora(esplora.clone(), None);
 
         let resultado = builder
@@ -319,7 +367,7 @@ fn main() {
 
     let node = Arc::new(construir_e_iniciar(&mnemonic, &args));
 
-    println!("iris-noded: nó {} rodando (testnet4)", node.node_id());
+    println!("iris-noded: nó {} rodando ({})", node.node_id(), args.rede.nome());
 
     let server = tiny_http::Server::http(("127.0.0.1", args.port))
         .expect("falha ao abrir a porta local");
@@ -333,7 +381,7 @@ fn main() {
         let _ = request.as_reader().read_to_string(&mut body_str);
         let body: Value = serde_json::from_str(&body_str).unwrap_or(json!({}));
 
-        let (status, payload) = match handle(&node, &method, &path, body) {
+        let (status, payload) = match handle(&node, args.rede, &method, &path, body) {
             Ok(v) => (200, v),
             Err(e) => (500, json!({ "error": e })),
         };

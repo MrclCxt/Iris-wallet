@@ -32,6 +32,12 @@ Usa o mesmo ldk-node 0.7 e os mesmos remendos do app (cópias em
 `./iris_node_data_tn4n` — uma pasta de daemon antigo (0.3, testnet3) não é
 reaproveitada.
 
+### Rede
+
+Testnet4 por padrão. `--rede bitcoin` roda na rede principal, com pasta de
+dados própria (`./iris_node_data_main`) e Esploras da rede principal. O app só
+aceita um daemon da mesma rede para a qual foi compilado.
+
 ### Servidores Esplora
 
 Por padrão o daemon testa, em ordem, mempool.space, Blockstream e o espelho

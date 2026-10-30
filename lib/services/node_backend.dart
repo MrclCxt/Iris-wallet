@@ -68,8 +68,14 @@ class NodeEvent {
   final String type;
   final String paymentHashHex;
   final int amountMsat;
+
+  /// Em `payment_claimable`: altura de bloco até a qual a trava vale.
+  final int? claimDeadline;
   const NodeEvent(
-      {required this.type, this.paymentHashHex = '', this.amountMsat = 0});
+      {required this.type,
+      this.paymentHashHex = '',
+      this.amountMsat = 0,
+      this.claimDeadline});
 }
 
 abstract class NodeApi {
@@ -97,6 +103,20 @@ abstract class NodeApi {
 
   /// Transmite uma transação já assinada, recebida de outro aparelho.
   Future<String> broadcastTx(String txHex);
+
+  /// Garantia de troca: fatura para um hash cujo segredo só o outro lado tem.
+  /// O pagamento chega como `payment_claimable` e fica travado até [resgatarTrava]
+  /// (com o segredo) ou [recusarTrava] — ou o prazo vencer e voltar ao pagador.
+  Future<String> criarFaturaComHash(
+      {required String hashHex,
+      required int amountMsat,
+      required String description,
+      required int expirySecs});
+  Future<void> resgatarTrava(
+      {required String hashHex,
+      required String segredoHex,
+      required int amountMsat});
+  Future<void> recusarTrava(String hashHex);
   Future<List<ChannelSummary>> channels();
   Future<void> openChannel({
     required String nodeId,
@@ -364,6 +384,44 @@ class EmbeddedNodeApi implements NodeApi {
   @override
   Future<String> broadcastTx(String txHex) => transmitirPorEsplora(txHex);
 
+  static ldk.U8Array32 _arr32(String hex) => ldk.U8Array32(_hexToBytes(hex));
+
+  @override
+  Future<String> criarFaturaComHash(
+      {required String hashHex,
+      required int amountMsat,
+      required String description,
+      required int expirySecs}) async {
+    final bolt11 = await _n.bolt11Payment();
+    final inv = await bolt11.receiveForHash(
+      paymentHash: ldk.PaymentHash(data: _arr32(hashHex)),
+      amountMsat: BigInt.from(amountMsat),
+      description: description,
+      expirySecs: expirySecs,
+    );
+    return inv.signedRawInvoice;
+  }
+
+  @override
+  Future<void> resgatarTrava(
+      {required String hashHex,
+      required String segredoHex,
+      required int amountMsat}) async {
+    final bolt11 = await _n.bolt11Payment();
+    await bolt11.claimForHash(
+      paymentHash: ldk.PaymentHash(data: _arr32(hashHex)),
+      claimableAmountMsat: BigInt.from(amountMsat),
+      preimage: ldk.PaymentPreimage(data: _arr32(segredoHex)),
+    );
+  }
+
+  @override
+  Future<void> recusarTrava(String hashHex) async {
+    final bolt11 = await _n.bolt11Payment();
+    await bolt11.failForHash(
+        paymentHash: ldk.PaymentHash(data: _arr32(hashHex)));
+  }
+
   /// Tenta o servidor em uso e depois os demais: quem transmite um pagamento
   /// recebido offline pode estar com a rede instável.
   static Future<String> transmitirPorEsplora(String txHex) async {
@@ -500,6 +558,12 @@ class EmbeddedNodeApi implements NodeApi {
       paymentFailed: (id, hash, reason) => NodeEvent(
         type: 'payment_failed',
         paymentHashHex: _hashHex(hash),
+      ),
+      paymentClaimable: (id, hash, amountMsat, deadline) => NodeEvent(
+        type: 'payment_claimable',
+        paymentHashHex: _hashHex(hash),
+        amountMsat: amountMsat.toInt(),
+        claimDeadline: deadline,
       ),
       orElse: () => const NodeEvent(type: 'other'),
     );
@@ -653,6 +717,38 @@ class RemoteNodeApi implements NodeApi {
   }
 
   @override
+  Future<String> criarFaturaComHash(
+      {required String hashHex,
+      required int amountMsat,
+      required String description,
+      required int expirySecs}) async {
+    final r = await _post('/hold_invoice', {
+      'payment_hash': hashHex,
+      'amount_msat': amountMsat,
+      'description': description,
+      'expiry_secs': expirySecs,
+    });
+    return r['invoice'] as String;
+  }
+
+  @override
+  Future<void> resgatarTrava(
+      {required String hashHex,
+      required String segredoHex,
+      required int amountMsat}) async {
+    await _post('/claim', {
+      'payment_hash': hashHex,
+      'preimage': segredoHex,
+      'amount_msat': amountMsat,
+    });
+  }
+
+  @override
+  Future<void> recusarTrava(String hashHex) async {
+    await _post('/fail', {'payment_hash': hashHex});
+  }
+
+  @override
   Future<List<ChannelSummary>> channels() async {
     final r = await _get('/channels');
     final list = (r['channels'] as List?) ?? [];
@@ -722,6 +818,7 @@ class RemoteNodeApi implements NodeApi {
       type: e['type']?.toString() ?? 'other',
       paymentHashHex: e['payment_hash']?.toString() ?? '',
       amountMsat: (e['amount_msat'] as num?)?.toInt() ?? 0,
+      claimDeadline: (e['claim_deadline'] as num?)?.toInt(),
     );
   }
 

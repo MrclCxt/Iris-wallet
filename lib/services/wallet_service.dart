@@ -166,6 +166,16 @@ class AccountProfile {
       );
 }
 
+/// Pagamento de troca que chegou travado (garantia por hold invoice): só entra
+/// na carteira quando o segredo de quem pagou for usado em [WalletService.resgatarTrava].
+class TravaRecebida {
+  final String hashHex;
+  final int amountMsat;
+  final int? prazoBloco;
+  const TravaRecebida(
+      {required this.hashHex, required this.amountMsat, this.prazoBloco});
+}
+
 class ReceivedPayment {
   final bool isMerchant;
   final String paymentHashHex;
@@ -499,6 +509,40 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       StreamController<ReceivedPayment>.broadcast();
 
   Stream<ReceivedPayment> get paymentsReceived => _paymentsCtrl.stream;
+
+  final StreamController<TravaRecebida> _travasCtrl =
+      StreamController<TravaRecebida>.broadcast();
+
+  Stream<TravaRecebida> get travasRecebidas => _travasCtrl.stream;
+
+  NodeApi _apiPessoal() {
+    final api = _consumerNode.api;
+    if (!_consumerNode.isRunning || api == null) {
+      throw Exception('A carteira ainda não conectou à rede.');
+    }
+    return api;
+  }
+
+  Future<String> criarFaturaDeTroca(
+          {required String hashHex, required int sats}) =>
+      _apiPessoal().criarFaturaComHash(
+        hashHex: hashHex,
+        amountMsat: sats * 1000,
+        description: 'Iris: troca',
+        expirySecs: 3600,
+      );
+
+  Future<void> resgatarTrava(
+      {required String hashHex,
+      required String segredoHex,
+      required int amountMsat}) async {
+    await _apiPessoal().resgatarTrava(
+        hashHex: hashHex, segredoHex: segredoHex, amountMsat: amountMsat);
+    unawaited(_refreshBalances(_consumerNode));
+  }
+
+  Future<void> recusarTrava(String hashHex) =>
+      _apiPessoal().recusarTrava(hashHex);
 
   static bool ehOfferBolt12(String? codigo) =>
       codigo != null && codigo.trim().toLowerCase().startsWith('lno');
@@ -1930,6 +1974,13 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
                   debugPrint('Falha ao regenerar fatura fixa: $e');
                 }
               }
+              break;
+            case 'payment_claimable':
+              _travasCtrl.add(TravaRecebida(
+                hashHex: event.paymentHashHex,
+                amountMsat: event.amountMsat,
+                prazoBloco: event.claimDeadline,
+              ));
               break;
             case 'payment_successful':
             case 'payment_failed':

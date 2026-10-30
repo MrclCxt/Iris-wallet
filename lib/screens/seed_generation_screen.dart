@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/wallet_service.dart';
+import '../../core/entropia.dart';
 import '../../core/theme.dart';
 
 class SeedGenerationScreen extends StatefulWidget {
@@ -19,6 +20,58 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<WalletService>().initWallet();
     });
+  }
+
+  /// Dados ou moeda jogados pelo usuário entram SOMADOS à entropia do
+  /// sistema (SHA-256 das duas) — nunca no lugar dela. Ver core/entropia.dart.
+  Future<void> _misturarDados() async {
+    final ctrl = TextEditingController();
+    final jogadas = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          backgroundColor: IrisTheme.s1,
+          title: const Text('Dados ou moeda',
+              style: TextStyle(color: IrisTheme.textPrimary, fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Jogue um dado de verdade e digite cada resultado (1 a 6), ou '
+                'uma moeda (C = cara, K = coroa). Isso se SOMA ao sorteio do '
+                'aparelho: nem quem viu as jogadas consegue prever as palavras.',
+                style: TextStyle(color: IrisTheme.textSecondary, fontSize: 12, height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                autofocus: true,
+                onChanged: (_) => setD(() {}),
+                style: const TextStyle(color: IrisTheme.textPrimary, letterSpacing: 2),
+                decoration: const InputDecoration(hintText: 'ex.: 3 6 1 4 2 5 …'),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                  '+${Entropia.bitsDoUsuario(ctrl.text).toStringAsFixed(0)} bits '
+                  '(50 jogadas de dado ≈ 129 bits, só com elas já bastaria)',
+                  style: const TextStyle(color: IrisTheme.textTertiary, fontSize: 11)),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, ctrl.text),
+                child: const Text('Misturar')),
+          ],
+        ),
+      ),
+    );
+    if (jogadas == null || Entropia.bitsDoUsuario(jogadas) == 0 || !mounted) return;
+    context.read<WalletService>().resetAndGenerateSeed(
+        words: _quantidadeDePalavras, dadosOuMoeda: jogadas);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Palavras novas geradas com as suas jogadas.')));
   }
 
   void _criarComTamanho(int palavras) {
@@ -321,9 +374,17 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
                               fontFamily: 'Outfit'),
                         ),
                         onPressed: () {
-                          context.read<WalletService>().resetAndGenerateSeed();
+                          context.read<WalletService>().resetAndGenerateSeed(
+                              words: _quantidadeDePalavras);
                         },
                         child: const Text('Gerar palavras novas'),
+                      ),
+                      TextButton.icon(
+                        onPressed: _misturarDados,
+                        icon: const Icon(Icons.casino_outlined,
+                            size: 18, color: IrisTheme.textSecondary),
+                        label: const Text('Misturar com dados ou moeda (opcional)',
+                            style: TextStyle(color: IrisTheme.textSecondary)),
                       ),
                       const SizedBox(height: 8),
                       TextButton(

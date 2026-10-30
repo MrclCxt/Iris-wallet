@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:cryptography/cryptography.dart' show SecretKey;
 
 import '../core/address_validator.dart';
+import '../core/entropia.dart';
 import '../core/bolt11.dart';
 import '../core/rede.dart';
 import '../core/seed_crypto.dart';
@@ -1720,18 +1721,19 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     return _consumerAccounts.isNotEmpty || _merchantAccounts.isNotEmpty;
   }
 
-  void resetAndGenerateSeed({int words = 12}) {
-    _tempConsumerSeed = generateSeedPhrase(words: words);
+  void resetAndGenerateSeed({int words = 12, String? dadosOuMoeda}) {
+    _tempConsumerSeed = generateSeedPhrase(words: words, dadosOuMoeda: dadosOuMoeda);
     _tempSeedEhRestauracao = false;
     notifyListeners();
   }
 
   static const List<int> seedWordCounts = [12, 24];
 
-  static String generateSeedPhrase({int words = 12}) {
-    final strength = words == 24 ? 256 : 128;
-    return bip39.generateMnemonic(strength: strength);
-  }
+  /// Frase-semente nova. Não usa `bip39.generateMnemonic`: na versão 1.0.6
+  /// ele sorteia bytes com `nextInt(255)` e o 0xFF nunca sai. Ver
+  /// lib/core/entropia.dart. [dadosOuMoeda]: entropia extra opcional.
+  static String generateSeedPhrase({int words = 12, String? dadosOuMoeda}) =>
+      Entropia.mnemonica(palavras: words, doUsuario: dadosOuMoeda);
 
   static String? validateSeedPhrase(String seed) {
     final limpa = seed.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();

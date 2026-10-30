@@ -188,9 +188,10 @@ String varrer({
   return paraHex(out);
 }
 
-/// sha256 do script, com bytes invertidos: o índice que o Esplora usa.
+/// sha256 do script na ordem normal — o índice do Esplora. (O protocolo
+/// Electrum inverte os bytes; o Esplora não. Conferido contra o mempool.space.)
 String scripthashEsplora(Uint8List script) =>
-    paraHex(sha256.convert(script).bytes.reversed.toList());
+    paraHex(sha256.convert(script).bytes);
 
 /// scriptPubKey de um endereço SegWit (bech32/bech32m) da rede [hrp].
 Uint8List scriptDeEndereco(String endereco, String hrp) {

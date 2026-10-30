@@ -1,3 +1,4 @@
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iris_wallet/core/varredura.dart';
 import 'package:iris_wallet/nostr/chaves.dart';
@@ -86,4 +87,12 @@ void main() {
     final k = ChaveAvulsa.deWif('KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn');
     expect(k.enderecoSegwit('bc'), 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4');
   });
+
+  test('scripthash do Esplora é o sha256 do script, sem inverter', () {
+    // Endereço real da testnet4; o mempool.space respondeu por este hash.
+    final script = scriptDeEndereco('tb1qkpx96rhx0v6nuhfyj79axp0ra9reg9tr4p5fjl', 'tb');
+    expect(scripthashEsplora(script), sha256Hex(script));
+  });
 }
+
+String sha256Hex(List<int> b) => crypto.sha256.convert(b).toString();

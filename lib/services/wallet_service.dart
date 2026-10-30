@@ -2043,6 +2043,11 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
       await _refreshBalances(handle);
       _runEventLoop(handle, isMerchant: isMerchant);
+      // O histórico vem do armazenamento local do nó (listPayments), que não
+      // depende de rede. Antes ele só era reconciliado depois de um sync bem
+      // sucedido — e numa rede com proxy que derruba o sync, linhas fantasma
+      // ficavam para sempre.
+      unawaited(reconstruirHistoricoDoNo(forMerchant: isMerchant));
       if ((await _filaTransmissao()).isNotEmpty) {
         _agendarReenvio();
         unawaited(_reenviarFila());

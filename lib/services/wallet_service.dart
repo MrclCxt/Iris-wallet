@@ -176,6 +176,45 @@ class TravaRecebida {
       {required this.hashHex, required this.amountMsat, this.prazoBloco});
 }
 
+/// Fases de recebimento Lightning já anunciadas (hash:fase), gravadas para
+/// sobreviver a um reinício. Guarda as últimas [limite].
+class RecebimentosAnunciados {
+  static const int limite = 500;
+  final List<String> _ordem = [];
+  final Set<String> _chaves = {};
+  Future<void>? _carga;
+
+  /// Todos esperam a MESMA leitura do disco: dois recebimentos na abertura do
+  /// app não podem consultar o conjunto antes de ele estar carregado.
+  Future<void> carregar() => _carga ??= _ler();
+
+  Future<void> _ler() async {
+    try {
+      final salvos = (await SharedPreferences.getInstance())
+              .getStringList(Rede.chaveRecebimentosAnunciados) ??
+          const [];
+      for (final c in salvos) {
+        if (_chaves.add(c)) _ordem.add(c);
+      }
+    } catch (_) {}
+  }
+
+  /// true se é a primeira vez (e grava); false se já foi anunciado.
+  Future<bool> registrar(String chave) async {
+    await carregar();
+    if (!_chaves.add(chave)) return false;
+    _ordem.add(chave);
+    while (_ordem.length > limite) {
+      _chaves.remove(_ordem.removeAt(0));
+    }
+    try {
+      await (await SharedPreferences.getInstance())
+          .setStringList(Rede.chaveRecebimentosAnunciados, _ordem);
+    } catch (_) {}
+    return true;
+  }
+}
+
 class ReceivedPayment {
   final bool isMerchant;
   final String paymentHashHex;
@@ -559,23 +598,31 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   //
   // On-chain fica de fora justamente por não ter esse identificador aqui: lá a
   // unicidade é garantida na origem, deixando só o `_refreshBalances` anunciar.
-  final Set<String> _recebimentosAnunciados = {};
+  //
+  // Gravado em disco: se o app morre entre receber o evento do nó e marcá-lo
+  // como tratado, o nó entrega o mesmo PaymentReceived na próxima abertura —
+  // e, só em memória, o filtro estaria vazio e a notificação voltaria.
+  final RecebimentosAnunciados _recebimentosAnunciados = RecebimentosAnunciados();
 
   static String _faseDoRecebimento(ReceivedPayment p) => p.isConfirmation
       ? 'confirmado'
       : (p.isPending ? 'pendente' : 'recebido');
 
   void _emitirRecebimento(ReceivedPayment p) {
-    if (!p.isOnchain && p.paymentHashHex.isNotEmpty) {
-      final chave = '${p.paymentHashHex}:${_faseDoRecebimento(p)}';
-      if (!_recebimentosAnunciados.add(chave)) {
+    if (p.isOnchain || p.paymentHashHex.isEmpty) {
+      _paymentsCtrl.add(p);
+      unawaited(_notificarNoSistema(p));
+      return;
+    }
+    final chave = '${p.paymentHashHex}:${_faseDoRecebimento(p)}';
+    unawaited(_recebimentosAnunciados.registrar(chave).then((primeira) {
+      if (!primeira) {
         debugPrint('Recebimento Lightning já anunciado ($chave) — ignorando.');
         return;
       }
-    }
-
-    _paymentsCtrl.add(p);
-    unawaited(_notificarNoSistema(p));
+      _paymentsCtrl.add(p);
+      unawaited(_notificarNoSistema(p));
+    }));
   }
 
   Future<void> _notificarNoSistema(ReceivedPayment p) async {
@@ -848,8 +895,11 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     var recuperadas = 0;
     var statusMudou = false;
     try {
-      for (final p in await handle.api!.listPayments()) {
+      final doNo = await handle.api!.listPayments();
+      if (removerCobrancasNaoPagas(lista, doNo) > 0) statusMudou = true;
+      for (final p in doNo) {
         if (p.amountSats <= 0) continue;
+        if (ehCobrancaLightningNaoPaga(p)) continue;
 
         // Por identidade canônica, não por igualdade de texto: a linha gravada
         // pode estar com o id na outra ordem de bytes, e comparar cru faria o nó
@@ -924,6 +974,46 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       debugPrint('Falha ao reconstruir histórico: $e');
     }
     return recuperadas;
+  }
+
+  /// Para o nó, uma fatura Lightning criada e ainda não paga já é um
+  /// "pagamento de entrada pendente" — e uma que expirou fica assim para
+  /// sempre. Mas Lightning não tem confirmação a esperar: ou o dinheiro chegou
+  /// (Succeeded), ou não chegou. Cobrança não paga não é movimentação.
+  static bool ehCobrancaLightningNaoPaga(PaymentRecord p) =>
+      !p.isOnchain && p.isIncoming && p.status != 'confirmed';
+
+  /// Tira do histórico as linhas de cobranças Lightning que o nó diz não
+  /// terem sido pagas (eram as "aguardando confirmação" eternas). Devolve
+  /// quantas saíram.
+  static int removerCobrancasNaoPagas(
+      List<Transaction> lista, Iterable<PaymentRecord> doNo) {
+    final naoPagas = {
+      for (final p in doNo)
+        if (ehCobrancaLightningNaoPaga(p)) _idCanonico(p.id)
+    };
+    if (naoPagas.isEmpty) return 0;
+    final antes = lista.length;
+    lista.removeWhere((t) =>
+        t.isIncoming &&
+        t.emoji == '⚡' &&
+        t.status != 'confirmed' &&
+        naoPagas.contains(_idCanonico(t.id)));
+    return antes - lista.length;
+  }
+
+  /// Recebimento Lightning chegou: se já existe linha (de uma leitura
+  /// anterior do nó), ela é confirmada em vez de o pagamento ser ignorado.
+  static bool confirmarRecebimentoExistente(List<Transaction> lista, String id) {
+    final alvo = _idCanonico(id);
+    var achou = false;
+    for (final t in lista) {
+      if (_idCanonico(t.id) == alvo) {
+        t.status = 'confirmed';
+        achou = true;
+      }
+    }
+    return achou;
   }
 
   // Encurta um id para caber numa linha de log sem virar ruído.
@@ -1962,7 +2052,13 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
                 isIncoming: true,
                 date: DateTime.now(),
               );
-              _registrarTransacao(tx, isMerchant: isMerchant);
+              final listaTx =
+                  isMerchant ? _merchantTransactions : _consumerTransactions;
+              if (confirmarRecebimentoExistente(listaTx, event.paymentHashHex)) {
+                unawaited(_salvarHistorico(isMerchant));
+              } else {
+                _registrarTransacao(tx, isMerchant: isMerchant);
+              }
               _emitirRecebimento(ReceivedPayment(
                 isMerchant: isMerchant,
                 paymentHashHex: event.paymentHashHex,

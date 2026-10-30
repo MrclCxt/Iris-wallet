@@ -96,6 +96,8 @@ void main() async {
             return svc;
           },
           update: (context, wallet, rate, svc) {
+            wallet.cotacaoBrlAgora ??=
+                () => rate.hasRate ? rate.btcToBrlRate : null;
             svc!.acompanhar();
             return svc;
           },

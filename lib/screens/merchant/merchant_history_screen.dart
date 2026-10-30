@@ -1,4 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import '../../core/extrato.dart';
 import '../../core/theme.dart';
 import '../../core/currency_format.dart';
 
@@ -20,19 +25,27 @@ class MerchantHistoryScreen extends StatelessWidget {
     return SafeArea(
       child: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                SizedBox(width: 48),
-                Text('Histórico',
+                IconButton(
+                  tooltip: 'Exportar extrato (CSV)',
+                  icon: const Icon(Icons.ios_share, color: IrisTheme.textSecondary),
+                  onPressed: wallet.merchantTransactions.isEmpty
+                      ? null
+                      : () => _exportar(context, wallet.merchantTransactions),
+                ),
+                const Text('Histórico',
                     style:
                         TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                CurrencyToggleBtn(),
+                const CurrencyToggleBtn(),
               ],
             ),
           ),
+          if (wallet.merchantTransactions.isNotEmpty)
+            _fechamento(FechamentoDia.de(wallet.merchantTransactions, DateTime.now())),
           Expanded(
             child: wallet.merchantTransactions.isEmpty
                 ? const Center(
@@ -63,11 +76,70 @@ class MerchantHistoryScreen extends StatelessWidget {
                               tx.amountSats,
                               exchangeRate,
                               status: tx.status,
+                              brlNaHora: tx.brlNaHora,
                             ),
                           );
                         },
                       ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exportar(BuildContext context, List<Transaction> txs) async {
+    try {
+      final dir = await getTemporaryDirectory();
+      final agora = DateTime.now();
+      final nome =
+          'extrato-iris-${agora.year}-${agora.month.toString().padLeft(2, '0')}-${agora.day.toString().padLeft(2, '0')}.csv';
+      final arquivo = File('${dir.path}/$nome');
+      // BOM para o Excel reconhecer UTF-8 (acentos) ao abrir direto.
+      await arquivo.writeAsString(
+          '${String.fromCharCode(0xFEFF)}${extratoCsv(txs)}');
+      await Share.shareXFiles([XFile(arquivo.path, mimeType: 'text/csv')],
+          subject: 'Extrato Iris');
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Não foi possível exportar: $e')));
+      }
+    }
+  }
+
+  Widget _fechamento(FechamentoDia f) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: IrisTheme.s1,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: IrisTheme.bdr),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('FECHAMENTO DE HOJE',
+              style: TextStyle(
+                  fontSize: 10,
+                  color: IrisTheme.textSecondary,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8)),
+          const SizedBox(height: 6),
+          Text(
+              '${f.vendas} ${f.vendas == 1 ? 'venda' : 'vendas'} · '
+              '${CurrencyFormatter.formatBtcOrSats(f.satsRecebidos)}',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          if (f.vendas > f.vendasSemCotacao)
+            Text(
+                'R\$ ${CurrencyFormatter.formatBrl(f.brlNaHora)} no valor da hora de cada venda'
+                '${f.vendasSemCotacao > 0 ? ' (${f.vendasSemCotacao} sem cotação)' : ''}',
+                style: const TextStyle(
+                    fontSize: 12, color: IrisTheme.textSecondary)),
+          if (f.pendentes > 0)
+            Text('${f.pendentes} aguardando confirmação',
+                style: const TextStyle(fontSize: 12, color: IrisTheme.warning)),
         ],
       ),
     );
@@ -121,7 +193,7 @@ class MerchantHistoryScreen extends StatelessWidget {
                           color: IrisTheme.textSecondary))),
             ],
             rows: wallet.merchantTransactions.map((tx) {
-              final brl = exchangeRate.satsToBrl(tx.amountSats);
+              final brl = tx.brlNaHora ?? exchangeRate.satsToBrl(tx.amountSats);
 
               return DataRow(
                 cells: [
@@ -152,7 +224,8 @@ class MerchantHistoryScreen extends StatelessWidget {
 
   Widget _buildTxItem(
       String title, String time, int sats, ExchangeRateService exchangeRate,
-      {String status = 'confirmed'}) {
+      {String status = 'confirmed', double? brlNaHora}) {
+    final brl = brlNaHora ?? exchangeRate.satsToBrl(sats);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(16),
@@ -200,7 +273,7 @@ class MerchantHistoryScreen extends StatelessWidget {
               Text(
                 exchangeRate.isSatsDisplay
                     ? '+ ${CurrencyFormatter.formatBtcOrSats(sats)}'
-                    : '+ R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(sats))}',
+                    : '+ R\$ ${CurrencyFormatter.formatBrlCompact(brl)}',
                 style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -209,7 +282,7 @@ class MerchantHistoryScreen extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 exchangeRate.isSatsDisplay
-                    ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(exchangeRate.satsToBrl(sats))}'
+                    ? '≈ R\$ ${CurrencyFormatter.formatBrlCompact(brl)}'
                     : '≈ ${CurrencyFormatter.formatBtcOrSats(sats)}',
                 style: const TextStyle(
                     fontFamily: 'monospace',

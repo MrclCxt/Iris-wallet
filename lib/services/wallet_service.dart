@@ -96,6 +96,10 @@ class Transaction {
   final DateTime date;
   String status;
 
+  /// Valor em Real no momento em que a movimentação aconteceu (para o
+  /// extrato). Só é gravado em tempo real; histórico antigo fica sem.
+  final double? brlNaHora;
+
   Transaction({
     required this.id,
     required this.title,
@@ -104,6 +108,7 @@ class Transaction {
     required this.isIncoming,
     required this.date,
     this.status = 'confirmed',
+    this.brlNaHora,
   });
 
   Map<String, dynamic> toJson() => {
@@ -114,6 +119,7 @@ class Transaction {
         'isIncoming': isIncoming,
         'date': date.toIso8601String(),
         'status': status,
+        if (brlNaHora != null) 'brl': brlNaHora,
       };
 
   factory Transaction.fromJson(Map<String, dynamic> j) => Transaction(
@@ -124,6 +130,7 @@ class Transaction {
         isIncoming: j['isIncoming'] as bool? ?? true,
         date: DateTime.tryParse(j['date'] as String? ?? '') ?? DateTime.now(),
         status: j['status'] as String? ?? 'confirmed',
+        brlNaHora: (j['brl'] as num?)?.toDouble(),
       );
 }
 
@@ -572,6 +579,16 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       StreamController<TravaRecebida>.broadcast();
 
   Stream<TravaRecebida> get travasRecebidas => _travasCtrl.stream;
+
+  /// Real por bitcoin agora, se houver cotação confiável (ligado em main.dart).
+  /// Usado só para gravar o valor em Real de cada venda no momento dela.
+  double? Function()? cotacaoBrlAgora;
+
+  double? _brlDe(int sats) {
+    final r = cotacaoBrlAgora?.call();
+    if (r == null || r <= 0) return null;
+    return double.parse((sats / 100000000 * r).toStringAsFixed(2));
+  }
 
   /// Semente da carteira pessoal em uso (só em memória, desbloqueada). Dela
   /// sai a identidade Nostr do P2P, pelo NIP-06.
@@ -2082,6 +2099,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
                 amountSats: sats,
                 isIncoming: true,
                 date: DateTime.now(),
+                brlNaHora: _brlDe(sats),
               );
               final listaTx =
                   isMerchant ? _merchantTransactions : _consumerTransactions;

@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../services/pix_service.dart';
 import '../../widgets/max_width_container.dart';
-import 'mercado_p2p_screen.dart';
 import 'pix_onboarding_screen.dart';
 
 class AtivarPixScreen extends StatefulWidget {
@@ -71,15 +70,6 @@ class _AtivarPixScreenState extends State<AtivarPixScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _statusCard(pix, enabled),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const MercadoP2PScreen()),
-                  ),
-                  icon: const Icon(Icons.storefront_outlined, size: 18),
-                  label: const Text('Prévia: ofertas P2P em Real (Nostr)'),
-                ),
                 const SizedBox(height: 24),
                 const Text(
                   'O Pix é opcional. Sua carteira já envia e recebe Bitcoin '

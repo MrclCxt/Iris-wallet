@@ -32,6 +32,13 @@ class LdkOnChainPayment {
       core.instance.api.crateApiOnChainLdkOnChainPaymentSendToAddress(
           that: this, address: address, amountSats: amountSats);
 
+  /// Assina sem transmitir, para a transação viajar por QR/NFC até quem
+  /// tiver internet. Fica pendente na carteira até lá.
+  Future<SignedTransaction> signToAddress(
+          {required Address address, required BigInt amountSats}) =>
+      core.instance.api.crateApiOnChainLdkOnChainPaymentSignToAddress(
+          that: this, address: address, amountSats: amountSats);
+
   @override
   int get hashCode => ptr.hashCode;
 
@@ -41,4 +48,25 @@ class LdkOnChainPayment {
       other is LdkOnChainPayment &&
           runtimeType == other.runtimeType &&
           ptr == other.ptr;
+}
+
+class SignedTransaction {
+  final String txid;
+  final String txHex;
+
+  const SignedTransaction({
+    required this.txid,
+    required this.txHex,
+  });
+
+  @override
+  int get hashCode => txid.hashCode ^ txHex.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SignedTransaction &&
+          runtimeType == other.runtimeType &&
+          txid == other.txid &&
+          txHex == other.txHex;
 }

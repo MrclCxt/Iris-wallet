@@ -1361,6 +1361,15 @@ impl CstDecode<crate::api::graph::RoutingFees> for wire_cst_routing_fees {
         }
     }
 }
+impl CstDecode<crate::api::on_chain::SignedTransaction> for wire_cst_signed_transaction {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    fn cst_decode(self) -> crate::api::on_chain::SignedTransaction {
+        crate::api::on_chain::SignedTransaction {
+            txid: self.txid.cst_decode(),
+            tx_hex: self.tx_hex.cst_decode(),
+        }
+    }
+}
 impl CstDecode<crate::api::types::SocketAddress> for wire_cst_socket_address {
     // Codec=Cst (C-struct based), see doc to use other codecs
     fn cst_decode(self) -> crate::api::types::SocketAddress {
@@ -2146,6 +2155,19 @@ impl Default for wire_cst_routing_fees {
         Self::new_with_null_ptr()
     }
 }
+impl NewWithNullPtr for wire_cst_signed_transaction {
+    fn new_with_null_ptr() -> Self {
+        Self {
+            txid: core::ptr::null_mut(),
+            tx_hex: core::ptr::null_mut(),
+        }
+    }
+}
+impl Default for wire_cst_signed_transaction {
+    fn default() -> Self {
+        Self::new_with_null_ptr()
+    }
+}
 impl NewWithNullPtr for wire_cst_socket_address {
     fn new_with_null_ptr() -> Self {
         Self {
@@ -2865,6 +2887,21 @@ pub extern "C" fn frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payme
     amount_sats: u64,
 ) {
     wire__crate__api__on_chain__ldk_on_chain_payment_send_to_address_impl(
+        port_,
+        that,
+        address,
+        amount_sats,
+    )
+}
+
+#[no_mangle]
+pub extern "C" fn frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_address(
+    port_: i64,
+    that: *mut wire_cst_ldk_on_chain_payment,
+    address: *mut wire_cst_address,
+    amount_sats: u64,
+) {
+    wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_address_impl(
         port_,
         that,
         address,
@@ -4239,6 +4276,12 @@ pub struct wire_cst_refund {
 pub struct wire_cst_routing_fees {
     base_msat: u32,
     proportional_millionths: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct wire_cst_signed_transaction {
+    txid: *mut wire_cst_list_prim_u_8_strict,
+    tx_hex: *mut wire_cst_list_prim_u_8_strict,
 }
 #[repr(C)]
 #[derive(Clone, Copy)]

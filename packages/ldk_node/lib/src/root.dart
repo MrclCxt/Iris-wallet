@@ -499,6 +499,18 @@ class OnChainPayment extends on_chain.LdkOnChainPayment {
       throw mapLdkNodeError(e);
     }
   }
+
+  ///Assina sem transmitir; a transação fica pendente na carteira.
+  @override
+  Future<on_chain.SignedTransaction> signToAddress(
+      {required types.Address address, required BigInt amountSats}) async {
+    try {
+      return await super
+          .signToAddress(address: address, amountSats: amountSats);
+    } on error.LdkNodeError catch (e) {
+      throw mapLdkNodeError(e);
+    }
+  }
 }
 
 ///Represents the network as nodes and channels between them.

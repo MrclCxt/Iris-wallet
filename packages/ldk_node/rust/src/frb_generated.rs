@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.0.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2109549055;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -702804765;
 
 // Section: executor
 
@@ -1737,6 +1737,36 @@ fn wire__crate__api__on_chain__ldk_on_chain_payment_send_to_address_impl(
             move |context| {
                 transform_result_dco::<_, _, crate::utils::error::LdkNodeError>((move || {
                     let output_ok = crate::api::on_chain::LdkOnChainPayment::send_to_address(
+                        &api_that,
+                        api_address,
+                        api_amount_sats,
+                    )?;
+                    Ok(output_ok)
+                })(
+                ))
+            }
+        },
+    )
+}
+fn wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_address_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    that: impl CstDecode<crate::api::on_chain::LdkOnChainPayment>,
+    address: impl CstDecode<crate::api::types::Address>,
+    amount_sats: impl CstDecode<u64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ldk_on_chain_payment_sign_to_address",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_that = that.cst_decode();
+            let api_address = address.cst_decode();
+            let api_amount_sats = amount_sats.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, crate::utils::error::LdkNodeError>((move || {
+                    let output_ok = crate::api::on_chain::LdkOnChainPayment::sign_to_address(
                         &api_that,
                         api_address,
                         api_amount_sats,
@@ -3820,6 +3850,18 @@ impl SseDecode for crate::api::graph::RoutingFees {
     }
 }
 
+impl SseDecode for crate::api::on_chain::SignedTransaction {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_txid = <String>::sse_decode(deserializer);
+        let mut var_txHex = <String>::sse_decode(deserializer);
+        return crate::api::on_chain::SignedTransaction {
+            txid: var_txid,
+            tx_hex: var_txHex,
+        };
+    }
+}
+
 impl SseDecode for crate::api::types::SocketAddress {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -5562,6 +5604,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::graph::RoutingFees>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::on_chain::SignedTransaction {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.txid.into_into_dart().into_dart(),
+            self.tx_hex.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::on_chain::SignedTransaction
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::on_chain::SignedTransaction>
+    for crate::api::on_chain::SignedTransaction
+{
+    fn into_into_dart(self) -> crate::api::on_chain::SignedTransaction {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::types::SocketAddress {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -7268,6 +7331,14 @@ impl SseEncode for crate::api::graph::RoutingFees {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u32>::sse_encode(self.base_msat, serializer);
         <u32>::sse_encode(self.proportional_millionths, serializer);
+    }
+}
+
+impl SseEncode for crate::api::on_chain::SignedTransaction {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.txid, serializer);
+        <String>::sse_encode(self.tx_hex, serializer);
     }
 }
 

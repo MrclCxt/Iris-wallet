@@ -692,6 +692,11 @@ typedef struct wire_cst_node_status {
   uint64_t *latest_node_announcement_broadcast_timestamp;
 } wire_cst_node_status;
 
+typedef struct wire_cst_signed_transaction {
+  struct wire_cst_list_prim_u_8_strict *txid;
+  struct wire_cst_list_prim_u_8_strict *tx_hex;
+} wire_cst_signed_transaction;
+
 void frbgen_ldk_node_wire__crate__api__bolt11__ldk_bolt_11_payment_claim_for_hash(int64_t port_,
                                                                                   struct wire_cst_ldk_bolt_11_payment *that,
                                                                                   struct wire_cst_payment_hash *payment_hash,
@@ -953,6 +958,11 @@ void frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_send_to_ad
                                                                                       struct wire_cst_address *address,
                                                                                       uint64_t amount_sats);
 
+void frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_address(int64_t port_,
+                                                                                      struct wire_cst_ldk_on_chain_payment *that,
+                                                                                      struct wire_cst_address *address,
+                                                                                      uint64_t amount_sats);
+
 void frbgen_ldk_node_wire__crate__api__spontaneous__ldk_spontaneous_payment_send(int64_t port_,
                                                                                  struct wire_cst_ldk_spontaneous_payment *that,
                                                                                  uint64_t amount_msat,
@@ -1107,7 +1117,7 @@ struct wire_cst_list_public_key *frbgen_ldk_node_cst_new_list_public_key(int32_t
 
 struct wire_cst_list_socket_address *frbgen_ldk_node_cst_new_list_socket_address(int32_t len);
 
-extern int32_t __android_log_write(int32_t prio, const int8_t *tag, const int8_t *text);
+extern int32_t __android_log_write(int32_t prio, const char *tag, const char *text);
 static int64_t dummy_method_to_enforce_bundling(void) {
     int64_t dummy_var = 0;
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_cst_new_box_autoadd_address);
@@ -1246,6 +1256,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_new_address);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_send_all_to_address);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_send_to_address);
+    dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_address);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__spontaneous__ldk_spontaneous_payment_send);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__spontaneous__ldk_spontaneous_payment_send_probes);
     dummy_var ^= ((int64_t) (void*) store_dart_post_cobject);

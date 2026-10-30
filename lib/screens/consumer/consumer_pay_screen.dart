@@ -284,6 +284,45 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
     return s;
   }
 
+  /// Pagamento assinado em outro aparelho sem internet: este aparelho envia
+  /// para a rede. Só vale quando a rede confirmar.
+  Future<void> _transmitirRecebida(String txHex) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: IrisTheme.s1,
+        title: const Text('Pagamento sem internet',
+            style: TextStyle(color: IrisTheme.textPrimary, fontSize: 16)),
+        content: const Text(
+          'Este código é um pagamento já assinado por outro aparelho. Enviar '
+          'para a rede Bitcoin agora?\n\nEle só vale quando a rede '
+          'confirmar — até lá, trate como pendente.',
+          style: TextStyle(color: IrisTheme.textSecondary, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Enviar para a rede')),
+        ],
+      ),
+    );
+    if (confirmar != true || !mounted) return;
+    try {
+      final txid =
+          await context.read<WalletService>().transmitirTransacao(txHex);
+      if (!mounted) return;
+      _invoiceCtrl.clear();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Enviado para a rede. Aguardando confirmação '
+              '(${txid.length > 12 ? '${txid.substring(0, 12)}…' : txid}).')));
+    } catch (e) {
+      _showError(e.toString().replaceFirst(RegExp(r'^Exception:\s*'), ''));
+    }
+  }
+
   Future<void> _handlePay() async {
     if (_isResolving) return;
     final input = _sanitize(_invoiceCtrl.text);
@@ -291,7 +330,9 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
 
     setState(() => _isResolving = true);
     try {
-      if (BrCode.looksLikeBrCode(input)) {
+      if (WalletService.ehTransacaoAssinada(input)) {
+        await _transmitirRecebida(input);
+      } else if (BrCode.looksLikeBrCode(input)) {
         if (!context.read<PixService>().isPixEnabled) {
           _showError('Este é um QR PIX. Ative o Pix em Configurações › Ativar '
               'Pix (requer conta DePix) para pagar em Reais.');

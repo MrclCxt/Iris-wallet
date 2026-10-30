@@ -546,6 +546,9 @@ abstract class coreApiImplPlatform extends BaseApiImpl<coreWire> {
   RoutingFees dco_decode_routing_fees(dynamic raw);
 
   @protected
+  SignedTransaction dco_decode_signed_transaction(dynamic raw);
+
+  @protected
   SocketAddress dco_decode_socket_address(dynamic raw);
 
   @protected
@@ -1121,6 +1124,9 @@ abstract class coreApiImplPlatform extends BaseApiImpl<coreWire> {
 
   @protected
   RoutingFees sse_decode_routing_fees(SseDeserializer deserializer);
+
+  @protected
+  SignedTransaction sse_decode_signed_transaction(SseDeserializer deserializer);
 
   @protected
   SocketAddress sse_decode_socket_address(SseDeserializer deserializer);
@@ -3330,6 +3336,13 @@ abstract class coreApiImplPlatform extends BaseApiImpl<coreWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_signed_transaction(
+      SignedTransaction apiObj, wire_cst_signed_transaction wireObj) {
+    wireObj.txid = cst_encode_String(apiObj.txid);
+    wireObj.tx_hex = cst_encode_String(apiObj.txHex);
+  }
+
+  @protected
   void cst_api_fill_to_wire_socket_address(
       SocketAddress apiObj, wire_cst_socket_address wireObj) {
     if (apiObj is SocketAddress_TcpIpV4) {
@@ -4022,6 +4035,10 @@ abstract class coreApiImplPlatform extends BaseApiImpl<coreWire> {
 
   @protected
   void sse_encode_routing_fees(RoutingFees self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_signed_transaction(
+      SignedTransaction self, SseSerializer serializer);
 
   @protected
   void sse_encode_socket_address(SocketAddress self, SseSerializer serializer);
@@ -5655,6 +5672,35 @@ class coreWire implements BaseWire {
               void Function(int, ffi.Pointer<wire_cst_ldk_on_chain_payment>,
                   ffi.Pointer<wire_cst_address>, int)>();
 
+  void wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_address(
+    int port_,
+    ffi.Pointer<wire_cst_ldk_on_chain_payment> that,
+    ffi.Pointer<wire_cst_address> address,
+    int amount_sats,
+  ) {
+    return _wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_address(
+      port_,
+      that,
+      address,
+      amount_sats,
+    );
+  }
+
+  late final _wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_addressPtr =
+      _lookup<
+              ffi.NativeFunction<
+                  ffi.Void Function(
+                      ffi.Int64,
+                      ffi.Pointer<wire_cst_ldk_on_chain_payment>,
+                      ffi.Pointer<wire_cst_address>,
+                      ffi.Uint64)>>(
+          'frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_address');
+  late final _wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_address =
+      _wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_addressPtr
+          .asFunction<
+              void Function(int, ffi.Pointer<wire_cst_ldk_on_chain_payment>,
+                  ffi.Pointer<wire_cst_address>, int)>();
+
   void wire__crate__api__spontaneous__ldk_spontaneous_payment_send(
     int port_,
     ffi.Pointer<wire_cst_ldk_spontaneous_payment> that,
@@ -6657,8 +6703,8 @@ class coreWire implements BaseWire {
 
   int __android_log_write(
     int prio,
-    ffi.Pointer<ffi.Int8> tag,
-    ffi.Pointer<ffi.Int8> text,
+    ffi.Pointer<ffi.Char> tag,
+    ffi.Pointer<ffi.Char> text,
   ) {
     return ___android_log_write(
       prio,
@@ -6669,10 +6715,10 @@ class coreWire implements BaseWire {
 
   late final ___android_log_writePtr = _lookup<
       ffi.NativeFunction<
-          ffi.Int32 Function(ffi.Int32, ffi.Pointer<ffi.Int8>,
-              ffi.Pointer<ffi.Int8>)>>('__android_log_write');
+          ffi.Int32 Function(ffi.Int32, ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Char>)>>('__android_log_write');
   late final ___android_log_write = ___android_log_writePtr.asFunction<
-      int Function(int, ffi.Pointer<ffi.Int8>, ffi.Pointer<ffi.Int8>)>();
+      int Function(int, ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)>();
 
   int dummy_method_to_enforce_bundling() {
     return _dummy_method_to_enforce_bundling();
@@ -7686,4 +7732,10 @@ final class wire_cst_node_status extends ffi.Struct {
   external ffi.Pointer<ffi.Uint64> latest_rgs_snapshot_timestamp;
 
   external ffi.Pointer<ffi.Uint64> latest_node_announcement_broadcast_timestamp;
+}
+
+final class wire_cst_signed_transaction extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> txid;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> tx_hex;
 }

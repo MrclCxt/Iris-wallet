@@ -3272,7 +3272,9 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> validarAntesDeEnviar(
-      {required String address, required int sats}) async {
+      {required String address,
+      required int sats,
+      bool exigirRede = true}) async {
     final handle = _consumerNode;
 
     final endereco = AddressValidator.validar(address);
@@ -3292,6 +3294,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       throw Exception(
           'Saldo on-chain insuficiente: você tem ${handle.onchainBalanceSats} sats disponíveis.');
     }
+    if (!exigirRede) return;
 
     final base = EmbeddedNodeApi.esploraEmUso;
     if (base == null) {
@@ -3347,6 +3350,65 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
     unawaited(_verificarBroadcast(txid, isMerchant: false));
     return txid;
+  }
+
+  /// Teto do pagamento assinado sem internet. Até alguém transmitir e a rede
+  /// confirmar, quem recebe tem só uma promessa: valor alto aqui é golpe de
+  /// gasto duplo esperando acontecer.
+  static const int limiteOfflineSats = 200000;
+
+  /// Assina um pagamento on-chain sem transmitir. A transação vai por QR/NFC
+  /// para quem tiver internet; fica pendente na carteira até lá.
+  Future<({String txid, String txHex})> assinarSemTransmitir(
+      {required String address, required int sats}) async {
+    if (sats > limiteOfflineSats) {
+      throw Exception('Pagamento sem internet vai até '
+          '$limiteOfflineSats sats. Acima disso, envie com rede.');
+    }
+    await validarAntesDeEnviar(address: address, sats: sats, exigirRede: false);
+    final handle = _consumerNode;
+    final assinada =
+        await handle.api!.signOnchain(address: address, sats: sats);
+    _registrarTransacao(
+      Transaction(
+        id: assinada.txid,
+        title: 'Pagamento sem internet (aguardando rede)',
+        emoji: '📴',
+        amountSats: sats,
+        isIncoming: false,
+        date: DateTime.now(),
+        status: 'pending',
+      ),
+      isMerchant: false,
+    );
+    handle.houveSaidaDesdeLeituraBoa = true;
+    notifyListeners();
+    return assinada;
+  }
+
+  /// Transmite um pagamento assinado em outro aparelho. Só vale quando a rede
+  /// confirmar; até lá aparece como pendente, como qualquer recebimento.
+  Future<String> transmitirTransacao(String txHex,
+      {bool forMerchant = false}) async {
+    final hex = txHex.trim().toLowerCase();
+    if (!ehTransacaoAssinada(hex)) {
+      throw Exception('Isto não é uma transação Bitcoin assinada.');
+    }
+    final handle = forMerchant ? _merchantNode : _consumerNode;
+    final txid = handle.api != null
+        ? await handle.api!.broadcastTx(hex)
+        : await EmbeddedNodeApi.transmitirPorEsplora(hex);
+    if (handle.api != null) unawaited(_refreshBalances(handle));
+    return txid;
+  }
+
+  /// Hex de transação: versão 1 ou 2 no começo e tamanho plausível.
+  static bool ehTransacaoAssinada(String s) {
+    final hex = s.trim().toLowerCase();
+    return hex.length >= 120 &&
+        hex.length <= 200000 &&
+        hex.length.isEven &&
+        RegExp(r'^0[12]000000[0-9a-f]+$').hasMatch(hex);
   }
 
   Future<void> _verificarBroadcast(String txid,

@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `escrever`
+// These functions are ignored because they are not marked as `pub`: `escrever`, `relatar_biblioteca_nativa`
 
 /// Um `panic!` do Rust cruzando a FFI aborta o processo sem desenrolar a pilha,
 /// e a mensagem morre com ele: nao aparece no logcat nem no tombstone, so

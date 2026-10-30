@@ -90,6 +90,13 @@ abstract class NodeApi {
   Future<String> newOnchainAddress();
 
   Future<String> sendOnchain({required String address, required int sats});
+
+  /// Assina sem transmitir (pagamento que viaja por QR/NFC até quem tem rede).
+  Future<({String txid, String txHex})> signOnchain(
+      {required String address, required int sats});
+
+  /// Transmite uma transação já assinada, recebida de outro aparelho.
+  Future<String> broadcastTx(String txHex);
   Future<List<ChannelSummary>> channels();
   Future<void> openChannel({
     required String nodeId,
@@ -343,6 +350,43 @@ class EmbeddedNodeApi implements NodeApi {
     return txid.hash;
   }
 
+  @override
+  Future<({String txid, String txHex})> signOnchain(
+      {required String address, required int sats}) async {
+    final onChain = await _n.onChainPayment();
+    final tx = await onChain.signToAddress(
+      address: ldk.Address(s: address),
+      amountSats: BigInt.from(sats),
+    );
+    return (txid: tx.txid, txHex: tx.txHex);
+  }
+
+  @override
+  Future<String> broadcastTx(String txHex) => transmitirPorEsplora(txHex);
+
+  /// Tenta o servidor em uso e depois os demais: quem transmite um pagamento
+  /// recebido offline pode estar com a rede instável.
+  static Future<String> transmitirPorEsplora(String txHex) async {
+    final lista = <String>{
+      if (esploraEmUso != null) esploraEmUso!,
+      ...await EsploraServidores.candidatos(),
+    };
+    Object? ultimoErro;
+    for (final base in lista) {
+      try {
+        final r = await http
+            .post(Uri.parse('$base/tx'), body: txHex.trim())
+            .timeout(const Duration(seconds: 20));
+        if (r.statusCode == 200) return r.body.trim();
+        ultimoErro = r.body;
+        if (r.statusCode == 400) break;
+      } catch (e) {
+        ultimoErro = e;
+      }
+    }
+    throw Exception('A rede recusou a transação: $ultimoErro');
+  }
+
   static String _bytesToHex(List<int> bytes) =>
       bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 
@@ -591,6 +635,20 @@ class RemoteNodeApi implements NodeApi {
       {required String address, required int sats}) async {
     final r =
         await _post('/send_onchain', {'address': address, 'amount_sats': sats});
+    return r['txid']?.toString() ?? '';
+  }
+
+  @override
+  Future<({String txid, String txHex})> signOnchain(
+      {required String address, required int sats}) async {
+    final r = await _post(
+        '/sign_onchain', {'address': address, 'amount_sats': sats});
+    return (txid: r['txid'] as String, txHex: r['tx_hex'] as String);
+  }
+
+  @override
+  Future<String> broadcastTx(String txHex) async {
+    final r = await _post('/broadcast', {'tx_hex': txHex.trim()});
     return r['txid']?.toString() ?? '';
   }
 

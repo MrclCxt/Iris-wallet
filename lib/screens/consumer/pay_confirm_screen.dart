@@ -17,6 +17,7 @@ import '../../widgets/currency_toggle_btn.dart';
 import '../../widgets/numpad.dart';
 import '../../widgets/max_width_container.dart';
 import 'consumer_pay_success_screen.dart';
+import 'offline_payment_screen.dart';
 import '../pin_screen.dart';
 
 class PayConfirmScreen extends StatefulWidget {
@@ -383,6 +384,46 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
     }
   }
 
+  /// Assina sem transmitir: quem recebe lê o QR e envia para a rede.
+  void _assinarSemInternet() {
+    final wallet = context.read<WalletService>();
+    if (widget.editableAmount) {
+      _satsAmount = _currentSats(context.read<ExchangeRateService>());
+    }
+    if (_satsAmount <= 0) {
+      _showError('Informe um valor.');
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (pinCtx) => PinScreen(
+          mode: PinMode.unlock,
+          onSuccess: () async {
+            Navigator.pop(pinCtx);
+            try {
+              final assinada = await wallet.assinarSemTransmitir(
+                  address: widget.btcAddress!, sats: _satsAmount);
+              if (!mounted) return;
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => OfflinePaymentScreen(
+                    txHex: assinada.txHex,
+                    txid: assinada.txid,
+                    sats: _satsAmount,
+                  ),
+                ),
+              );
+            } catch (e) {
+              if (mounted) _showError(_mensagemLimpa(e));
+            }
+          },
+        ),
+      ),
+    );
+  }
+
   void _confirmWithPin() {
     if (_isPix) {
       if (_pixBrl <= 0) {
@@ -670,6 +711,16 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
                           : 'Confirmar com PIN'),
                     ),
                   ),
+                  if (_isOnchain && !insufficient) ...[
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: _assinarSemInternet,
+                      icon: const Icon(Icons.wifi_off,
+                          size: 18, color: IrisTheme.textSecondary),
+                      label: const Text('Sem internet? Gerar pagamento para entregar',
+                          style: TextStyle(color: IrisTheme.textSecondary)),
+                    ),
+                  ],
                 ],
               ),
             ),

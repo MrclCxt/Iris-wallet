@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:ldk_node/ldk_node.dart' as ldk;
+import 'esplora_servidores.dart';
 
 class PaymentRecord {
   final String id;
@@ -124,35 +125,7 @@ class EmbeddedNodeApi implements NodeApi {
     this.esploraUrl = '',
   });
 
-  static const List<String> esploraCandidatos = [
-    'https://mempool.space/testnet4/api',
-    'https://mempool.va1.mempool.space/testnet4/api',
-  ];
-
   static String? esploraEmUso;
-
-  static Future<String> escolherEsplora() async {
-    for (final base in esploraCandidatos) {
-      try {
-        final r = await http
-            .get(Uri.parse('$base/fee-estimates'))
-            .timeout(const Duration(seconds: 10));
-
-        if (r.statusCode >= 200 && r.statusCode < 300 && r.body.isNotEmpty) {
-          debugPrint('Esplora escolhido: $base');
-          esploraEmUso = base;
-          return base;
-        }
-        debugPrint(
-            'Esplora $base respondeu HTTP ${r.statusCode}; tentando outro.');
-      } catch (e) {
-        debugPrint('Esplora $base indisponível ($e); tentando outro.');
-      }
-    }
-    debugPrint('Nenhum Esplora respondeu; usando ${esploraCandidatos.first}.');
-    esploraEmUso ??= esploraCandidatos.first;
-    return esploraCandidatos.first;
-  }
 
   static const int _tentativasDeStart = 2;
 
@@ -162,7 +135,9 @@ class EmbeddedNodeApi implements NodeApi {
   Future<void> start() async {
     Object? ultimoErro;
 
-    final candidatos = esploraUrl.isNotEmpty ? [esploraUrl] : esploraCandidatos;
+    final candidatos = esploraUrl.isNotEmpty
+        ? [esploraUrl]
+        : await EsploraServidores.emOrdemDeUso();
 
     for (var tentativa = 1; tentativa <= _tentativasDeStart; tentativa++) {
       if (abortarSe?.call() ?? false) {

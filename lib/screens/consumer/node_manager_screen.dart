@@ -9,6 +9,7 @@ import '../../services/wallet_service.dart';
 import '../../services/node_backend.dart';
 import '../../services/exchange_rate_service.dart';
 import '../../widgets/currency_toggle_btn.dart';
+import '../../widgets/esplora_servers_dialog.dart';
 import '../../widgets/tx_status.dart';
 import '../../core/theme.dart';
 import '../../core/currency_format.dart';
@@ -306,6 +307,14 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
               'O daemon (iris-noded) roda o nó como serviço neste dispositivo, sempre em 127.0.0.1. A mudança vale no próximo desbloqueio.',
               style: TextStyle(
                   color: IrisTheme.textTertiary, fontSize: 11, height: 1.4),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () => EsploraServersDialog.abrir(context),
+              icon: const Icon(Icons.public,
+                  size: 18, color: IrisTheme.textSecondary),
+              label: const Text('Servidores de dados (Esplora)',
+                  style: TextStyle(color: IrisTheme.textSecondary)),
             ),
           ],
         ),

@@ -18,6 +18,9 @@ dependencies:
   # Bitcoin & Crypto
   bip39: ^1.0.6
   crypto: ^3.0.3
+  # Nostr (Bro/Mostro): assinatura Schnorr BIP340 e curva secp256k1, em Dart puro.
+  bip340: ^0.3.0
+  pointycastle: ^3.9.1
   # Assinatura Ed25519 da identidade de agent DePix (onboarding automático).
   # Par de chaves gerado e guardado só no dispositivo; assina cada requisição
   # aos endpoints /api/agents/* — nada de chave estática compartilhada.

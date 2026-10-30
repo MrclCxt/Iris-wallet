@@ -434,8 +434,8 @@ class EmbeddedNodeApi implements NodeApi {
       try {
         final r = await http
             .post(Uri.parse('$base/tx'), body: txHex.trim())
-            .timeout(const Duration(seconds: 20));
-        if (r.statusCode == 200) return r.body.trim();
+            .timeout(const Duration(seconds: 30));
+        if (r.statusCode >= 200 && r.statusCode < 300) return r.body.trim();
         ultimoErro = r.body;
         if (r.statusCode == 400) break;
       } catch (e) {

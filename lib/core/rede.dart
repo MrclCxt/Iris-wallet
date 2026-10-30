@@ -49,4 +49,5 @@ class Rede {
   static String chaveHistorico(String id) =>
       principal ? 'tx_hist_main_v2_$id' : 'tx_hist_v2_$id';
   static const String chaveEsploraProprios = 'esplora_custom_$_tag';
+  static const String chaveFilaTransmissao = 'tx_fila_$_tag';
 }

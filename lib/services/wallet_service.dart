@@ -1905,6 +1905,10 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
       await _refreshBalances(handle);
       _runEventLoop(handle, isMerchant: isMerchant);
+      if ((await _filaTransmissao()).isNotEmpty) {
+        _agendarReenvio();
+        unawaited(_reenviarFila());
+      }
       _ensureSyncTimer();
 
       Timer(const Duration(seconds: 20), () {
@@ -3387,7 +3391,25 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
     await validarAntesDeEnviar(address: address, sats: sats);
 
-    final txid = await handle.api!.sendOnchain(address: address, sats: sats);
+    final String txid;
+    if (handle.api is EmbeddedNodeApi) {
+      // O nó transmite só pelo servidor escolhido, e desiste depois de 4
+      // timeouts — visto num Galaxy cuja rede deixava passar leituras mas
+      // derrubava o POST /tx. Assinamos sem transmitir e o app transmite por
+      // todos os servidores; se nenhum aceitar, a transação fica na fila e é
+      // reenviada até entrar na rede.
+      final assinada =
+          await handle.api!.signOnchain(address: address, sats: sats);
+      txid = assinada.txid;
+      try {
+        await EmbeddedNodeApi.transmitirPorEsplora(assinada.txHex);
+      } catch (e) {
+        debugPrint('Nenhum servidor aceitou $txid agora; fica na fila: $e');
+        await _enfileirarTransmissao(txid, assinada.txHex);
+      }
+    } else {
+      txid = await handle.api!.sendOnchain(address: address, sats: sats);
+    }
 
     final tx = Transaction(
       id: txid,
@@ -3485,9 +3507,77 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       } catch (_) {}
     }
 
+    if ((await _filaTransmissao()).containsKey(txid)) {
+      debugPrint('Transação $txid ainda na fila de reenvio; fica no histórico.');
+      return;
+    }
     debugPrint(
         'Transação $txid não apareceu na rede após ${tentativas * 6}s — removendo do histórico.');
     _removerTransacao(txid, isMerchant: isMerchant);
+  }
+
+  Timer? _reenvio;
+
+  Future<Map<String, String>> _filaTransmissao() async {
+    try {
+      final bruto = (await SharedPreferences.getInstance())
+          .getString(Rede.chaveFilaTransmissao);
+      if (bruto == null) return {};
+      return (jsonDecode(bruto) as Map).cast<String, String>();
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> _gravarFila(Map<String, String> fila) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (fila.isEmpty) {
+      await prefs.remove(Rede.chaveFilaTransmissao);
+    } else {
+      await prefs.setString(Rede.chaveFilaTransmissao, jsonEncode(fila));
+    }
+  }
+
+  Future<void> _enfileirarTransmissao(String txid, String hex) async {
+    final fila = await _filaTransmissao();
+    fila[txid] = hex;
+    await _gravarFila(fila);
+    _agendarReenvio();
+  }
+
+  void _agendarReenvio() {
+    _reenvio ??= Timer.periodic(
+        const Duration(seconds: 60), (_) => unawaited(_reenviarFila()));
+  }
+
+  /// Reenvia transações assinadas que nenhum servidor aceitou ainda. Sai da
+  /// fila quando entra na rede, quando a rede diz que já tem, ou quando ela
+  /// foi substituída (moedas gastas por outra transação).
+  Future<void> _reenviarFila() async {
+    final fila = await _filaTransmissao();
+    if (fila.isEmpty) {
+      _reenvio?.cancel();
+      _reenvio = null;
+      return;
+    }
+    for (final e in fila.entries.toList()) {
+      try {
+        await EmbeddedNodeApi.transmitirPorEsplora(e.value);
+        fila.remove(e.key);
+        debugPrint('Transação ${e.key} entrou na rede no reenvio.');
+      } catch (erro) {
+        final t = erro.toString().toLowerCase();
+        if (t.contains('already') || t.contains('known')) {
+          fila.remove(e.key);
+        } else if (t.contains('missingorspent') || t.contains('conflict')) {
+          fila.remove(e.key);
+          _removerTransacao(e.key, isMerchant: false);
+          debugPrint('Transação ${e.key} substituída; saiu da fila.');
+        }
+      }
+    }
+    await _gravarFila(fila);
+    notifyListeners();
   }
 
   void _atualizarStatusTx(String txid, String status,

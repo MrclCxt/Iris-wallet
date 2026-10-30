@@ -13,6 +13,8 @@ use std::sync::Arc;
 enum Rede {
     Testnet4,
     Bitcoin,
+    /// Blockchain local de teste (exige --bitcoind-rpc ou --esplora próprio).
+    Regtest,
 }
 
 impl Rede {
@@ -20,6 +22,7 @@ impl Rede {
         match self {
             Rede::Testnet4 => Network::Testnet4,
             Rede::Bitcoin => Network::Bitcoin,
+            Rede::Regtest => Network::Regtest,
         }
     }
 
@@ -27,6 +30,7 @@ impl Rede {
         match self {
             Rede::Testnet4 => "testnet4",
             Rede::Bitcoin => "bitcoin",
+            Rede::Regtest => "regtest",
         }
     }
 
@@ -34,21 +38,23 @@ impl Rede {
         match self {
             Rede::Testnet4 => "00000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf043",
             Rede::Bitcoin => "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
+            Rede::Regtest => "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206",
         }
     }
 
-    fn esploras(self) -> [&'static str; 3] {
+    fn esploras(self) -> &'static [&'static str] {
         match self {
-            Rede::Testnet4 => [
+            Rede::Testnet4 => &[
                 "https://mempool.space/testnet4/api",
                 "https://blockstream.info/testnet4/api",
                 "https://mempool.va1.mempool.space/testnet4/api",
             ],
-            Rede::Bitcoin => [
+            Rede::Bitcoin => &[
                 "https://mempool.space/api",
                 "https://blockstream.info/api",
                 "https://mempool.va1.mempool.space/api",
             ],
+            Rede::Regtest => &[],
         }
     }
 
@@ -56,6 +62,7 @@ impl Rede {
         match self {
             Rede::Testnet4 => "./iris_node_data_tn4n",
             Rede::Bitcoin => "./iris_node_data_main",
+            Rede::Regtest => "./iris_node_data_regtest",
         }
     }
 }
@@ -84,6 +91,44 @@ struct Args {
     /// Servidor Esplora próprio; pode repetir. Entram antes dos padrões.
     #[arg(long)]
     esplora: Vec<String>,
+
+    /// Nó Bitcoin próprio, no formato usuario:senha@host:porta. Com ele, o
+    /// daemon não consulta servidor de terceiro nenhum: os endereços da
+    /// carteira não saem desta máquina.
+    #[arg(long)]
+    bitcoind_rpc: Option<String>,
+}
+
+enum Fonte {
+    Esplora(String),
+    Bitcoind { host: String, porta: u16, usuario: String, senha: String },
+}
+
+impl Fonte {
+    fn descricao(&self) -> String {
+        match self {
+            Fonte::Esplora(u) => u.clone(),
+            Fonte::Bitcoind { host, porta, .. } => format!("bitcoind {host}:{porta}"),
+        }
+    }
+}
+
+fn ler_bitcoind_rpc(s: &str) -> Fonte {
+    let (cred, destino) = s
+        .rsplit_once('@')
+        .expect("--bitcoind-rpc deve ser usuario:senha@host:porta");
+    let (usuario, senha) = cred
+        .split_once(':')
+        .expect("--bitcoind-rpc deve ser usuario:senha@host:porta");
+    let (host, porta) = destino
+        .rsplit_once(':')
+        .expect("--bitcoind-rpc deve ser usuario:senha@host:porta");
+    Fonte::Bitcoind {
+        host: host.to_string(),
+        porta: porta.parse().expect("porta do bitcoind inválida"),
+        usuario: usuario.to_string(),
+        senha: senha.to_string(),
+    }
 }
 
 fn hex(bytes: &[u8]) -> String {
@@ -267,6 +312,21 @@ fn handle(node: &Arc<Node>, rede: Rede, method: &str, path: &str, body: Value) -
                 .map_err(|e| e.to_string())?;
             Ok(json!({}))
         }
+        ("POST", "/close_channel") => {
+            let user_channel_id: u128 = body["user_channel_id"]
+                .as_str()
+                .ok_or("user_channel_id ausente")?
+                .parse()
+                .map_err(|_| "user_channel_id inválido")?;
+            let counterparty = body["counterparty_node_id"]
+                .as_str()
+                .ok_or("counterparty_node_id ausente")?
+                .parse()
+                .map_err(|_| "counterparty_node_id inválido")?;
+            node.close_channel(&UserChannelId(user_channel_id), counterparty)
+                .map_err(|e| e.to_string())?;
+            Ok(json!({}))
+        }
         ("POST", "/sync") => {
             node.sync_wallets().map_err(|e| e.to_string())?;
             Ok(json!({}))
@@ -328,18 +388,39 @@ fn esploras_em_ordem(proprios: &[String], rede: Rede) -> Vec<String> {
 
 fn construir_e_iniciar(mnemonic: &str, args: &Args) -> Node {
     const TENTATIVAS: usize = 3;
-    let esploras = esploras_em_ordem(&args.esplora, args.rede);
+    let fontes: Vec<Fonte> = match &args.bitcoind_rpc {
+        Some(s) => vec![ler_bitcoind_rpc(s)],
+        None => esploras_em_ordem(&args.esplora, args.rede)
+            .into_iter()
+            .map(Fonte::Esplora)
+            .collect(),
+    };
+    if fontes.is_empty() {
+        panic!("a rede {} exige --bitcoind-rpc ou --esplora", args.rede.nome());
+    }
     let mut ultimo_erro = None;
 
     for tentativa in 0..TENTATIVAS {
-        let esplora = esploras[tentativa % esploras.len()].clone();
+        let fonte = &fontes[tentativa % fontes.len()];
         let mut builder = Builder::new();
         builder.set_entropy_bip39_mnemonic(mnemonic.parse().expect("mnemônica inválida"), None);
         builder.set_network(args.rede.network());
         builder.set_storage_dir_path(
             args.data_dir.clone().unwrap_or_else(|| args.rede.pasta_padrao().to_string()),
         );
-        builder.set_chain_source_esplora(esplora.clone(), None);
+        match fonte {
+            Fonte::Esplora(url) => {
+                builder.set_chain_source_esplora(url.clone(), None);
+            }
+            Fonte::Bitcoind { host, porta, usuario, senha } => {
+                builder.set_chain_source_bitcoind_rpc(
+                    host.clone(),
+                    *porta,
+                    usuario.clone(),
+                    senha.clone(),
+                );
+            }
+        }
         if args.p2p_porta != 0 {
             let endereco = format!("0.0.0.0:{}", args.p2p_porta)
                 .parse()
@@ -357,8 +438,9 @@ fn construir_e_iniciar(mnemonic: &str, args: &Args) -> Node {
             Ok(node) => return node,
             Err(e) => {
                 println!(
-                    "iris-noded: tentativa {}/{TENTATIVAS} de iniciar o nó falhou ({esplora}): {e}",
-                    tentativa + 1
+                    "iris-noded: tentativa {}/{TENTATIVAS} de iniciar o nó falhou ({}): {e}",
+                    tentativa + 1,
+                    fonte.descricao()
                 );
                 ultimo_erro = Some(e);
                 if tentativa + 1 < TENTATIVAS {

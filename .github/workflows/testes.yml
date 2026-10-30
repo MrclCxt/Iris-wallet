@@ -1,0 +1,67 @@
+# Testes automáticos a cada push na dev — o dinheiro é testado sem celular.
+#
+# Custo: o repositório é privado, então os minutos contam na cota gratuita do
+# GitHub (2.000 min/mês no Linux). Para caber com folga: só roda quando muda
+# código que afeta o resultado, cancela a execução anterior da mesma branch e
+# guarda o cache do Rust (sem cache o ldk-node leva ~10 min para compilar).
+#
+# Nada aqui toca dado de usuário: a regtest é uma blockchain local, criada e
+# destruída dentro do runner, com sementes públicas de teste.
+name: Testes
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'lib/**'
+      - 'test/**'
+      - 'daemon/**'
+      - 'packages/ldk_node/rust/**'
+      - 'scripts/**'
+      - 'pubspec.*'
+      - '.github/workflows/testes.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: testes-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.24.5'
+  BITCOIN_VERSION: '32.1'
+  BITCOIN_SHA256: '61545c17c3120fb7412f896d248b11993af04ec8817aad3649c55b2afb044963'
+
+jobs:
+  dart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: '${{ env.FLUTTER_VERSION }}', channel: stable, cache: true }
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos
+      - name: Testes (testnet4)
+        run: flutter test
+      - name: Testes compilados para a rede principal
+        run: flutter test --dart-define=IRIS_REDE=bitcoin
+
+  lightning-regtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: daemon }
+      - name: Bitcoin Core (hash conferido)
+        run: |
+          f=bitcoin-${BITCOIN_VERSION}-x86_64-linux-gnu.tar.gz
+          curl -sSfLO https://bitcoincore.org/bin/bitcoin-core-${BITCOIN_VERSION}/$f
+          echo "${BITCOIN_SHA256}  $f" | sha256sum -c -
+          tar -xzf $f
+          echo "BITCOIN_BIN=$PWD/bitcoin-${BITCOIN_VERSION}/bin" >> $GITHUB_ENV
+      - name: Compilar o iris-noded
+        run: cargo build --release --manifest-path daemon/Cargo.toml
+      - name: Canal, pagamento e fechamento na regtest
+        run: python3 scripts/regtest_canal.py --bitcoin-bin "$BITCOIN_BIN"

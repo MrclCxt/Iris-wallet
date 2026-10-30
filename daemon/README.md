@@ -38,6 +38,26 @@ Testnet4 por padrão. `--rede bitcoin` roda na rede principal, com pasta de
 dados própria (`./iris_node_data_main`) e Esploras da rede principal. O app só
 aceita um daemon da mesma rede para a qual foi compilado.
 
+### Nó Bitcoin próprio (privacidade)
+
+Com `--bitcoind-rpc usuario:senha@host:porta` o daemon lê a blockchain do seu
+próprio bitcoind e não consulta servidor de terceiro nenhum — os endereços da
+carteira não saem da sua máquina. Vale em qualquer rede.
+
+### Regtest e testes automáticos
+
+`--rede regtest` roda numa blockchain local de teste (exige `--bitcoind-rpc`).
+O teste de ponta a ponta sobe um bitcoind e dois daemons, abre canal, paga,
+fecha e confere os saldos, sem celular e sem internet:
+
+```sh
+cargo build --release
+python ../scripts/regtest_canal.py --bitcoin-bin <pasta do bitcoind>
+```
+
+O mesmo teste roda no GitHub Actions a cada push na `dev`
+(`.github/workflows/testes.yml`).
+
 ### Servidores Esplora
 
 Por padrão o daemon testa, em ordem, mempool.space, Blockstream e o espelho
@@ -53,7 +73,7 @@ va1 da mempool, e começa pelo primeiro que responder **e estiver na testnet4**
 `GET /health` (informa a rede), `/node_id`, `/balances`, `/payments`,
 `/channels`, `/onchain_address`, `/event` · `POST /invoice`, `/offer`, `/pay`,
 `/send_onchain` (recusa endereço de outra rede), `/open_channel`,
-`/set_forwarding_fee`, `/sync`, `/full_scan`, `/event_handled`.
+`/set_forwarding_fee`, `/close_channel`, `/sync`, `/full_scan`, `/event_handled`.
 
 ## Conectar o app
 

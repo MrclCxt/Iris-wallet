@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../services/exchange_rate_service.dart';
+import '../../services/dispositivo.dart';
 import '../../services/wallet_service.dart';
 import '../../widgets/max_width_container.dart';
 import '../pin_screen.dart';
@@ -73,6 +74,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
   }
 
   void _showSeedDialog(BuildContext context, String seed) {
+    Dispositivo.protegerTela(true);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -120,7 +122,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
           ),
         ],
       ),
-    );
+    ).then((_) => Dispositivo.protegerTela(false));
   }
 
   void _handleWipe(BuildContext context) {

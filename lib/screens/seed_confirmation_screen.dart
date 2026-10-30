@@ -1,4 +1,5 @@
 import '../core/seed_quiz.dart';
+import '../services/dispositivo.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/wallet_service.dart';
@@ -19,7 +20,14 @@ class _SeedConfirmationScreenState extends State<SeedConfirmationScreen> {
   @override
   void initState() {
     super.initState();
+    Dispositivo.protegerTela(true);
     _generateQuestions();
+  }
+
+  @override
+  void dispose() {
+    Dispositivo.protegerTela(false);
+    super.dispose();
   }
 
   void _generateQuestions() {

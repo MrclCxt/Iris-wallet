@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/wallet_service.dart';
 import '../../core/entropia.dart';
+import '../services/dispositivo.dart';
 import '../../core/theme.dart';
 
 class SeedGenerationScreen extends StatefulWidget {
@@ -17,9 +18,40 @@ class _SeedGenerationScreenState extends State<SeedGenerationScreen> {
   @override
   void initState() {
     super.initState();
+    Dispositivo.protegerTela(true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<WalletService>().initWallet();
+      _avisarSeRoot();
     });
+  }
+
+  @override
+  void dispose() {
+    Dispositivo.protegerTela(false);
+    super.dispose();
+  }
+
+  Future<void> _avisarSeRoot() async {
+    final root = await Dispositivo.pareceRoot();
+    if (!mounted || !root) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: IrisTheme.s1,
+        title: const Text('Aparelho com root',
+            style: TextStyle(color: IrisTheme.textPrimary, fontSize: 16)),
+        content: const Text(
+          'Este aparelho parece ter acesso root. Nele, outros apps podem ler '
+          'os dados da carteira. Para guardar dinheiro de verdade, use um '
+          'aparelho sem root.',
+          style: TextStyle(color: IrisTheme.textSecondary, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Entendi')),
+        ],
+      ),
+    );
   }
 
   /// Dados ou moeda jogados pelo usuário entram SOMADOS à entropia do

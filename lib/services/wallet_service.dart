@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 import 'package:flutter/material.dart';
 import 'package:bip39/bip39.dart' as bip39;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -1284,7 +1285,13 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   List<Transaction> get consumerTransactions => _consumerTransactions;
   List<Transaction> get merchantTransactions => _merchantTransactions;
 
-  static const int _pbkdf2Iterations = 20000;
+  // Igual à cifra da semente (SeedCrypto). Era 20.000: o hash do PIN, guardado
+  // no mesmo lugar que a semente cifrada, virava o elo fraco — quebrar o PIN
+  // por ele custava 10x menos (medido: ~40 min num núcleo para 1 milhão de
+  // PINs) e o PIN então abria a semente. Com PIN de 6 dígitos nenhum KDF
+  // segura um vazamento; a defesa real é o dado não sair do aparelho
+  // (Keystore + allowBackup=false). Isto só tira o atalho.
+  static const int _pbkdf2Iterations = 200000;
 
   static String _bytesToHex(List<int> bytes) =>
       bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
@@ -1336,7 +1343,21 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     return sha256.convert(utf8.encode(pin)).toString() == stored;
   }
 
-  bool _isLegacyHash(String stored) => !stored.startsWith('v2\$');
+  /// Hash antigo (SHA-256 puro ou poucas iterações): refazer no próximo
+  /// PIN correto.
+  static bool precisaRefazerHash(String stored) {
+    if (!stored.startsWith('v2\$')) return true;
+    final partes = stored.split('\$');
+    return partes.length != 4 ||
+        (int.tryParse(partes[1]) ?? 0) < _pbkdf2Iterations;
+  }
+
+  /// PBKDF2 de 200 mil iterações fora da thread da interface.
+  static Future<bool> verifyPinAsync(String pin, String stored) =>
+      Isolate.run(() => verifyPin(pin, stored));
+
+  static Future<String> hashPinAsync(String pin) =>
+      Isolate.run(() => hashPin(pin));
 
   Future<void> _saveConsumers() async {
     final encoded =
@@ -1523,7 +1544,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
     account.seed = seed;
     account.encSeed = await SeedCrypto.encryptInBackground(seed, newPin);
-    account.pinHash = hashPin(newPin);
+    account.pinHash = await hashPinAsync(newPin);
 
     if (_deviceSeed != null && _deviceSeed == seed) {
       await _definirSeedDoDispositivo(seed, newPin);
@@ -1710,7 +1731,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       }
     }
 
-    if (!verifyPin(pin, p.pinHash)) return false;
+    if (!await verifyPinAsync(pin, p.pinHash)) return false;
 
     p.encSeed = await SeedCrypto.encryptInBackground(p.seed, pin);
     return true;
@@ -1760,19 +1781,27 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
-  bool verifyConsumerPin(String pin) {
+  Future<bool> verifyConsumerPin(String pin) async {
     final active = activeConsumer;
     if (active == null || isPinLocked) return false;
-    final ok = verifyPin(pin, active.pinHash);
+    final ok = await verifyPinAsync(pin, active.pinHash);
     ok ? _resetPinAttempts() : _registerPinFailure();
+    if (ok && precisaRefazerHash(active.pinHash)) {
+      active.pinHash = await hashPinAsync(pin);
+      await _saveConsumers();
+    }
     return ok;
   }
 
-  bool verifyMerchantPin(String pin) {
+  Future<bool> verifyMerchantPin(String pin) async {
     final active = activeMerchant;
     if (active == null || isPinLocked) return false;
-    final ok = verifyPin(pin, active.pinHash);
+    final ok = await verifyPinAsync(pin, active.pinHash);
     ok ? _resetPinAttempts() : _registerPinFailure();
+    if (ok && precisaRefazerHash(active.pinHash)) {
+      active.pinHash = await hashPinAsync(pin);
+      await _saveMerchants();
+    }
     return ok;
   }
 
@@ -1784,7 +1813,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: 'Carteira Pessoal ${_consumerAccounts.length + 1}',
         seed: _tempConsumerSeed!,
-        pinHash: hashPin(pin),
+        pinHash: await hashPinAsync(pin),
       );
 
       newAccount.encSeed =
@@ -1834,8 +1863,8 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     if (await _unlockSeed(active, pin)) {
       _resetPinAttempts();
 
-      if (_isLegacyHash(active.pinHash)) {
-        active.pinHash = hashPin(pin);
+      if (precisaRefazerHash(active.pinHash)) {
+        active.pinHash = await hashPinAsync(pin);
       }
       await _saveConsumers();
       await _restoreDeviceSeed(pin);
@@ -1861,7 +1890,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: name,
       seed: seedDoPerfil,
-      pinHash: hashPin(pin),
+      pinHash: await hashPinAsync(pin),
     );
 
     newAccount.encSeed =
@@ -1894,8 +1923,8 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     if (isPinLocked) return false;
     if (await _unlockSeed(active, pin)) {
       _resetPinAttempts();
-      if (_isLegacyHash(active.pinHash)) {
-        active.pinHash = hashPin(pin);
+      if (precisaRefazerHash(active.pinHash)) {
+        active.pinHash = await hashPinAsync(pin);
       }
       await _saveMerchants();
       await _restoreDeviceSeed(pin);

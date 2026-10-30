@@ -131,9 +131,12 @@ class _PinScreenState extends State<PinScreen> {
           } else {
             final wallet = context.read<WalletService>();
             if (widget.onSuccess != null) {
+              setState(() => _verifying = true);
               final ok = widget.isMerchant
-                  ? wallet.verifyMerchantPin(_pin)
-                  : wallet.verifyConsumerPin(_pin);
+                  ? await wallet.verifyMerchantPin(_pin)
+                  : await wallet.verifyConsumerPin(_pin);
+              if (!mounted) return;
+              setState(() => _verifying = false);
               if (ok) {
                 widget.onSuccess!();
               } else {

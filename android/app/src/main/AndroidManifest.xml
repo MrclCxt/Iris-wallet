@@ -12,7 +12,12 @@
     <application
         android:label="IRIS"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/regras_extracao"
+        android:usesCleartextTraffic="false"
+        android:networkSecurityConfig="@xml/seguranca_rede">
         <activity
             android:name=".MainActivity"
             android:exported="true"

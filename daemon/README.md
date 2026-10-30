@@ -24,8 +24,30 @@ cargo build --release
 
 ```sh
 echo "suas doze palavras da seed aqui" > seed.txt
-./iris-noded --mnemonic-file seed.txt --data-dir ./iris_node_data --port 8380
+./iris-noded --mnemonic-file seed.txt --port 8380
 ```
+
+Usa o mesmo ldk-node 0.7 e os mesmos remendos do app (cópias em
+`packages/ldk_node/rust/vendor`), com testnet4 nativa. Os dados ficam em
+`./iris_node_data_tn4n` — uma pasta de daemon antigo (0.3, testnet3) não é
+reaproveitada.
+
+### Servidores Esplora
+
+Por padrão o daemon testa, em ordem, mempool.space, Blockstream e o espelho
+va1 da mempool, e começa pelo primeiro que responder **e estiver na testnet4**
+(o bloco gênese é conferido). Para usar o seu servidor, repita `--esplora`:
+
+```sh
+./iris-noded --mnemonic-file seed.txt --esplora https://meu-servidor/api
+```
+
+### Rotas
+
+`GET /health` (informa a rede), `/node_id`, `/balances`, `/payments`,
+`/channels`, `/onchain_address`, `/event` · `POST /invoice`, `/offer`, `/pay`,
+`/send_onchain` (recusa endereço de outra rede), `/open_channel`,
+`/set_forwarding_fee`, `/sync`, `/full_scan`, `/event_handled`.
 
 ## Conectar o app
 
@@ -39,4 +61,4 @@ daemon na próxima vez que o perfil for desbloqueado.
   interfaces de rede.
 - A seed fica no arquivo indicado por `--mnemonic-file`; proteja-o com as
   permissões do sistema (ex.: `chmod 600 seed.txt`).
-- Testnet por padrão; ajuste `--esplora` se quiser outro provedor de dados.
+- Testnet4. O app recusa um daemon que não informe a mesma rede no `/health`.

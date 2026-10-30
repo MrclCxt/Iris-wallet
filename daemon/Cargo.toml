@@ -1,27 +1,26 @@
 [package]
 name = "iris-noded"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Daemon local do nó Lightning do Iris Wallet (LDK Node + REST em 127.0.0.1)"
 
 [dependencies]
-ldk-node = "0.3"
-# Pino direto para forçar o resolvedor do Cargo a ficar na MESMA versão que o
-# ldk-node 0.3.0 foi de fato construído contra (ver Cargo.toml dele). Sem
-# isto, o Cargo resolve a lightning-liquidity 0.1.0 (estável, mais nova), que
-# depende de uma lightning 0.1.11 incompatível com a lightning 0.0.123 que o
-# ldk-node usa direto — dá erro de trait duplicado (duas versões da mesma
-# lightning na árvore) e o daemon não compila. O plugin embarcado (mesmo
-# ldk-node, via cargokit) já resolve para 0.1.0-alpha.4 e funciona; aqui é
-# só deixar isso explícito em vez de depender do Cargo escolher certo sozinho.
-lightning-liquidity = "=0.1.0-alpha.4"
+# Mesma versão e mesmos remendos do nó embarcado do app: as duas pontas têm de
+# anunciar a mesma rede e se comportar igual diante do Esplora.
+ldk-node = "0.7.0"
 tiny_http = "0.12"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 clap = { version = "4", features = ["derive"] }
-# Cliente HTTP síncrono e leve só para o pré-voo de escolha de Esplora no
-# boot (ver escolher_esplora) — não precisa do runtime async completo.
 ureq = "2"
+
+# Cópias vendorizadas do app (packages/ldk_node/rust/vendor):
+# - ldk-node: busca única de /fee-estimates, timeouts e concorrência do BDK
+#   ajustados contra 429, e full_scan_wallets exposto;
+# - lightning-invoice: Network::Testnet4 gera fatura `lntb` em vez de `lnbcrt`.
+[patch.crates-io]
+ldk-node = { path = "../packages/ldk_node/rust/vendor/ldk-node" }
+lightning-invoice = { path = "../packages/ldk_node/rust/vendor/lightning-invoice" }
 
 [profile.release]
 opt-level = "s"

@@ -500,6 +500,10 @@ class RemoteNodeApi implements NodeApi {
     if (health['status'] != 'ok') {
       throw Exception('Daemon local não está saudável: $health');
     }
+    if (health['network'] != 'testnet4') {
+      throw Exception('Daemon local está em outra rede ou desatualizado '
+          '(${health['network'] ?? 'sem rede informada'}); atualize o iris-noded.');
+    }
   }
 
   @override
@@ -528,11 +532,36 @@ class RemoteNodeApi implements NodeApi {
 
   @override
   Future<String?> createOffer({required String description}) async {
-    return null;
+    try {
+      final r = await _post('/offer', {'description': description});
+      return r['offer'] as String?;
+    } catch (e) {
+      debugPrint('Offer BOLT12 indisponível no daemon: $e');
+      return null;
+    }
   }
 
   @override
-  Future<List<PaymentRecord>> listPayments() async => const [];
+  Future<List<PaymentRecord>> listPayments() async {
+    try {
+      final r = await _get('/payments');
+      return [
+        for (final p in (r['payments'] as List? ?? const []))
+          PaymentRecord(
+            id: p['id'].toString(),
+            amountSats: (p['amount_sats'] as num).toInt(),
+            isIncoming: p['incoming'] == true,
+            isOnchain: p['onchain'] == true,
+            status: p['status']?.toString() ?? 'pending',
+            date: DateTime.fromMillisecondsSinceEpoch(
+                (p['timestamp'] as num).toInt() * 1000),
+          ),
+      ];
+    } catch (e) {
+      debugPrint('Não foi possível ler o histórico do daemon: $e');
+      return [];
+    }
+  }
 
   @override
   Future<void> payInvoice(String invoice, {int? amountMsat}) async {

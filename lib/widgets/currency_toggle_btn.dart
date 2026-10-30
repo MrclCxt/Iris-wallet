@@ -15,6 +15,7 @@ class CurrencyToggleBtn extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final exchangeRate = context.watch<ExchangeRateService>();
+    if (!exchangeRate.cotacaoLigada) return const SizedBox.shrink();
     final isSats = exchangeRate.isSatsDisplay;
 
     return Container(

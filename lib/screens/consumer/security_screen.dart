@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
+import '../../services/exchange_rate_service.dart';
 import '../../services/wallet_service.dart';
 import '../../widgets/max_width_container.dart';
 import '../pin_screen.dart';
@@ -259,6 +260,41 @@ class _SecurityScreenState extends State<SecurityScreen> {
                           color: IrisTheme.textSecondary, fontSize: 12)),
                   value: _lockOnSuspend,
                   onChanged: (v) => setState(() => _lockOnSuspend = v),
+                ),
+                const SizedBox(height: 28),
+                const Divider(color: IrisTheme.bdr),
+                const SizedBox(height: 16),
+                _sectionHeader('Privacidade de rede'),
+                const SizedBox(height: 8),
+                _card(
+                  icon: Icons.visibility_off_outlined,
+                  title: 'Nada sai do aparelho sem necessidade',
+                  body:
+                      'A Iris não tem conta, cadastro, rastreador nem banco de '
+                      'dados na nuvem. Para ler a blockchain, o nó consulta '
+                      'servidores públicos, que veem o seu IP e os endereços '
+                      'consultados. Para não depender deles, use o seu próprio '
+                      'servidor em Carteira Bitcoin e Canais → Backend do nó → '
+                      'Servidores de dados.',
+                ),
+                const SizedBox(height: 12),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  activeColor: IrisTheme.primary,
+                  title: const Text('Buscar cotação do Real',
+                      style: TextStyle(
+                          color: IrisTheme.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600)),
+                  subtitle: const Text(
+                      'Consulta CoinGecko, Binance e Mercado Bitcoin para '
+                      'converter valores. Desligado, nenhuma dessas empresas '
+                      'vê o seu IP — e os valores ficam só em sats.',
+                      style: TextStyle(
+                          color: IrisTheme.textSecondary, fontSize: 12)),
+                  value: context.watch<ExchangeRateService>().cotacaoLigada,
+                  onChanged: (v) =>
+                      context.read<ExchangeRateService>().setCotacaoLigada(v),
                 ),
                 const SizedBox(height: 28),
                 const Divider(color: IrisTheme.bdr),

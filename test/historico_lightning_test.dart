@@ -51,10 +51,30 @@ void main() {
     test('a linha "aguardando confirmação" de 11/09 sai do histórico', () {
       final lista = [linha(h1, 'pending'), linha(h2, 'confirmed'), linha(h3, 'pending')];
       final saiu = WalletService.removerCobrancasNaoPagas(
-          lista, [registro(h1, 'pending'), registro(h2, 'confirmed')]);
+          lista, [registro(h1, 'pending'), registro(h2, 'confirmed')],
+          agora: DateTime(2026, 9, 11, 12));
       expect(saiu, 1);
       expect(lista.map((t) => t.id), [h2, h3],
-          reason: 'só sai o que o nó diz não pago; o resto fica');
+          reason: 'só sai o que o nó diz não pago; o recente que ele não '
+              'conhece ainda fica');
+    });
+
+    test('pendente há mais de 24 h que o nó nem conhece também sai', () {
+      final hoje = DateTime(2026, 10, 30);
+      final lista = [
+        linha(h1, 'pending'), // 11/09, nó não conhece (pasta antiga)
+        Transaction(
+            id: h2,
+            title: 'Recebido via Lightning',
+            emoji: '⚡',
+            amountSats: 10,
+            isIncoming: true,
+            date: hoje.subtract(const Duration(hours: 2)),
+            status: 'pending'),
+      ];
+      WalletService.removerCobrancasNaoPagas(lista, const [], agora: hoje);
+      expect(lista.map((t) => t.id), [h2],
+          reason: 'recente fica (pode estar chegando); a de 11/09 sai');
     });
 
     test('nunca apaga recebimento confirmado nem on-chain', () {

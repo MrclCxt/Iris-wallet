@@ -986,19 +986,31 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   /// Tira do histórico as linhas de cobranças Lightning que o nó diz não
   /// terem sido pagas (eram as "aguardando confirmação" eternas). Devolve
   /// quantas saíram.
+  ///
+  /// Também sai a linha Lightning de entrada pendente há mais de 24 h que o
+  /// nó não confirma — vinda de uma pasta de nó antiga, por exemplo. Um
+  /// recebimento Lightning de verdade está sempre como concluído no nó; o que
+  /// ele não confirma não era dinheiro.
   static int removerCobrancasNaoPagas(
-      List<Transaction> lista, Iterable<PaymentRecord> doNo) {
-    final naoPagas = {
-      for (final p in doNo)
-        if (ehCobrancaLightningNaoPaga(p)) _idCanonico(p.id)
-    };
-    if (naoPagas.isEmpty) return 0;
+      List<Transaction> lista, Iterable<PaymentRecord> doNo,
+      {DateTime? agora}) {
+    final naoPagas = <String>{};
+    final pagas = <String>{};
+    for (final p in doNo) {
+      if (ehCobrancaLightningNaoPaga(p)) {
+        naoPagas.add(_idCanonico(p.id));
+      } else if (!p.isOnchain && p.isIncoming) {
+        pagas.add(_idCanonico(p.id));
+      }
+    }
+    final limite = (agora ?? DateTime.now()).subtract(const Duration(hours: 24));
     final antes = lista.length;
-    lista.removeWhere((t) =>
-        t.isIncoming &&
-        t.emoji == '⚡' &&
-        t.status != 'confirmed' &&
-        naoPagas.contains(_idCanonico(t.id)));
+    lista.removeWhere((t) {
+      if (!t.isIncoming || t.emoji != '⚡' || t.status == 'confirmed') return false;
+      final id = _idCanonico(t.id);
+      if (naoPagas.contains(id)) return true;
+      return !pagas.contains(id) && t.date.isBefore(limite);
+    });
     return antes - lista.length;
   }
 

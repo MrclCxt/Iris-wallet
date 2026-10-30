@@ -96,6 +96,21 @@ def esperar(descricao, condicao, segundos=120):
     falhar(f"tempo esgotado esperando {descricao} (último erro: {ultimo})")
 
 
+_B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def wif_regtest(comprimida):
+    """Chave privada de teste em WIF (prefixo 0xef), para o teste de varredura."""
+    corpo = b"\xef" + os.urandom(32) + (b"\x01" if comprimida else b"")
+    dados = corpo + hashlib.sha256(hashlib.sha256(corpo).digest()).digest()[:4]
+    n = int.from_bytes(dados, "big")
+    out = ""
+    while n:
+        n, r = divmod(n, 58)
+        out = _B58[r] + out
+    return "1" * (len(dados) - len(dados.lstrip(b"\x00"))) + out
+
+
 def esperar_evento(nome, tipo, hash_hex, segundos=60):
     """Consome a fila de eventos do daemon até achar [tipo] para [hash_hex]."""
     fim = time.time() + segundos
@@ -290,14 +305,18 @@ def main():
                        IRIS_DAEMON_A=f"http://127.0.0.1:{PORTAS['A'][0]}",
                        IRIS_DAEMON_B=f"http://127.0.0.1:{PORTAS['B'][0]}",
                        IRIS_SEMENTE_A=SEMENTES["A"],
-                       IRIS_SEMENTE_B=SEMENTES["B"])
+                       IRIS_SEMENTE_B=SEMENTES["B"],
+                       IRIS_BITCOIND=f"http://{RPC_USUARIO}:{RPC_SENHA}@127.0.0.1:{RPC_PORTA}",
+                       IRIS_WIF_SEGWIT=wif_regtest(True),
+                       IRIS_WIF_LEGADO=wif_regtest(False))
             r = subprocess.run(
-                [args.flutter, "test", "test/integracao/troca_regtest_test.dart"],
+                [args.flutter, "test", "test/integracao"],
                 cwd=RAIZ, env=env, shell=(os.name == "nt"))
             if r.returncode != 0:
-                falhar("a troca P2P do app falhou contra os nós da regtest")
-            log("troca P2P do app: caminho feliz e disputa pelo árbitro, "
-                "com os nós da regtest")
+                falhar("os testes do app contra a regtest falharam")
+            log("app contra a regtest: troca P2P (caminho feliz e disputa pelo "
+                "árbitro) e varredura de chave SegWit e legada aceitas pelo "
+                "Bitcoin Core")
         else:
             log("flutter não encontrado: pulando a troca P2P do app")
 

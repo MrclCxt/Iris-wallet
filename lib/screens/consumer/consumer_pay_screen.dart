@@ -8,9 +8,12 @@ import 'package:zxing2/qrcode.dart' as zx;
 import '../../core/theme.dart';
 import '../../core/bolt11.dart';
 import '../../core/rede.dart';
+import '../../core/varredura.dart';
+import '../../core/currency_format.dart';
 import '../../core/brcode.dart';
 import '../../core/lnurl.dart';
 import '../../core/tx_policy.dart';
+import '../../services/voucher_service.dart';
 import '../../services/wallet_service.dart';
 import '../../services/pix_service.dart';
 import 'package:provider/provider.dart';
@@ -323,6 +326,54 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
     }
   }
 
+  /// Voucher ou carteira de papel: mostra o saldo e varre para a carteira.
+  Future<void> _resgatarChave(String wif) async {
+    final vouchers = VoucherService(context.read<WalletService>());
+    final int total;
+    try {
+      total = (await vouchers.consultar(wif)).total;
+    } catch (e) {
+      _showError(e.toString().replaceFirst(RegExp(r'^(Exception|FormatException):\s*'), ''));
+      return;
+    }
+    if (!mounted) return;
+    if (total == 0) {
+      _showError('Esta chave não tem saldo (ou já foi resgatada).');
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: IrisTheme.s1,
+        title: const Text('Resgatar voucher',
+            style: TextStyle(color: IrisTheme.textPrimary, fontSize: 16)),
+        content: Text(
+          'Esta chave tem ${CurrencyFormatter.formatBtcOrSats(total)}. Mandar '
+          'tudo para a sua carteira? A taxa da rede sai desse valor.',
+          style: const TextStyle(color: IrisTheme.textSecondary, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Resgatar')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await vouchers.resgatar(wif);
+      if (!mounted) return;
+      _invoiceCtrl.clear();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Resgate enviado. O saldo aparece ao confirmar na rede.')));
+    } catch (e) {
+      _showError(e.toString().replaceFirst(RegExp(r'^(Exception|FormatException):\s*'), ''));
+    }
+  }
+
   Future<void> _handlePay() async {
     if (_isResolving) return;
     final input = _sanitize(_invoiceCtrl.text);
@@ -332,6 +383,8 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
     try {
       if (WalletService.ehTransacaoAssinada(input)) {
         await _transmitirRecebida(input);
+      } else if (ChaveAvulsa.pareceWif(input)) {
+        await _resgatarChave(input);
       } else if (BrCode.looksLikeBrCode(input)) {
         if (!context.read<PixService>().isPixEnabled) {
           _showError('Este é um QR PIX. Ative o Pix em Configurações › Ativar '

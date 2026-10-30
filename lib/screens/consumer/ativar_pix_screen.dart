@@ -5,6 +5,7 @@ import '../../services/pix_service.dart';
 import '../../widgets/max_width_container.dart';
 import 'pix_onboarding_screen.dart';
 import 'trocas_screen.dart';
+import '../merchant/vouchers_screen.dart';
 
 class AtivarPixScreen extends StatefulWidget {
   const AtivarPixScreen({super.key});
@@ -79,6 +80,15 @@ class _AtivarPixScreenState extends State<AtivarPixScreen> {
                   ),
                   icon: const Icon(Icons.swap_horiz, size: 18),
                   label: const Text('Prévia: trocas P2P da Iris'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const VouchersScreen()),
+                  ),
+                  icon: const Icon(Icons.confirmation_number_outlined, size: 18),
+                  label: const Text('Prévia: vouchers Bitcoin do lojista'),
                 ),
                 const SizedBox(height: 24),
                 const Text(

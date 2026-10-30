@@ -23,8 +23,10 @@ void main() {
 
   test('troca com garantia e disputa decidida pelo árbitro', () async {
     final relay = await RelayLocal.iniciar();
-    final a = _CarteiraDaemon(env['IRIS_DAEMON_A']!, env['IRIS_SEMENTE_A']!);
-    final b = _CarteiraDaemon(env['IRIS_DAEMON_B']!, env['IRIS_SEMENTE_B']!);
+    final a = _CarteiraDaemon(
+        env['IRIS_DAEMON_A']!, env['IRIS_SEMENTE_A']!, env['IRIS_TOKEN_A']);
+    final b = _CarteiraDaemon(
+        env['IRIS_DAEMON_B']!, env['IRIS_SEMENTE_B']!, env['IRIS_TOKEN_B']);
     final arbitro = _CarteiraDaemon.soChave(
         'what bleak badge arrange retreat wolf trade produce cricket blur '
         'garlic valid proud rude strong choose busy staff weather area salt '
@@ -135,7 +137,8 @@ class _CarteiraDaemon implements CarteiraTroca {
   Timer? _eventos;
   late final ChavesNostr chaves = ChavesNostr.daSemente(_semente);
 
-  _CarteiraDaemon(String url, this._semente) : _api = RemoteNodeApi(url) {
+  _CarteiraDaemon(String url, this._semente, String? token)
+      : _api = RemoteNodeApi(url, token: token) {
     _eventos = Timer.periodic(const Duration(milliseconds: 500), (_) => _lerEventos());
   }
 

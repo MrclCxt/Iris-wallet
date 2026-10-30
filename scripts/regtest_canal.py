@@ -71,11 +71,17 @@ def bitcoind_rpc(metodo, *params, carteira=None):
     return resposta["result"]
 
 
+TOKENS = {}
+
+
 def daemon(nome, metodo, rota, corpo=None):
     porta = PORTAS[nome][0]
     dados = json.dumps(corpo or {}).encode() if metodo == "POST" else None
     req = urllib.request.Request(f"http://127.0.0.1:{porta}{rota}", dados,
                                  method=metodo)
+    req.add_header("X-Iris-Token", TOKENS.get(nome, ""))
+    if dados is not None:
+        req.add_header("Content-Type", "application/json")
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
             return json.load(r)
@@ -170,24 +176,76 @@ def main():
         minerar(101, mina)
         log("bitcoind de pé, 101 blocos minerados")
 
+        # A usa a semente CIFRADA (como deve ser em produção); B, em texto
+        # puro com a flag explícita de teste.
+        env_senha = dict(os.environ, IRIS_SENHA="senha-de-teste-regtest")
         for nome in ("A", "B"):
             semente = os.path.join(pasta, f"semente_{nome}.txt")
             with open(semente, "w") as f:
                 f.write(SEMENTES[nome])
+            extra = []
+            if nome == "A":
+                cifrada = os.path.join(pasta, "semente_A.enc")
+                subprocess.run([args.daemon, "--cifrar", semente, "--saida", cifrada],
+                               env=env_senha, check=True, stdout=subprocess.DEVNULL)
+                os.remove(semente)
+                semente = cifrada
+            else:
+                extra = ["--aceitar-semente-em-claro"]
             rest, p2p = PORTAS[nome]
             saida = open(os.path.join(pasta, f"daemon_{nome}.log"), "w")
             processos.append(subprocess.Popen([
                 args.daemon, "--rede", "regtest", "--mnemonic-file", semente,
                 "--data-dir", os.path.join(pasta, f"no_{nome}"),
                 "--port", str(rest), "--p2p-porta", str(p2p),
+                "--token-file", os.path.join(pasta, f"token_{nome}"),
                 "--bitcoind-rpc",
                 f"{RPC_USUARIO}:{RPC_SENHA}@127.0.0.1:{RPC_PORTA}",
-            ], stdout=saida, stderr=subprocess.STDOUT))
+                *extra,
+            ], stdout=saida, stderr=subprocess.STDOUT, env=env_senha))
+
+        def ler_token(n):
+            caminho = os.path.join(pasta, f"token_{n}")
+            if os.path.exists(caminho):
+                TOKENS[n] = open(caminho).read().strip()
+            return daemon(n, "GET", "/health")["network"] == "regtest"
         for nome in ("A", "B"):
-            esperar(f"o daemon {nome}",
-                    lambda n=nome: daemon(n, "GET", "/health")["network"] == "regtest",
-                    90)
-        log("dois daemons de pé na regtest")
+            esperar(f"o daemon {nome}", lambda n=nome: ler_token(n), 90)
+        log("dois daemons de pé na regtest (A com semente cifrada)")
+
+        # Ataques à API local: nada passa sem o token e sem ser o app.
+        def codigo(cabecalhos, metodo="POST", corpo=b"{}", host=None):
+            porta = PORTAS["A"][0]
+            req = urllib.request.Request(f"http://127.0.0.1:{porta}/pay",
+                                         corpo if metodo == "POST" else None,
+                                         method=metodo)
+            for k, v in cabecalhos.items():
+                req.add_header(k, v)
+            if host:
+                req.add_header("Host", host)
+            try:
+                with urllib.request.urlopen(req, timeout=10) as r:
+                    return r.status
+            except urllib.error.HTTPError as e:
+                return e.code
+        json_ct = {"Content-Type": "application/json"}
+        casos = {
+            "sem token": (codigo(json_ct), 401),
+            "token errado": (codigo({**json_ct, "X-Iris-Token": "0" * 64}), 401),
+            "vindo de site (Origin)": (codigo({**json_ct, "X-Iris-Token": TOKENS["A"],
+                                              "Origin": "https://site-malicioso.example"}), 403),
+            "POST simples text/plain (CSRF)": (codigo({"Content-Type": "text/plain",
+                                                       "X-Iris-Token": TOKENS["A"]}), 415),
+            "DNS rebinding (Host)": (codigo({**json_ct, "X-Iris-Token": TOKENS["A"]},
+                                            host="evil.example:18390"), 403),
+            "JSON inválido": (codigo({**json_ct, "X-Iris-Token": TOKENS["A"]},
+                                     corpo=b"{nao e json"), 400),
+        }
+        for nome_caso, (obtido, esperado) in casos.items():
+            if obtido != esperado:
+                falhar(f"API: {nome_caso} deu {obtido}, esperado {esperado}")
+        log("API local: sem token 401, site 403, CSRF text/plain 415, "
+            "DNS rebinding 403, JSON inválido 400")
 
         # B também recebe on-chain: canal com âncoras exige reserva dos dois lados.
         for nome, btc in (("A", 1.0), ("B", 0.1)):
@@ -333,6 +391,8 @@ def main():
             env = dict(os.environ,
                        IRIS_DAEMON_A=f"http://127.0.0.1:{PORTAS['A'][0]}",
                        IRIS_DAEMON_B=f"http://127.0.0.1:{PORTAS['B'][0]}",
+                       IRIS_TOKEN_A=TOKENS["A"],
+                       IRIS_TOKEN_B=TOKENS["B"],
                        IRIS_SEMENTE_A=SEMENTES["A"],
                        IRIS_SEMENTE_B=SEMENTES["B"],
                        IRIS_BITCOIND=f"http://{RPC_USUARIO}:{RPC_SENHA}@127.0.0.1:{RPC_PORTA}",

@@ -10,7 +10,11 @@ import 'package:iris_wallet/services/node_backend.dart';
 void main() {
   RemoteNodeApi api(Map<String, Object> rotas) => RemoteNodeApi(
         'http://127.0.0.1:8380',
+        token: 'tok',
         client: MockClient((req) async {
+          if (req.headers['X-Iris-Token'] != 'tok') {
+            return http.Response('{"error":"token"}', 401);
+          }
           final corpo = rotas[req.url.path];
           if (corpo == null) return http.Response('{"error":"rota"}', 500);
           return http.Response(jsonEncode(corpo), 200);

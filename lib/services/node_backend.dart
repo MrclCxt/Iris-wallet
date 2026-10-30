@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
@@ -598,14 +599,56 @@ class RemoteNodeApi implements NodeApi {
   final Uri baseUrl;
   final http.Client _client;
 
-  RemoteNodeApi(String url, {http.Client? client})
+  /// Token da API do daemon. Sem ele, o daemon recusa tudo (401): é o que
+  /// impede um site aberto no navegador de mandar o daemon pagar.
+  String? _token;
+  final bool _tokenFixo;
+
+  RemoteNodeApi(String url, {http.Client? client, String? token})
       : baseUrl = Uri.parse(url),
-        _client = client ?? http.Client();
+        _client = client ?? http.Client(),
+        _token = token,
+        _tokenFixo = token != null;
+
+  /// Onde o iris-noded grava o token (só o usuário lê).
+  static String? caminhoTokenPadrao() {
+    final env = Platform.environment;
+    final base = env['APPDATA'] ??
+        env['XDG_CONFIG_HOME'] ??
+        (env['HOME'] != null ? '${env['HOME']}/.config' : null);
+    return base == null ? null : '$base/iris-noded/api_token';
+  }
+
+  Future<void> _lerToken() async {
+    if (_tokenFixo) return;
+    final caminho = caminhoTokenPadrao();
+    if (caminho == null) return;
+    try {
+      _token = (await File(caminho).readAsString()).trim();
+    } catch (_) {}
+  }
+
+  Map<String, String> get _cabecalhos => {
+        if (_token != null) 'X-Iris-Token': _token!,
+      };
 
   Uri _u(String path) => baseUrl.replace(path: path);
 
+  Future<http.Response> _comToken(Future<http.Response> Function() pedido) async {
+    if (_token == null) await _lerToken();
+    var r = await pedido();
+    if (r.statusCode == 401 && !_tokenFixo) {
+      // O daemon gera token novo a cada partida: relê e tenta uma vez.
+      await _lerToken();
+      r = await pedido();
+    }
+    return r;
+  }
+
   Future<Map<String, dynamic>> _get(String path) async {
-    final r = await _client.get(_u(path)).timeout(const Duration(seconds: 30));
+    final r = await _comToken(() => _client
+        .get(_u(path), headers: _cabecalhos)
+        .timeout(const Duration(seconds: 30)));
     if (r.statusCode != 200) {
       throw Exception('Daemon respondeu ${r.statusCode} em $path: ${r.body}');
     }
@@ -614,11 +657,11 @@ class RemoteNodeApi implements NodeApi {
 
   Future<Map<String, dynamic>> _post(
       String path, Map<String, dynamic> body) async {
-    final r = await _client
+    final r = await _comToken(() => _client
         .post(_u(path),
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', ..._cabecalhos},
             body: jsonEncode(body))
-        .timeout(const Duration(seconds: 60));
+        .timeout(const Duration(seconds: 60)));
     if (r.statusCode != 200) {
       throw Exception('Daemon respondeu ${r.statusCode} em $path: ${r.body}');
     }

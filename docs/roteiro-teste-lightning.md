@@ -61,7 +61,8 @@ O canal só tem saldo do lado do celular; depois do passo 2, o PC tem 1.000 sats
 ## 5. Daemon (PDV sempre ligado)
 
 1. Fechar o app no PC. Rodar:
-   `iris-noded --mnemonic-file seed.txt` (mesma semente da conta do PC).
+   `iris-noded --mnemonic-file semente.enc` (mesma semente da conta do PC,
+   cifrada antes com `iris-noded --cifrar seed.txt --saida semente.enc`).
    O terminal mostra `aceitando canais em <id>@<ip>:9735`.
 2. No app do PC: Backend do nó → URL do daemon `http://127.0.0.1:8380` →
    bloquear e desbloquear.

@@ -72,8 +72,26 @@ impl Rede {
 #[derive(Parser)]
 #[command(version, about)]
 struct Args {
+    /// Semente CIFRADA no formato do app (enc1$...). Senha em IRIS_SENHA ou
+    /// digitada no terminal. Semente em texto puro só com --aceitar-semente-em-claro.
     #[arg(long)]
-    mnemonic_file: String,
+    mnemonic_file: Option<String>,
+
+    /// Aceita arquivo de semente em texto puro (testes/regtest). Não use com
+    /// dinheiro de verdade: qualquer programa que leia o arquivo leva tudo.
+    #[arg(long)]
+    aceitar_semente_em_claro: bool,
+
+    /// Cifra a semente de um arquivo em texto puro e sai. Grava em --saida.
+    #[arg(long)]
+    cifrar: Option<String>,
+
+    #[arg(long)]
+    saida: Option<String>,
+
+    /// Onde gravar o token da API (padrão: pasta do usuário, ver README).
+    #[arg(long)]
+    token_file: Option<String>,
 
     #[arg(long, value_enum, default_value = "testnet4")]
     rede: Rede,
@@ -622,13 +640,176 @@ fn construir_e_iniciar(mnemonic: &str, args: &Args) -> (Node, Fonte) {
     panic!("falha ao iniciar o nó após {TENTATIVAS} tentativas: {ultimo_erro:?}");
 }
 
+// ---------------------------------------------------------------- semente
+
+const ITERACOES: u32 = 200_000;
+
+fn chave_de(senha: &str, sal: &[u8], iteracoes: u32) -> [u8; 32] {
+    let mut k = [0u8; 32];
+    pbkdf2::pbkdf2_hmac::<sha2::Sha256>(senha.as_bytes(), sal, iteracoes, &mut k);
+    k
+}
+
+/// Mesmo formato do app (lib/core/seed_crypto.dart): enc1$iter$sal$nonce$mac$cifra.
+fn decifrar_semente(blob: &str, senha: &str) -> Result<String, String> {
+    use aes_gcm::aead::{Aead, KeyInit, Payload};
+    use base64::Engine;
+    let b64 = base64::engine::general_purpose::STANDARD;
+    let p: Vec<&str> = blob.trim().split('$').collect();
+    if p.len() != 6 || p[0] != "enc1" {
+        return Err("formato de semente cifrada inválido".into());
+    }
+    let iter: u32 = p[1].parse().map_err(|_| "iterações inválidas")?;
+    let sal = b64.decode(p[2]).map_err(|_| "sal inválido")?;
+    let nonce = b64.decode(p[3]).map_err(|_| "nonce inválido")?;
+    let mut cifra = b64.decode(p[5]).map_err(|_| "cifra inválida")?;
+    cifra.extend(b64.decode(p[4]).map_err(|_| "mac inválido")?);
+    let k = chave_de(senha, &sal, iter);
+    let aes = aes_gcm::Aes256Gcm::new_from_slice(&k).map_err(|_| "chave inválida")?;
+    let claro = aes
+        .decrypt(aes_gcm::Nonce::from_slice(&nonce), Payload { msg: &cifra, aad: &[] })
+        .map_err(|_| "senha incorreta".to_string())?;
+    String::from_utf8(claro).map_err(|_| "semente corrompida".into())
+}
+
+fn cifrar_semente(semente: &str, senha: &str) -> String {
+    use aes_gcm::aead::{Aead, KeyInit};
+    use base64::Engine;
+    let b64 = base64::engine::general_purpose::STANDARD;
+    let mut sal = [0u8; 16];
+    let mut nonce = [0u8; 12];
+    getrandom::getrandom(&mut sal).expect("gerador do sistema indisponível");
+    getrandom::getrandom(&mut nonce).expect("gerador do sistema indisponível");
+    let k = chave_de(senha, &sal, ITERACOES);
+    let aes = aes_gcm::Aes256Gcm::new_from_slice(&k).unwrap();
+    let saida = aes
+        .encrypt(aes_gcm::Nonce::from_slice(&nonce), semente.as_bytes())
+        .expect("falha ao cifrar");
+    let (cifra, mac) = saida.split_at(saida.len() - 16);
+    format!(
+        "enc1${}${}${}${}${}",
+        ITERACOES,
+        b64.encode(sal),
+        b64.encode(nonce),
+        b64.encode(mac),
+        b64.encode(cifra)
+    )
+}
+
+fn senha(pergunta: &str) -> String {
+    std::env::var("IRIS_SENHA").unwrap_or_else(|_| {
+        rpassword::prompt_password(pergunta).expect("não foi possível ler a senha")
+    })
+}
+
+fn ler_semente(args: &Args) -> String {
+    let caminho = args
+        .mnemonic_file
+        .as_ref()
+        .expect("informe --mnemonic-file com a semente cifrada");
+    let conteudo = fs::read_to_string(caminho)
+        .expect("não foi possível ler o arquivo da semente")
+        .trim()
+        .to_string();
+    if conteudo.starts_with("enc1$") {
+        return decifrar_semente(&conteudo, &senha("Senha da semente: "))
+            .unwrap_or_else(|e| panic!("iris-noded: {e}"));
+    }
+    if !args.aceitar_semente_em_claro {
+        eprintln!(
+            "iris-noded: a semente está em TEXTO PURO em {caminho}. Cifre com\n  \
+             iris-noded --cifrar {caminho} --saida semente.enc\n\
+             e apague o arquivo original. (Para testes: --aceitar-semente-em-claro.)"
+        );
+        std::process::exit(2);
+    }
+    conteudo
+}
+
+// ---------------------------------------------------------------- token da API
+
+fn caminho_token(args: &Args) -> std::path::PathBuf {
+    if let Some(t) = &args.token_file {
+        return t.into();
+    }
+    let base = std::env::var("APPDATA")
+        .or_else(|_| std::env::var("XDG_CONFIG_HOME"))
+        .or_else(|_| std::env::var("HOME").map(|h| format!("{h}/.config")))
+        .expect("pasta do usuário não encontrada");
+    std::path::Path::new(&base).join("iris-noded").join("api_token")
+}
+
+/// Token novo a cada partida, gravado só para o usuário. O app lê o arquivo;
+/// um site no navegador não consegue — e sem o token nada passa.
+fn criar_token(caminho: &std::path::Path) -> String {
+    let mut b = [0u8; 32];
+    getrandom::getrandom(&mut b).expect("gerador do sistema indisponível");
+    let token = hex(&b);
+    if let Some(d) = caminho.parent() {
+        fs::create_dir_all(d).expect("não foi possível criar a pasta do token");
+    }
+    fs::write(caminho, &token).expect("não foi possível gravar o token");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(caminho, fs::Permissions::from_mode(0o600));
+    }
+    token
+}
+
+fn iguais_tempo_constante(a: &[u8], b: &[u8]) -> bool {
+    a.len() == b.len() && a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+}
+
+/// Barra o que não veio do app: sem token, de página web (Origin), de outro
+/// host (DNS rebinding) ou com corpo que não é JSON (POST "simples" de CSRF).
+fn autorizar(req: &tiny_http::Request, token: &str, porta: u16) -> Result<(), (u16, &'static str)> {
+    let header = |nome: &str| {
+        req.headers()
+            .iter()
+            .find(|h| h.field.as_str().as_str().eq_ignore_ascii_case(nome))
+            .map(|h| h.value.as_str().to_string())
+    };
+    if header("Origin").is_some() {
+        return Err((403, "pedido vindo de página web recusado"));
+    }
+    let host = header("Host").unwrap_or_default();
+    if host != format!("127.0.0.1:{porta}") && host != format!("localhost:{porta}") {
+        return Err((403, "host inválido"));
+    }
+    let enviado = header("X-Iris-Token").unwrap_or_default();
+    if !iguais_tempo_constante(enviado.as_bytes(), token.as_bytes()) {
+        return Err((401, "token ausente ou inválido"));
+    }
+    if req.method().as_str().eq_ignore_ascii_case("POST") {
+        let tipo = header("Content-Type").unwrap_or_default().to_ascii_lowercase();
+        if !tipo.starts_with("application/json") {
+            return Err((415, "corpo precisa ser application/json"));
+        }
+    }
+    Ok(())
+}
+
 fn main() {
     let args = Args::parse();
 
-    let mnemonic = fs::read_to_string(&args.mnemonic_file)
-        .expect("não foi possível ler o arquivo da mnemônica")
-        .trim()
-        .to_string();
+    if let Some(origem) = &args.cifrar {
+        let destino = args.saida.as_ref().expect("informe --saida para o arquivo cifrado");
+        let claro = fs::read_to_string(origem).expect("não foi possível ler a semente").trim().to_string();
+        let s1 = senha("Nova senha da semente: ");
+        if std::env::var("IRIS_SENHA").is_err() {
+            let s2 = rpassword::prompt_password("Repita a senha: ").expect("senha");
+            if s1 != s2 {
+                eprintln!("iris-noded: as senhas não conferem");
+                std::process::exit(2);
+            }
+        }
+        fs::write(destino, cifrar_semente(&claro, &s1)).expect("não foi possível gravar");
+        println!("iris-noded: semente cifrada em {destino}. Apague {origem} com segurança.");
+        return;
+    }
+
+    let mnemonic = ler_semente(&args);
 
     let (node, fonte) = construir_e_iniciar(&mnemonic, &args);
     let node = Arc::new(node);
@@ -637,7 +818,10 @@ fn main() {
 
     let server = tiny_http::Server::http(("127.0.0.1", args.port))
         .expect("falha ao abrir a porta local");
+    let arquivo_token = caminho_token(&args);
+    let token = criar_token(&arquivo_token);
     println!("iris-noded: API REST em http://127.0.0.1:{}", args.port);
+    println!("iris-noded: token da API em {}", arquivo_token.display());
     if args.p2p_porta != 0 {
         println!(
             "iris-noded: aceitando canais em {}@<ip-desta-máquina>:{}",
@@ -650,13 +834,24 @@ fn main() {
         let method = request.method().as_str().to_uppercase();
         let path = request.url().split('?').next().unwrap_or("/").to_string();
 
-        let mut body_str = String::new();
-        let _ = request.as_reader().read_to_string(&mut body_str);
-        let body: Value = serde_json::from_str(&body_str).unwrap_or(json!({}));
-
-        let (status, payload) = match handle(&node, args.rede, &fonte, &method, &path, body) {
-            Ok(v) => (200, v),
-            Err(e) => (500, json!({ "error": e })),
+        let (status, payload) = match autorizar(&request, &token, args.port) {
+            Err((codigo, motivo)) => (codigo, json!({ "error": motivo })),
+            Ok(()) => {
+                let mut body_str = String::new();
+                let _ = request.as_reader().read_to_string(&mut body_str);
+                let body: Result<Value, _> = if body_str.trim().is_empty() {
+                    Ok(json!({}))
+                } else {
+                    serde_json::from_str(&body_str)
+                };
+                match body {
+                    Err(_) => (400, json!({ "error": "JSON inválido" })),
+                    Ok(body) => match handle(&node, args.rede, &fonte, &method, &path, body) {
+                        Ok(v) => (200, v),
+                        Err(e) => (500, json!({ "error": e })),
+                    },
+                }
+            }
         };
 
         let response = tiny_http::Response::from_string(payload.to_string())
@@ -667,5 +862,39 @@ fn main() {
                     .unwrap(),
             );
         let _ = request.respond(response);
+    }
+}
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+
+    const SEMENTE: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    /// Gerado pelo app (lib/core/seed_crypto.dart) com o PIN 123456.
+    const BLOB_DO_APP: &str = "enc1$200000$fjOv7QxrP8tgqiaSr75WzA==$yhnYvWPJ6Cav04lu$ONVucqGDMt0NnE+P8F5Fbg==$qxr+1pLZgKG2jabD9fV3EAomPSw2fo0tMoWCn5aPpANuG07zZF5kvYQm+oXij5/xASCYjymQx+CfwjdHdOF2p6auMC3OziPaVnpAsyiVKci6ypc+v1qSwTfxctX1";
+
+    #[test]
+    fn abre_semente_cifrada_pelo_app() {
+        assert_eq!(decifrar_semente(BLOB_DO_APP, "123456").unwrap(), SEMENTE);
+    }
+
+    #[test]
+    fn recusa_senha_errada() {
+        assert!(decifrar_semente(BLOB_DO_APP, "123457").is_err());
+    }
+
+    #[test]
+    fn cifra_e_decifra_de_volta() {
+        let blob = cifrar_semente(SEMENTE, "senha forte");
+        assert!(blob.starts_with("enc1$200000$"));
+        assert_eq!(decifrar_semente(&blob, "senha forte").unwrap(), SEMENTE);
+        assert_ne!(cifrar_semente(SEMENTE, "x"), cifrar_semente(SEMENTE, "x"), "sal e nonce novos");
+    }
+
+    #[test]
+    fn comparacao_de_token() {
+        assert!(iguais_tempo_constante(b"abc", b"abc"));
+        assert!(!iguais_tempo_constante(b"abc", b"abd"));
+        assert!(!iguais_tempo_constante(b"abc", b"abcd"));
     }
 }

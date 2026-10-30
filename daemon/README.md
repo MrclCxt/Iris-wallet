@@ -22,10 +22,17 @@ cargo build --release
 
 ## Rodar (testnet)
 
+A semente nunca fica em texto puro. Cifre uma vez (mesmo formato e mesma
+criptografia do app: PBKDF2-SHA256 + AES-256-GCM) e apague o arquivo claro:
+
 ```sh
-echo "suas doze palavras da seed aqui" > seed.txt
-./iris-noded --mnemonic-file seed.txt --port 8380
+./iris-noded --cifrar seed.txt --saida semente.enc   # pede a senha duas vezes
+rm seed.txt                                          # no Windows: apague e esvazie a lixeira
+./iris-noded --mnemonic-file semente.enc --port 8380 # pede a senha (ou IRIS_SENHA)
 ```
+
+Um arquivo de semente em texto puro é recusado (só com
+`--aceitar-semente-em-claro`, para testes).
 
 Usa o mesmo ldk-node 0.7 e os mesmos remendos do app (cópias em
 `packages/ldk_node/rust/vendor`), com testnet4 nativa. Os dados ficam em
@@ -65,7 +72,7 @@ va1 da mempool, e começa pelo primeiro que responder **e estiver na testnet4**
 (o bloco gênese é conferido). Para usar o seu servidor, repita `--esplora`:
 
 ```sh
-./iris-noded --mnemonic-file seed.txt --esplora https://meu-servidor/api
+./iris-noded --mnemonic-file semente.enc --esplora https://meu-servidor/api
 ```
 
 ### Rotas
@@ -83,8 +90,16 @@ daemon na próxima vez que o perfil for desbloqueado.
 
 ## Segurança
 
+- **API autenticada.** A cada partida o daemon gera um token aleatório e o
+  grava só para o usuário (`%APPDATA%/iris-noded/api_token` no Windows,
+  `~/.config/iris-noded/api_token` no Linux/macOS, ou `--token-file`). O app
+  lê esse arquivo e manda `X-Iris-Token` em cada pedido. Sem o token: 401.
+- **Contra site malicioso no navegador:** pedido com `Origin` (vindo de
+  página web) é recusado (403); `Host` diferente de `127.0.0.1:porta` também
+  (403, fecha DNS rebinding); POST que não seja `application/json` é
+  recusado (415), fechando o CSRF por "POST simples"; JSON inválido dá 400.
+
 - O bind é **exclusivamente** em `127.0.0.1` — o daemon nunca escuta em
   interfaces de rede.
-- A seed fica no arquivo indicado por `--mnemonic-file`; proteja-o com as
-  permissões do sistema (ex.: `chmod 600 seed.txt`).
+- A semente fica cifrada; a senha não é gravada em lugar nenhum.
 - Testnet4. O app recusa um daemon que não informe a mesma rede no `/health`.

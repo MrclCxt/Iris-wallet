@@ -3,8 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/currency_format.dart';
 import '../../core/theme.dart';
-import '../../services/exchange_rate_service.dart';
-import '../../services/wallet_service.dart';
 import '../../troca/troca.dart';
 import '../../troca/troca_service.dart';
 import '../../widgets/max_width_container.dart';
@@ -17,13 +15,7 @@ class TrocasScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (ctx) => TrocaService(
-        carteira: ctx.read<WalletService>(),
-        cotacao: ctx.read<ExchangeRateService>(),
-      )..abrir(),
-      child: const _TrocasCorpo(),
-    );
+    return const _TrocasCorpo();
   }
 }
 
@@ -38,10 +30,20 @@ class _TrocasCorpoState extends State<_TrocasCorpo> {
   Future<List<OfertaIris>>? _ofertas;
   bool _quero = true; // true: quero comprar bitcoin
 
+  late final TrocaService _svc;
+
   @override
   void initState() {
     super.initState();
-    _ofertas = context.read<TrocaService>().ofertas();
+    _svc = context.read<TrocaService>();
+    _svc.telaAberta(true);
+    _ofertas = _svc.ofertas();
+  }
+
+  @override
+  void dispose() {
+    _svc.telaAberta(false);
+    super.dispose();
   }
 
   void _erro(Object e) {
@@ -265,24 +267,7 @@ class _TrocasCorpoState extends State<_TrocasCorpo> {
     );
   }
 
-  String _estadoTexto(Troca t) {
-    final souV = t.papel == PapelTroca.vendedor;
-    return switch (t.estado) {
-      EstadoTroca.aceita => 'Combinando…',
-      EstadoTroca.hashEnviado => souV ? 'Esperando a fatura' : 'Criando fatura…',
-      EstadoTroca.faturaEnviada =>
-        souV ? 'Fatura conferida — travar os sats' : 'Esperando o vendedor travar',
-      EstadoTroca.travada => souV
-          ? 'Sats travados. Esperando o pagamento'
-          : 'Sats travados! Pague e avise',
-      EstadoTroca.realPago => souV
-          ? 'Comprador diz que pagou. Confira o banco'
-          : 'Esperando o vendedor liberar',
-      EstadoTroca.concluida => 'Concluída',
-      EstadoTroca.cancelada => 'Cancelada',
-      EstadoTroca.disputa => 'Em disputa — o árbitro decide antes do prazo da trava',
-    };
-  }
+  String _estadoTexto(Troca t) => TrocaService.textoDoEstado(t);
 
   Widget _acoes(Troca t) {
     final svc = context.read<TrocaService>();

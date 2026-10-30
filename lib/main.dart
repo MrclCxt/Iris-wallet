@@ -23,6 +23,7 @@ import 'screens/consumer/custom_charge_screen.dart';
 import 'screens/consumer/node_manager_screen.dart';
 import 'widgets/auto_lock_gate.dart';
 import 'widgets/payment_notifier.dart';
+import 'troca/troca_service.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<ScaffoldMessengerState> rootMessengerKey =
@@ -76,6 +77,27 @@ void main() async {
 
             wallet.onCatalogImported = pix.clearForAccountSwitch;
             return pix;
+          },
+        ),
+        // Trocas P2P: acompanham a carteira desbloqueada mesmo fora da tela
+        // (com o serviço em primeiro plano do Android, o processo segue vivo).
+        ChangeNotifierProxyProvider2<WalletService, ExchangeRateService,
+            TrocaService>(
+          create: (context) {
+            final svc = TrocaService(
+              carteira: Provider.of<WalletService>(context, listen: false),
+              cotacao: Provider.of<ExchangeRateService>(context, listen: false),
+            );
+            svc.aoMudar = (t, texto) => NotificationService.mostrarRecebimento(
+                  id: t.id.hashCode & 0x7fffffff,
+                  titulo: 'Troca P2P',
+                  corpo: texto,
+                );
+            return svc;
+          },
+          update: (context, wallet, rate, svc) {
+            svc!.acompanhar();
+            return svc;
           },
         ),
       ],

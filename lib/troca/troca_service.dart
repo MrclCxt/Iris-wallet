@@ -152,7 +152,14 @@ class TrocaService extends ChangeNotifier {
         _armazenamento = cofre {
     _travasSub = carteira.travasRecebidas.listen(_aoChegarTrava);
   }
-  static const Duration _intervalo = Duration(seconds: 6);
+  static const Duration _intervaloTela = Duration(seconds: 6);
+  static const Duration _intervaloFundo = Duration(seconds: 30);
+
+  /// Avisa cada passo novo de uma troca (no app: notificação local).
+  void Function(Troca t, String texto)? aoMudar;
+  bool _telaAberta = false;
+  String? _abertoPara;
+  DateTime? _ultimoAnuncio;
 
   StreamSubscription<TravaRecebida>? _travasSub;
   Timer? _vigia;
@@ -181,6 +188,48 @@ class TrocaService extends ChangeNotifier {
 
   String get _chaveArmazenada => 'trocas_${Rede.nome}_${chaves.publica}';
 
+  /// Chamado sempre que a carteira muda: começa a acompanhar as trocas da
+  /// semente desbloqueada, ou para tudo quando a carteira bloqueia.
+  Future<void> acompanhar() async {
+    final semente = carteira.sementePessoal;
+    if (semente == null) {
+      fechar();
+      _chaves = null;
+      _abertoPara = null;
+      _trocas.clear();
+      _casos.clear();
+      return;
+    }
+    if (_abertoPara == semente) return;
+    _chaves = null;
+    _trocas.clear();
+    _casos.clear();
+    _abertoPara = semente;
+    await abrir();
+  }
+
+  /// A tela de trocas aberta acelera a busca de mensagens.
+  void telaAberta(bool aberta) {
+    _telaAberta = aberta;
+    _reprogramar();
+    if (aberta) unawaited(_buscarMensagens());
+  }
+
+  bool get _temAtividade =>
+      _trocas.values.any((t) => !t.encerrada) ||
+      _casos.values.any((c) => c.decisao == null) ||
+      (_ultimoAnuncio != null &&
+          DateTime.now().difference(_ultimoAnuncio!) < const Duration(hours: 24));
+
+  void _reprogramar() {
+    _vigia?.cancel();
+    _vigia = null;
+    if (_abertoPara == null && carteira.sementePessoal == null) return;
+    if (!_telaAberta && !_temAtividade) return;
+    _vigia = Timer.periodic(
+        _telaAberta ? _intervaloTela : _intervaloFundo, (_) => _buscarMensagens());
+  }
+
   Future<void> abrir() async {
     try {
       final bruto = await _armazenamento.ler(_chaveArmazenada);
@@ -191,6 +240,8 @@ class TrocaService extends ChangeNotifier {
           _trocas[troca.id] = troca;
         }
         _mensagensVistas.addAll((j['vistas'] as List).cast<String>());
+        final ua = j['ultimo_anuncio'];
+        if (ua is int) _ultimoAnuncio = DateTime.fromMillisecondsSinceEpoch(ua);
         for (final c in (j['casos'] as List? ?? const [])) {
           final caso = CasoArbitragem.fromJson(c as Map<String, dynamic>);
           _casos[caso.trocaId] = caso;
@@ -204,8 +255,7 @@ class TrocaService extends ChangeNotifier {
             .millisecondsSinceEpoch ~/
         1000;
     notifyListeners();
-    _vigia?.cancel();
-    _vigia = Timer.periodic(_intervalo, (_) => _buscarMensagens());
+    _reprogramar();
     unawaited(_buscarMensagens());
   }
 
@@ -227,6 +277,8 @@ class TrocaService extends ChangeNotifier {
           'trocas': [for (final t in _trocas.values) t.toJson()],
           'vistas': vistas.sublist(vistas.length > 500 ? vistas.length - 500 : 0),
           'casos': [for (final c in _casos.values) c.toJson()],
+          if (_ultimoAnuncio != null)
+            'ultimo_anuncio': _ultimoAnuncio!.millisecondsSinceEpoch,
         }));
   }
 
@@ -281,6 +333,9 @@ class TrocaService extends ChangeNotifier {
     }
     final e = EventoNostr.assinar(chaves,
         kind: kindOferta, conteudo: '', tags: oferta.tags());
+    _ultimoAnuncio = DateTime.now();
+    unawaited(_salvar());
+    _reprogramar();
     return RelaysNostr.publicar(e, relays: relays);
   }
 
@@ -463,6 +518,10 @@ class TrocaService extends ChangeNotifier {
       '#p': [k.publica],
       'since': _desde,
     }, relays: relays);
+    final antes = {for (final t in _trocas.values) t.id: t.estado};
+    final casosAntes = {
+      for (final c in _casos.values) c.trocaId: c.alegacoes.length
+    };
     for (final e in eventos.reversed) {
       if (!_mensagensVistas.add(e.id) || e.tag('t') != 'iris-troca') continue;
       try {
@@ -476,8 +535,46 @@ class TrocaService extends ChangeNotifier {
         debugPrint('Mensagem de troca recusada: $err');
       }
     }
+    for (final t in _trocas.values) {
+      if (antes[t.id] != t.estado) aoMudar?.call(t, textoDoEstado(t));
+    }
+    for (final c in _casos.values) {
+      if ((casosAntes[c.trocaId] ?? 0) < c.alegacoes.length) {
+        aoMudar?.call(
+            Troca(
+                id: c.trocaId,
+                ofertaId: '',
+                papel: PapelTroca.comprador,
+                contraparte: c.comprador,
+                sats: c.sats,
+                fiatBrl: c.fiat,
+                estado: EstadoTroca.disputa),
+            'Nova disputa para você arbitrar');
+      }
+    }
+    _reprogramar();
     await _salvar();
     notifyListeners();
+  }
+
+  /// Texto curto do passo atual, do ponto de vista deste aparelho.
+  static String textoDoEstado(Troca t) {
+    final souV = t.papel == PapelTroca.vendedor;
+    return switch (t.estado) {
+      EstadoTroca.aceita => 'Combinando…',
+      EstadoTroca.hashEnviado => souV ? 'Esperando a fatura' : 'Criando fatura…',
+      EstadoTroca.faturaEnviada =>
+        souV ? 'Fatura conferida — travar os sats' : 'Esperando o vendedor travar',
+      EstadoTroca.travada => souV
+          ? 'Sats travados. Esperando o pagamento'
+          : 'Sats travados! Pague e avise',
+      EstadoTroca.realPago => souV
+          ? 'Comprador diz que pagou. Confira o banco'
+          : 'Esperando o vendedor liberar',
+      EstadoTroca.concluida => 'Troca concluída',
+      EstadoTroca.cancelada => 'Troca cancelada',
+      EstadoTroca.disputa => 'Em disputa — o árbitro decide antes do prazo da trava',
+    };
   }
 
   Future<void> _aoReceber(String de, MensagemTroca m) async {

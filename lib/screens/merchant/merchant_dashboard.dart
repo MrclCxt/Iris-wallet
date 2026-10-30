@@ -185,6 +185,17 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                       child: ElevatedButton(
                         onPressed: () {
                           if (wallet.cartTotal > 0) {
+                            if (!exchangeRate.hasRate) {
+                              exchangeRate.fetchRate();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Cotação indisponível no momento. '
+                                      'Tente de novo em instantes.'),
+                                ),
+                              );
+                              return;
+                            }
                             wallet.setPendingCharge(wallet.cartTotal);
                             wallet.clearCart();
                           }

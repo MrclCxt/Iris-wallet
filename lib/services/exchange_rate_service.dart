@@ -3,9 +3,40 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/cotacao.dart';
+
+class _FonteCotacao {
+  final String nome;
+  final Uri url;
+  final double Function(dynamic json) extrair;
+  const _FonteCotacao(this.nome, this.url, this.extrair);
+}
 
 class ExchangeRateService extends ChangeNotifier {
+  static const Duration validadeCotacao = Duration(minutes: 10);
+
+  static final List<_FonteCotacao> _fontes = [
+    _FonteCotacao(
+      'CoinGecko',
+      Uri.parse(
+          'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=brl'),
+      (j) => (j['bitcoin']['brl'] as num).toDouble(),
+    ),
+    _FonteCotacao(
+      'Binance',
+      Uri.parse('https://api.binance.com/api/v3/ticker/price?symbol=BTCBRL'),
+      (j) => double.parse(j['price'] as String),
+    ),
+    _FonteCotacao(
+      'Mercado Bitcoin',
+      Uri.parse(
+          'https://api.mercadobitcoin.net/api/v4/tickers?symbols=BTC-BRL'),
+      (j) => double.parse((j as List).first['last'] as String),
+    ),
+  ];
+
   double _btcToBrlRate = 0.0;
+  DateTime? _confirmadaEm;
   bool _isLoading = false;
   bool _isSatsDisplay = false;
   Timer? _refreshTimer;
@@ -14,7 +45,13 @@ class ExchangeRateService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isSatsDisplay => _isSatsDisplay;
 
-  bool get hasRate => _btcToBrlRate > 0;
+  /// Sem consenso recente entre as fontes, a última cotação continua servindo
+  /// para exibir valores, mas não para converter Real em sats numa cobrança.
+  bool get cotacaoIncerta =>
+      _confirmadaEm == null ||
+      DateTime.now().difference(_confirmadaEm!) > validadeCotacao;
+
+  bool get hasRate => _btcToBrlRate > 0 && !cotacaoIncerta;
 
   void startAutoRefresh({Duration interval = const Duration(seconds: 60)}) {
     loadDisplayPref();
@@ -64,27 +101,40 @@ class ExchangeRateService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final url = Uri.parse(
-          'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=brl');
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        _btcToBrlRate = (data['bitcoin']['brl'] as num).toDouble();
-        debugPrint('Cotação BTC/BRL atualizada: R\$ $_btcToBrlRate');
+      final cotacoes = await Future.wait(_fontes.map(_consultar));
+      final consenso =
+          cotacaoDeConsenso(cotacoes.whereType<double>().toList());
+      final detalhe = [
+        for (var i = 0; i < _fontes.length; i++)
+          '${_fontes[i].nome}=${cotacoes[i]?.toStringAsFixed(0) ?? 'falhou'}'
+      ].join(' ');
+      if (consenso != null) {
+        _btcToBrlRate = consenso;
+        _confirmadaEm = DateTime.now();
+        debugPrint('Cotação BTC/BRL: R\$ ${consenso.toStringAsFixed(0)} '
+            '(mediana; $detalhe)');
       } else {
-        debugPrint('Falha ao buscar cotação, status: ${response.statusCode}');
+        debugPrint('Cotação BTC/BRL sem consenso, mantendo a anterior ($detalhe)');
       }
-    } catch (e) {
-      debugPrint('Erro ao buscar cotação BTC/BRL: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
+  Future<double?> _consultar(_FonteCotacao fonte) async {
+    try {
+      final r =
+          await http.get(fonte.url).timeout(const Duration(seconds: 8));
+      if (r.statusCode != 200) return null;
+      return fonte.extrair(json.decode(r.body));
+    } catch (_) {
+      return null;
+    }
+  }
+
   int brlToSats(double brlAmount) {
-    if (_btcToBrlRate <= 0) return 0;
+    if (!hasRate) return 0;
 
     double btcAmount = brlAmount / _btcToBrlRate;
     return (btcAmount * 100000000).round();

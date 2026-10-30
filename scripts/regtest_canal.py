@@ -11,6 +11,7 @@ O daemon tem de estar compilado (cargo build --release em daemon/).
 """
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -38,6 +39,7 @@ PORTAS = {"A": (18390, 19735), "B": (18391, 19736)}
 PAGAMENTO_SATS = 10_000
 CANAL_SATS = 500_000
 OFFLINE_SATS = 20_000
+GARANTIA_SATS = 15_000
 
 
 def log(msg):
@@ -92,6 +94,20 @@ def esperar(descricao, condicao, segundos=120):
             ultimo = e
         time.sleep(1)
     falhar(f"tempo esgotado esperando {descricao} (último erro: {ultimo})")
+
+
+def esperar_evento(nome, tipo, hash_hex, segundos=60):
+    """Consome a fila de eventos do daemon até achar [tipo] para [hash_hex]."""
+    fim = time.time() + segundos
+    while time.time() < fim:
+        e = daemon(nome, "GET", "/event")["event"]
+        if e is None:
+            time.sleep(1)
+            continue
+        daemon(nome, "POST", "/event_handled")
+        if e.get("type") == tipo and e.get("payment_hash") == hash_hex:
+            return e
+    falhar(f"{nome} não recebeu o evento {tipo} de {hash_hex[:12]}…")
 
 
 def minerar(n, endereco):
@@ -222,6 +238,48 @@ def main():
             >= onchain_b_offline + OFFLINE_SATS))
         log(f"pagamento offline: A assinou {OFFLINE_SATS} sats sem rede, "
             "B transmitiu e recebeu")
+
+        # Garantia de troca sem custódia (hold invoice): A vende sats, B compra.
+        # A guarda o segredo; B cria a fatura só com o hash. O pagamento fica
+        # travado até A revelar o segredo — ninguém no meio segura o dinheiro.
+        segredo = os.urandom(32)
+        h = hashlib.sha256(segredo).hexdigest()
+        ln_b = daemon("B", "GET", "/balances")["lightning_sats"]
+        fatura = daemon("B", "POST", "/hold_invoice", {
+            "amount_msat": GARANTIA_SATS * 1000, "payment_hash": h,
+        })["invoice"]
+        daemon("A", "POST", "/pay", {"invoice": fatura})
+        travado = esperar_evento("B", "payment_claimable", h)
+        if daemon("B", "GET", "/balances")["lightning_sats"] != ln_b:
+            falhar("B recebeu antes do segredo ser revelado")
+        try:
+            daemon("B", "POST", "/claim", {"payment_hash": h,
+                   "preimage": os.urandom(32).hex(),
+                   "amount_msat": travado["amount_msat"]})
+            falhar("B conseguiu resgatar com um segredo errado")
+        except RuntimeError:
+            pass
+        daemon("B", "POST", "/claim", {"payment_hash": h,
+               "preimage": segredo.hex(), "amount_msat": travado["amount_msat"]})
+        esperar("B receber a troca depois do segredo", lambda: (
+            daemon("B", "GET", "/balances")["lightning_sats"]
+            >= ln_b + GARANTIA_SATS), 60)
+        log(f"garantia: {GARANTIA_SATS} sats travados até o segredo; "
+            "segredo errado recusado; com o certo, B recebeu")
+
+        # Troca desfeita: B recusa (ou o tempo acaba) e os sats voltam para A.
+        h2 = hashlib.sha256(os.urandom(32)).hexdigest()
+        fatura2 = daemon("B", "POST", "/hold_invoice", {
+            "amount_msat": GARANTIA_SATS * 1000, "payment_hash": h2,
+        })["invoice"]
+        ln_a = daemon("A", "GET", "/balances")["lightning_sats"]
+        daemon("A", "POST", "/pay", {"invoice": fatura2})
+        esperar_evento("B", "payment_claimable", h2)
+        daemon("B", "POST", "/fail", {"payment_hash": h2})
+        esperar_evento("A", "payment_failed", h2)
+        esperar("o saldo de A voltar", lambda: (
+            daemon("A", "GET", "/balances")["lightning_sats"] >= ln_a), 60)
+        log("troca desfeita: B recusou e os sats voltaram para A")
 
         onchain_b_antes = daemon("B", "GET", "/balances")["onchain_total_sats"]
         daemon("A", "POST", "/close_channel", {

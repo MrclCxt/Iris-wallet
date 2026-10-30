@@ -3,6 +3,8 @@ use ldk_node::bitcoin::Network;
 use ldk_node::config::ChannelConfig;
 use ldk_node::lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescription, Description};
 use ldk_node::payment::{PaymentDirection, PaymentKind, PaymentStatus};
+use ldk_node::bitcoin::hashes::Hash;
+use ldk_node::lightning_types::payment::{PaymentHash, PaymentPreimage};
 use ldk_node::{Builder, Event, Node, UserChannelId};
 use serde_json::{json, Value};
 use std::fs;
@@ -194,6 +196,23 @@ fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{:02x}", b)).collect()
 }
 
+fn ler_32(v: &Value, nome: &str) -> Result<[u8; 32], String> {
+    let s = v.as_str().ok_or(format!("{nome} ausente"))?;
+    if s.len() != 64 {
+        return Err(format!("{nome} deve ter 64 caracteres hex"));
+    }
+    let mut out = [0u8; 32];
+    for i in 0..32 {
+        out[i] = u8::from_str_radix(&s[i * 2..i * 2 + 2], 16)
+            .map_err(|_| format!("{nome} não é hex"))?;
+    }
+    Ok(out)
+}
+
+fn ler_hash(v: &Value) -> Result<PaymentHash, String> {
+    ler_32(v, "payment_hash").map(PaymentHash)
+}
+
 fn descricao(s: &str) -> Bolt11InvoiceDescription {
     let d = Description::new(s.to_string())
         .unwrap_or_else(|_| Description::new(String::new()).expect("vazia é sempre válida"));
@@ -214,6 +233,17 @@ fn event_json(event: &Event) -> Value {
         Event::PaymentSuccessful { payment_hash, .. } => json!({
             "type": "payment_successful",
             "payment_hash": hex(&payment_hash.0),
+        }),
+        Event::PaymentClaimable {
+            payment_hash,
+            claimable_amount_msat,
+            claim_deadline,
+            ..
+        } => json!({
+            "type": "payment_claimable",
+            "payment_hash": hex(&payment_hash.0),
+            "amount_msat": claimable_amount_msat,
+            "claim_deadline": claim_deadline,
         }),
         Event::PaymentFailed { payment_hash, .. } => json!({
             "type": "payment_failed",
@@ -283,6 +313,37 @@ fn handle(
             }
             .map_err(|e| e.to_string())?;
             Ok(json!({ "invoice": invoice.to_string() }))
+        }
+        // Garantia de troca sem custódia: a fatura é criada para um hash cujo
+        // segredo só o outro lado tem. O pagamento fica travado até o segredo
+        // aparecer (/claim) ou ser recusado (/fail) — ou expirar e voltar.
+        ("POST", "/hold_invoice") => {
+            let hash = ler_hash(&body["payment_hash"])?;
+            let desc = descricao(body["description"].as_str().unwrap_or("Iris: troca"));
+            let expiry = body["expiry_secs"].as_u64().unwrap_or(3600) as u32;
+            let msat = body["amount_msat"].as_u64().ok_or("amount_msat ausente")?;
+            let invoice = node
+                .bolt11_payment()
+                .receive_for_hash(msat, &desc, expiry, hash)
+                .map_err(|e| e.to_string())?;
+            Ok(json!({ "invoice": invoice.to_string() }))
+        }
+        ("POST", "/claim") => {
+            let hash = ler_hash(&body["payment_hash"])?;
+            let preimagem = ler_32(&body["preimage"], "preimage")?;
+            if ldk_node::bitcoin::hashes::sha256::Hash::hash(&preimagem).to_byte_array() != hash.0 {
+                return Err("o segredo não corresponde ao hash da fatura".into());
+            }
+            let msat = body["amount_msat"].as_u64().ok_or("amount_msat ausente")?;
+            node.bolt11_payment()
+                .claim_for_hash(hash, msat, PaymentPreimage(preimagem))
+                .map_err(|e| e.to_string())?;
+            Ok(json!({}))
+        }
+        ("POST", "/fail") => {
+            let hash = ler_hash(&body["payment_hash"])?;
+            node.bolt11_payment().fail_for_hash(hash).map_err(|e| e.to_string())?;
+            Ok(json!({}))
         }
         ("POST", "/offer") => {
             let desc = body["description"].as_str().unwrap_or("Iris Wallet");

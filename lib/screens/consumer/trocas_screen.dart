@@ -165,6 +165,106 @@ class _TrocasCorpoState extends State<_TrocasCorpo> {
     }
   }
 
+  Future<void> _configurar() async {
+    final svc = context.read<TrocaService>();
+    final atual = await svc.arbitroPadrao();
+    if (!mounted) return;
+    final ctrl = TextEditingController(text: atual ?? '');
+    final minha = svc.chaves.publica;
+    final salvar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: IrisTheme.s1,
+        title: const Text('Árbitro', style: TextStyle(color: IrisTheme.textPrimary)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+                'Quem resolve disputas das suas ofertas. O árbitro só consegue '
+                'liberar os sats para quem comprou — nunca para si mesmo.',
+                style: TextStyle(color: IrisTheme.textSecondary, fontSize: 12)),
+            TextField(
+              controller: ctrl,
+              decoration:
+                  const InputDecoration(hintText: 'Chave do árbitro (64 hex)'),
+            ),
+            const SizedBox(height: 16),
+            const Text('Sua chave (para ser árbitro de alguém):',
+                style: TextStyle(color: IrisTheme.textSecondary, fontSize: 12)),
+            InkWell(
+              onTap: () => Clipboard.setData(ClipboardData(text: minha)),
+              child: Text('$minha  (tocar copia)',
+                  style: const TextStyle(
+                      color: IrisTheme.primary,
+                      fontSize: 11,
+                      fontFamily: 'monospace')),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Fechar')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Salvar')),
+        ],
+      ),
+    );
+    if (salvar == true) {
+      try {
+        await svc.definirArbitroPadrao(ctrl.text);
+        _erro('Árbitro salvo para as próximas ofertas.');
+      } catch (e) {
+        _erro(e);
+      }
+    }
+  }
+
+  Widget _cartaoCaso(CasoArbitragem c) {
+    final svc = context.read<TrocaService>();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: IrisTheme.s1,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: IrisTheme.warning.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+              '${CurrencyFormatter.formatBtcOrSats(c.sats)} por '
+              'R\$ ${CurrencyFormatter.formatBrl(c.fiat)}',
+              style: const TextStyle(
+                  color: IrisTheme.textPrimary, fontWeight: FontWeight.w700)),
+          for (final e in c.alegacoes.entries)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text('${e.key}: ${e.value}',
+                  style: const TextStyle(color: IrisTheme.textSecondary, fontSize: 13)),
+            ),
+          if (c.decisao != null)
+            Text('Decidido a favor do ${c.decisao}.',
+                style: const TextStyle(color: IrisTheme.success))
+          else
+            Wrap(spacing: 8, children: [
+              ElevatedButton(
+                  onPressed: () =>
+                      svc.decidir(c, favorComprador: true).catchError(_erro),
+                  child: const Text('Comprador pagou: liberar')),
+              TextButton(
+                  onPressed: () =>
+                      svc.decidir(c, favorComprador: false).catchError(_erro),
+                  child: const Text('Devolver ao vendedor')),
+            ]),
+        ],
+      ),
+    );
+  }
+
   String _estadoTexto(Troca t) {
     final souV = t.papel == PapelTroca.vendedor;
     return switch (t.estado) {
@@ -180,7 +280,7 @@ class _TrocasCorpoState extends State<_TrocasCorpo> {
           : 'Esperando o vendedor liberar',
       EstadoTroca.concluida => 'Concluída',
       EstadoTroca.cancelada => 'Cancelada',
-      EstadoTroca.disputa => 'Em disputa',
+      EstadoTroca.disputa => 'Em disputa — o árbitro decide antes do prazo da trava',
     };
   }
 
@@ -228,6 +328,18 @@ class _TrocasCorpoState extends State<_TrocasCorpo> {
           if (ok == true) svc.liberar(t).catchError(_erro);
         },
         child: const Text('Liberar sats'),
+      ));
+    }
+    if (t.arbitro != null &&
+        (t.estado == EstadoTroca.travada || t.estado == EstadoTroca.realPago)) {
+      botoes.add(TextButton(
+        onPressed: () async {
+          final motivo = await _pedirTexto('Abrir disputa',
+              'O que aconteceu? (vai cifrado para o árbitro e o outro lado)');
+          if (motivo == null || motivo.isEmpty) return;
+          svc.abrirDisputa(t, motivo).catchError(_erro);
+        },
+        child: const Text('Abrir disputa'),
       ));
     }
     if (!t.encerrada && !(souV && t.estado == EstadoTroca.realPago)) {
@@ -293,6 +405,7 @@ class _TrocasCorpoState extends State<_TrocasCorpo> {
             style: const TextStyle(color: IrisTheme.textPrimary)),
         subtitle: Text(
             '${o.metodos.join(', ')} · ${o.premio == 0 ? 'preço de mercado' : '${o.premio}%'}'
+            '${o.arbitro != null ? ' · com árbitro ${o.arbitro!.substring(0, 8)}…' : ' · sem árbitro'}'
             '${minha ? ' · sua oferta' : ''}',
             style: const TextStyle(color: IrisTheme.textSecondary)),
         trailing: minha
@@ -329,6 +442,10 @@ class _TrocasCorpoState extends State<_TrocasCorpo> {
           iconTheme: const IconThemeData(color: IrisTheme.textPrimary),
           bottom: const TabBar(tabs: [Tab(text: 'Ofertas'), Tab(text: 'Minhas trocas')]),
           actions: [
+            IconButton(
+                icon: const Icon(Icons.gavel),
+                tooltip: 'Árbitro',
+                onPressed: _configurar),
             IconButton(
                 icon: const Icon(Icons.receipt_long),
                 tooltip: 'Pagar conta com bitcoin',
@@ -397,6 +514,16 @@ class _TrocasCorpoState extends State<_TrocasCorpo> {
                               style: TextStyle(color: IrisTheme.textSecondary))),
                     ),
                   for (final t in svc.trocas) _cartaoTroca(t),
+                  if (svc.casos.any((c) => c.alegacoes.isNotEmpty)) ...[
+                    const SizedBox(height: 16),
+                    const Text('Arbitragem (você é o árbitro)',
+                        style: TextStyle(
+                            color: IrisTheme.textPrimary,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 8),
+                    for (final c in svc.casos.where((c) => c.alegacoes.isNotEmpty))
+                      _cartaoCaso(c),
+                  ],
                 ],
               ),
             ],

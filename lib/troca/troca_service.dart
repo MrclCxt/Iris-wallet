@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -12,6 +13,59 @@ import '../nostr/relays.dart';
 import '../services/exchange_rate_service.dart';
 import '../services/wallet_service.dart';
 import 'troca.dart';
+
+String sha256Hex(String hex) => sha256.convert(deHex(hex)).toString();
+
+/// Caso recebido por quem é árbitro: o segredo cifrado pelo vendedor e as
+/// alegações de cada lado se houver disputa.
+class CasoArbitragem {
+  final String trocaId;
+  final String hash;
+  final String segredo;
+  final int sats;
+  final double fiat;
+  final String vendedor;
+  final String comprador;
+  final Map<String, String> alegacoes = {};
+  String? decisao;
+
+  CasoArbitragem({
+    required this.trocaId,
+    required this.hash,
+    required this.segredo,
+    required this.sats,
+    required this.fiat,
+    required this.vendedor,
+    required this.comprador,
+  });
+
+  bool get emDisputa => alegacoes.isNotEmpty && decisao == null;
+
+  Map<String, dynamic> toJson() => {
+        'troca': trocaId,
+        'hash': hash,
+        'segredo': segredo,
+        'sats': sats,
+        'fiat': fiat,
+        'vendedor': vendedor,
+        'comprador': comprador,
+        'alegacoes': alegacoes,
+        'decisao': decisao,
+      };
+
+  factory CasoArbitragem.fromJson(Map<String, dynamic> j) => CasoArbitragem(
+        trocaId: j['troca'] as String,
+        hash: j['hash'] as String,
+        segredo: j['segredo'] as String,
+        sats: (j['sats'] as num).toInt(),
+        fiat: (j['fiat'] as num).toDouble(),
+        vendedor: j['vendedor'] as String,
+        comprador: j['comprador'] as String,
+      )
+        ..alegacoes.addAll(
+            ((j['alegacoes'] as Map?) ?? const {}).cast<String, String>())
+        ..decisao = j['decisao'] as String?;
+}
 
 /// Liga o protocolo de troca à rede Nostr e à carteira. Tudo roda no aparelho:
 /// não há servidor da Iris. As mensagens só são buscadas com a tela de trocas
@@ -32,9 +86,12 @@ class TrocaService extends ChangeNotifier {
   ChavesNostr? _chaves;
   int _desde = 0;
   final Map<String, Troca> _trocas = {};
+  final Map<String, CasoArbitragem> _casos = {};
   final Map<String, int> _travaMsat = {};
   final Set<String> _mensagensVistas = {};
   String? ultimoErro;
+
+  List<CasoArbitragem> get casos => _casos.values.toList();
 
   List<Troca> get trocas =>
       _trocas.values.toList()..sort((a, b) => b.criadaEm.compareTo(a.criadaEm));
@@ -61,6 +118,10 @@ class TrocaService extends ChangeNotifier {
           _trocas[troca.id] = troca;
         }
         _mensagensVistas.addAll((j['vistas'] as List).cast<String>());
+        for (final c in (j['casos'] as List? ?? const [])) {
+          final caso = CasoArbitragem.fromJson(c as Map<String, dynamic>);
+          _casos[caso.trocaId] = caso;
+        }
       }
     } catch (e) {
       debugPrint('Trocas salvas ilegíveis: $e');
@@ -94,6 +155,7 @@ class TrocaService extends ChangeNotifier {
         value: jsonEncode({
           'trocas': [for (final t in _trocas.values) t.toJson()],
           'vistas': vistas.sublist(vistas.length > 500 ? vistas.length - 500 : 0),
+          'casos': [for (final c in _casos.values) c.toJson()],
         }));
   }
 
@@ -126,6 +188,7 @@ class TrocaService extends ChangeNotifier {
     required List<String> metodos,
     double premio = 0,
     String? instrucao,
+    String? arbitro,
   }) async {
     final oferta = OfertaIris(
       id: _novoId(),
@@ -137,6 +200,7 @@ class TrocaService extends ChangeNotifier {
       premio: premio,
       rede: redeNip69,
       criadaEm: DateTime.now(),
+      arbitro: arbitro ?? await arbitroPadrao(),
     );
     if (vendo) {
       if (instrucao == null || instrucao.trim().isEmpty) {
@@ -206,12 +270,13 @@ class TrocaService extends ChangeNotifier {
       contraparte: o.autor,
       sats: sats,
       fiatBrl: fiatBrl,
+      arbitro: o.arbitro,
     );
     _trocas[t.id] = t;
     await _enviar(t, MensagemTroca(t.id, 'aceitar',
         {'oferta': o.id, 'sats': sats, 'fiat': fiatBrl}));
     if (t.papel == PapelTroca.vendedor) {
-      await _enviar(t, t.enviarHash(instrucao ?? ''));
+      await _enviarHash(t, instrucao ?? '');
     }
     await _salvar();
     notifyListeners();
@@ -261,13 +326,49 @@ class TrocaService extends ChangeNotifier {
 
   // ---------------------------------------------------------------- rede
 
-  Future<void> _enviar(Troca t, MensagemTroca m) async {
-    final conversa = Nip44.chaveDaConversa(chaves.privada, t.contraparte);
+  /// V: manda o hash ao comprador e, se houver árbitro, o segredo cifrado
+  /// para ele — antes de qualquer sat travar.
+  Future<void> _enviarHash(Troca t, String instrucao) async {
+    final m = t.enviarHash(instrucao);
+    final cofre = t.cofreParaArbitro(vendedor: chaves.publica);
+    if (cofre != null) await _enviarPara(t.arbitro!, cofre);
+    await _enviar(t, m);
+  }
+
+  Future<void> abrirDisputa(Troca t, String motivo) async {
+    final m = t.abrirDisputa(motivo);
+    await _enviarPara(t.arbitro!, m);
+    await _enviar(t, m);
+    await _salvar();
+    notifyListeners();
+  }
+
+  /// Árbitro: decide a favor do comprador (revela o segredo a ele) ou do
+  /// vendedor (pede ao comprador que devolva; se ele não devolver, o prazo da
+  /// trava devolve sozinho).
+  Future<void> decidir(CasoArbitragem c, {required bool favorComprador}) async {
+    if (favorComprador) {
+      await _enviarPara(c.comprador,
+          MensagemTroca(c.trocaId, 'segredo', {'segredo': c.segredo}));
+    } else {
+      await _enviarPara(c.comprador, MensagemTroca(c.trocaId, 'devolver'));
+    }
+    await _enviarPara(c.vendedor, MensagemTroca(c.trocaId, 'decisao',
+        {'favor': favorComprador ? 'comprador' : 'vendedor'}));
+    c.decisao = favorComprador ? 'comprador' : 'vendedor';
+    await _salvar();
+    notifyListeners();
+  }
+
+  Future<void> _enviar(Troca t, MensagemTroca m) => _enviarPara(t.contraparte, m);
+
+  Future<void> _enviarPara(String destino, MensagemTroca m) async {
+    final conversa = Nip44.chaveDaConversa(chaves.privada, destino);
     final e = EventoNostr.assinar(chaves,
         kind: kindMensagemTroca,
         conteudo: Nip44.cifrar(m.paraJson(), conversa),
         tags: [
-          ['p', t.contraparte],
+          ['p', destino],
           ['t', 'iris-troca'],
         ]);
     final aceitos = await RelaysNostr.publicar(e);
@@ -310,9 +411,30 @@ class TrocaService extends ChangeNotifier {
       await _aceitaramMinhaOferta(de, m);
       return;
     }
+    if (m.acao == 'cofre') {
+      _receberCofre(de, m);
+      return;
+    }
+    final caso = _casos[m.trocaId];
+    if (m.acao == 'disputa' &&
+        caso != null &&
+        (de == caso.vendedor || de == caso.comprador)) {
+      final comprovante = m.dados['comprovante'];
+      caso.alegacoes[de == caso.vendedor ? 'vendedor' : 'comprador'] =
+          '${m.dados['motivo'] ?? ''}'
+          '${comprovante != null ? ' — comprovante: $comprovante' : ''}';
+      return;
+    }
     final t = _trocas[m.trocaId];
-    if (t == null || t.contraparte != de || t.encerrada) return;
+    if (t == null || t.encerrada) return;
+    if (de == t.arbitro && de != t.contraparte) {
+      await _decisaoDoArbitro(t, m);
+      return;
+    }
+    if (t.contraparte != de) return;
     switch (m.acao) {
+      case 'disputa':
+        t.receberDisputa(m);
       case 'hash':
         t.receberHash(m);
         final fatura =
@@ -340,6 +462,51 @@ class TrocaService extends ChangeNotifier {
             await carteira.recusarTrava(t.hashHex!);
           } catch (_) {}
         }
+    }
+  }
+
+  void _receberCofre(String de, MensagemTroca m) {
+    final d = m.dados;
+    if (_casos.containsKey(m.trocaId) || d['vendedor'] != de) return;
+    final segredo = d['segredo'];
+    final hash = d['hash'];
+    if (segredo is! String ||
+        hash is! String ||
+        sha256Hex(segredo) != hash ||
+        d['comprador'] is! String) {
+      return;
+    }
+    _casos[m.trocaId] = CasoArbitragem(
+      trocaId: m.trocaId,
+      hash: hash,
+      segredo: segredo,
+      sats: (d['sats'] as num?)?.toInt() ?? 0,
+      fiat: (d['fiat'] as num?)?.toDouble() ?? 0,
+      vendedor: de,
+      comprador: d['comprador'] as String,
+    );
+  }
+
+  Future<void> _decisaoDoArbitro(Troca t, MensagemTroca m) async {
+    switch (m.acao) {
+      case 'segredo':
+        if (t.papel != PapelTroca.comprador) return;
+        final segredo = t.receberSegredo(m);
+        await carteira.resgatarTrava(
+          hashHex: t.hashHex!,
+          segredoHex: segredo,
+          amountMsat: _travaMsat[t.hashHex!] ?? t.sats * 1000,
+        );
+      case 'devolver':
+        if (t.papel != PapelTroca.comprador) return;
+        try {
+          await carteira.recusarTrava(t.hashHex!);
+        } catch (_) {}
+        t.estado = EstadoTroca.cancelada;
+      case 'decisao':
+        t.estado = m.dados['favor'] == 'comprador'
+            ? EstadoTroca.concluida
+            : EstadoTroca.cancelada;
     }
   }
 
@@ -373,6 +540,7 @@ class TrocaService extends ChangeNotifier {
       contraparte: de,
       sats: sats,
       fiatBrl: fiat,
+      arbitro: o.arbitro,
     );
     _trocas[t.id] = t;
     if (t.papel == PapelTroca.vendedor) {
@@ -381,8 +549,22 @@ class TrocaService extends ChangeNotifier {
         await _enviar(t, t.cancelar('oferta sem forma de recebimento'));
         return;
       }
-      await _enviar(t, t.enviarHash(instrucao));
+      await _enviarHash(t, instrucao);
     }
+  }
+
+  /// Árbitro que o usuário escolheu para as próprias ofertas (chave Nostr hex).
+  Future<String?> arbitroPadrao() => _armazenamento.read(key: 'troca_arbitro');
+
+  Future<void> definirArbitroPadrao(String? chave) async {
+    if (chave == null || chave.trim().isEmpty) {
+      await _armazenamento.delete(key: 'troca_arbitro');
+      return;
+    }
+    if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(chave.trim())) {
+      throw const ErroTroca('Chave do árbitro inválida (64 caracteres hex).');
+    }
+    await _armazenamento.write(key: 'troca_arbitro', value: chave.trim());
   }
 
   /// Onde o anunciante quer receber o Real numa oferta de venda. Fica só

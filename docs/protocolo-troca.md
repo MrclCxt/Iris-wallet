@@ -75,7 +75,19 @@ Passos (conteúdo JSON cifrado, campo `acao`):
 4. `travado` — V → C: confirma que pagou (C vê o `PaymentClaimable`).
 5. `pago` — C → V: comprovante do Real (texto/imagem).
 6. `segredo` — V → C: `s`. Fim.
-7. `cancelar` / `disputa` — qualquer lado.
+7. `cancelar` / `disputa` — qualquer lado (a disputa vai também ao árbitro).
+
+Com árbitro (tag `arb` na oferta, aceito por quem toma):
+
+- `cofre` — V → árbitro, junto com o `hash`: `s`, `h`, valores e as duas
+  chaves. O árbitro confere `sha256(s) == h` antes de aceitar o caso.
+- `segredo` — árbitro → C: decisão a favor do comprador (C resgata).
+- `devolver` — árbitro → C: decisão a favor do vendedor (C recusa a trava e
+  os sats voltam; se C não cooperar, o prazo devolve sozinho).
+- `decisao` — árbitro → V: informa o desfecho.
+
+A disputa precisa ser decidida antes do prazo da trava: depois dele, os sats
+voltam para V automaticamente.
 
 ## Segurança implementada (`lib/troca/troca.dart`)
 

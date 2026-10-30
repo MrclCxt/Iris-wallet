@@ -152,4 +152,73 @@ void main() {
         ]);
     expect(OfertaIris.doEvento(outra, rede: 'testnet4'), isNull);
   });
+
+  group('árbitro', () {
+    const arb =
+        'd41b22899549e1f3d335a31002cfd382174006e166d3e658e3a5eecdb6463573';
+    Troca comArbitro(PapelTroca p) => Troca(
+        id: 't2',
+        ofertaId: 'o2',
+        papel: p,
+        contraparte: 'c',
+        sats: 15000,
+        fiatBrl: 100,
+        arbitro: arb);
+
+    test('vendedor manda o segredo ao árbitro só se houver árbitro', () {
+      final semArb = par(PapelTroca.vendedor)..enviarHash('pix');
+      expect(semArb.cofreParaArbitro(vendedor: 'v'), isNull);
+      final v = comArbitro(PapelTroca.vendedor)..enviarHash('pix');
+      final cofre = v.cofreParaArbitro(vendedor: 'v')!;
+      expect(cofre.dados['segredo'], v.segredoHex);
+      expect(cofre.dados['hash'], v.hashHex);
+      expect(cofre.dados['comprador'], 'c');
+    });
+
+    test('disputa só com árbitro e com os sats travados', () {
+      final semArb = par(PapelTroca.comprador);
+      expect(() => semArb.abrirDisputa('x'), throwsA(isA<ErroTroca>()));
+      final v = comArbitro(PapelTroca.vendedor);
+      final c = comArbitro(PapelTroca.comprador);
+      expect(() => c.abrirDisputa('cedo demais'), throwsA(isA<ErroTroca>()));
+      c.receberHash(v.enviarHash('pix'));
+      c.enviarFatura('x');
+      c.travaChegou(v.hashHex!);
+      c.enviarPago('E2E');
+      final m = c.abrirDisputa('vendedor sumiu');
+      expect(c.estado, EstadoTroca.disputa);
+      expect(m.dados['comprovante'], 'E2E');
+    });
+
+    test('em disputa, o comprador aceita o segredo que o árbitro revelar', () {
+      final v = comArbitro(PapelTroca.vendedor);
+      final c = comArbitro(PapelTroca.comprador)..receberHash(v.enviarHash('pix'));
+      c.enviarFatura('x');
+      c.travaChegou(v.hashHex!);
+      c.abrirDisputa('vendedor sumiu');
+      final cofre = v.cofreParaArbitro(vendedor: 'v')!;
+      final s = c.receberSegredo(
+          MensagemTroca('t2', 'segredo', {'segredo': cofre.dados['segredo']}));
+      expect(s, v.segredoHex);
+      expect(c.estado, EstadoTroca.concluida);
+    });
+
+    test('árbitro da oferta vai e volta pelo evento', () {
+      final k = ChavesNostr.daPrivada(
+          '7f7ff03d123792d6ac594bfa67bf6d0c0ab55b6b1fdb6249303fe861f1ccba9a');
+      final o = OfertaIris(
+          id: 'o3',
+          autor: k.publica,
+          tipo: 'sell',
+          fiatMin: 10,
+          fiatMax: 10,
+          metodos: ['Pix'],
+          premio: 0,
+          rede: 'testnet4',
+          criadaEm: DateTime.now(),
+          arbitro: arb);
+      final e = EventoNostr.assinar(k, kind: kindOferta, conteudo: '', tags: o.tags());
+      expect(OfertaIris.doEvento(e, rede: 'testnet4')!.arbitro, arb);
+    });
+  });
 }

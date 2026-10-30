@@ -43,6 +43,10 @@ class OfertaIris {
   final String rede;
   final DateTime criadaEm;
 
+  /// Chave Nostr de quem resolve disputas desta oferta (opcional). Quem toma
+  /// a oferta vê e aceita o árbitro antes de começar.
+  final String? arbitro;
+
   const OfertaIris({
     required this.id,
     required this.autor,
@@ -53,6 +57,7 @@ class OfertaIris {
     required this.premio,
     required this.rede,
     required this.criadaEm,
+    this.arbitro,
   });
 
   bool get anuncianteVende => tipo == 'sell';
@@ -70,6 +75,7 @@ class OfertaIris {
         ['layer', 'lightning'],
         ['y', plataformaIris],
         ['z', 'order'],
+        if (arbitro != null) ['arb', arbitro!],
       ];
 
   static String _num(double v) =>
@@ -102,8 +108,12 @@ class OfertaIris {
       premio: double.tryParse(e.tag('premium') ?? '') ?? 0,
       rede: rede,
       criadaEm: DateTime.fromMillisecondsSinceEpoch(e.criadoEm * 1000),
+      arbitro: _chaveValida(e.tag('arb')),
     );
   }
+
+  static String? _chaveValida(String? s) =>
+      s != null && RegExp(r'^[0-9a-f]{64}$').hasMatch(s) ? s : null;
 }
 
 /// Passo da troca, trocado cifrado (NIP-44) entre as duas partes.
@@ -152,6 +162,10 @@ class Troca {
 
   /// Onde pagar o Real (chave Pix ou código do boleto), enviado cifrado por V.
   String? instrucaoPagamento;
+
+  /// Árbitro aceito pelas duas partes (chave Nostr), se houver.
+  final String? arbitro;
+  String? motivoDisputa;
   final DateTime criadaEm;
 
   Troca({
@@ -167,6 +181,8 @@ class Troca {
     this.fatura,
     this.comprovante,
     this.instrucaoPagamento,
+    this.arbitro,
+    this.motivoDisputa,
     DateTime? criadaEm,
   }) : criadaEm = criadaEm ?? DateTime.now();
 
@@ -183,6 +199,8 @@ class Troca {
         'fatura': fatura,
         'comprovante': comprovante,
         'instrucao': instrucaoPagamento,
+        'arbitro': arbitro,
+        'disputa': motivoDisputa,
         'criada': criadaEm.millisecondsSinceEpoch,
       };
 
@@ -199,6 +217,8 @@ class Troca {
         fatura: j['fatura'] as String?,
         comprovante: j['comprovante'] as String?,
         instrucaoPagamento: j['instrucao'] as String?,
+        arbitro: j['arbitro'] as String?,
+        motivoDisputa: j['disputa'] as String?,
         criadaEm: DateTime.fromMillisecondsSinceEpoch((j['criada'] as num).toInt()),
       );
 
@@ -226,6 +246,22 @@ class Troca {
     estado = EstadoTroca.hashEnviado;
     return MensagemTroca(id, 'hash',
         {'hash': hashHex, 'sats': sats, 'pagamento': instrucaoPagamento});
+  }
+
+  /// V: o segredo, cifrado para o árbitro. Só é usado se houver disputa, e
+  /// só permite que os sats cheguem a C — o árbitro não consegue desviá-los.
+  MensagemTroca? cofreParaArbitro({required String vendedor}) {
+    if (arbitro == null || segredoHex == null || papel != PapelTroca.vendedor) {
+      return null;
+    }
+    return MensagemTroca(id, 'cofre', {
+      'hash': hashHex,
+      'segredo': segredoHex,
+      'sats': sats,
+      'fiat': fiatBrl,
+      'vendedor': vendedor,
+      'comprador': contraparte,
+    });
   }
 
   /// C: recebe o hash; o próximo passo é criar a fatura para ele.
@@ -329,7 +365,8 @@ class Troca {
   /// C: recebe o segredo; só aceita se bater com o hash.
   String receberSegredo(MensagemTroca m) {
     _exigir(PapelTroca.comprador,
-        {EstadoTroca.travada, EstadoTroca.realPago}, 'segredo');
+        {EstadoTroca.travada, EstadoTroca.realPago, EstadoTroca.disputa},
+        'segredo');
     final s = m.dados['segredo'];
     if (s is! String ||
         !RegExp(r'^[0-9a-f]{64}$').hasMatch(s) ||
@@ -352,5 +389,29 @@ class Troca {
 
   void receberCancelar() {
     if (!encerrada) estado = EstadoTroca.cancelada;
+  }
+
+  /// Qualquer lado abre disputa depois que os sats travaram.
+  MensagemTroca abrirDisputa(String motivo) {
+    if (arbitro == null) {
+      throw const ErroTroca('Esta troca não tem árbitro.');
+    }
+    if (estado != EstadoTroca.travada && estado != EstadoTroca.realPago) {
+      throw const ErroTroca('Só dá para abrir disputa com os sats travados.');
+    }
+    estado = EstadoTroca.disputa;
+    motivoDisputa = motivo;
+    return MensagemTroca(id, 'disputa', {
+      'motivo': motivo,
+      'papel': papel.name,
+      if (comprovante != null) 'comprovante': comprovante,
+    });
+  }
+
+  void receberDisputa(MensagemTroca m) {
+    if (estado == EstadoTroca.travada || estado == EstadoTroca.realPago) {
+      estado = EstadoTroca.disputa;
+      motivoDisputa = m.dados['motivo']?.toString();
+    }
   }
 }

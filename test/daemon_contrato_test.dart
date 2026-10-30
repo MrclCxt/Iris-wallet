@@ -24,7 +24,7 @@ void main() {
   });
 
   test('recusa daemon de outra rede', () async {
-    final outra = Rede.principal ? 'testnet4' : 'bitcoin';
+    const outra = Rede.principal ? 'testnet4' : 'bitcoin';
     expect(
         api({
           '/health': {'status': 'ok', 'network': outra}

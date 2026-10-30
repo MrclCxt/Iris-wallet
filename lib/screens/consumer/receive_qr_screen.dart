@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import '../../core/theme.dart';
 import '../../core/rede.dart';
 import '../../core/currency_format.dart';
+import '../../core/bip21.dart';
 import '../../core/bolt11.dart';
 import '../../core/tx_policy.dart';
 import '../../services/wallet_service.dart';
@@ -41,6 +42,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
   int _secondsRemaining = 3600;
   Timer? _timer;
   String? _invoiceData;
+  String? _qrUnificado;
   String? _errorMessage;
   bool _isLoading = true;
   bool _isPaid = false;
@@ -80,7 +82,8 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
       final hashMatches = _watchingPaymentHash != null &&
           payment.paymentHashHex == _watchingPaymentHash;
       final onchainMatches =
-          _method == ReceiveMethod.onchain && payment.isOnchain;
+          (_method == ReceiveMethod.onchain || _qrUnificado != null) &&
+              payment.isOnchain;
       final openInvoiceMatches = _method == ReceiveMethod.lightning &&
           _watchingPaymentHash == null &&
           !payment.isOnchain;
@@ -121,6 +124,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
         _pixStaticReceived = false;
         _pixShowAmountForm = false;
         _invoiceData = null;
+        _qrUnificado = null;
       });
 
       if (_method != ReceiveMethod.pix) _generatePayload();
@@ -135,6 +139,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
     });
     try {
       String payload = '';
+      String? qrUnificado;
       final wallet = context.read<WalletService>();
 
       if (_method == ReceiveMethod.lightning) {
@@ -157,6 +162,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
         } else {
           _watchingPaymentHash = null;
         }
+        qrUnificado = await _qrComEndereco(wallet, payload);
       } else {
         final address =
             await wallet.getOnchainAddress(forMerchant: widget.isMerchant);
@@ -172,6 +178,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
       if (mounted) {
         setState(() {
           _invoiceData = payload;
+          _qrUnificado = qrUnificado;
           _isLoading = false;
         });
       }
@@ -180,9 +187,29 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
         setState(() {
           _isLoading = false;
           _invoiceData = null;
+          _qrUnificado = null;
           _errorMessage = _friendlyError(e);
         });
       }
+    }
+  }
+
+  /// O QR leva também o endereço on-chain, para carteiras sem Lightning
+  /// pagarem a mesma cobrança. Sem endereço a tempo, fica só a fatura.
+  Future<String?> _qrComEndereco(WalletService wallet, String fatura) async {
+    if (!Bolt11.looksLikeInvoice(fatura)) return null;
+    try {
+      final endereco = await wallet
+          .getOnchainAddress(forMerchant: widget.isMerchant)
+          .timeout(const Duration(seconds: 5));
+      if (endereco.isEmpty) return null;
+      return bip21Unificado(
+        endereco: endereco,
+        fatura: fatura,
+        sats: widget.satsAmount > 0 ? widget.satsAmount : null,
+      );
+    } catch (_) {
+      return null;
     }
   }
 
@@ -251,6 +278,7 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
     setState(() {
       _method = method;
       _invoiceData = null;
+      _qrUnificado = null;
       _errorMessage = null;
       _isLoading = method != ReceiveMethod.pix;
     });
@@ -762,7 +790,9 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                           child: Column(
                             children: [
                               QrImageView(
-                                data: displayPayload,
+                                data: isPix
+                                    ? displayPayload
+                                    : (_qrUnificado ?? displayPayload),
                                 version: QrVersions.auto,
                                 size: qrSize,
                                 backgroundColor: Colors.white,

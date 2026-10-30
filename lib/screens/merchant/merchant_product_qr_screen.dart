@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
+import '../../core/bip21.dart';
 import '../../core/bolt11.dart';
 import '../../core/tx_policy.dart';
 import '../../services/wallet_service.dart';
@@ -29,6 +30,7 @@ class MerchantProductQrScreen extends StatefulWidget {
 
 class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
   String? _invoiceData;
+  String? _qrUnificado;
   bool _isLoading = true;
   bool _isPaid = false;
   bool _isOnchainPayload = false;
@@ -51,7 +53,8 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
       if (!payment.isMerchant) return;
       final hashMatch = _watchingPaymentHash != null &&
           payment.paymentHashHex == _watchingPaymentHash;
-      final onchainMatch = _isOnchainPayload && payment.isOnchain;
+      final onchainMatch =
+          (_isOnchainPayload || _qrUnificado != null) && payment.isOnchain;
       if (hashMatch || onchainMatch) _markPaid();
     });
 
@@ -101,6 +104,7 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
     setState(() {
       _isLoading = true;
       _invoiceData = null;
+      _qrUnificado = null;
     });
     try {
       if (rate.isSatsDisplay) {
@@ -128,6 +132,15 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
           } catch (_) {
             _watchingPaymentHash = null;
           }
+          try {
+            final addr = await wallet
+                .getOnchainAddress(forMerchant: true)
+                .timeout(const Duration(seconds: 5));
+            _qrUnificado = bip21Unificado(
+                endereco: addr, fatura: inv, sats: satsAmount);
+          } catch (_) {
+            _qrUnificado = null;
+          }
           _isOnchainPayload = false;
         }
       } else {
@@ -147,6 +160,7 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
         setState(() {
           _isLoading = false;
           _invoiceData = null;
+          _qrUnificado = null;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -299,7 +313,7 @@ class _MerchantProductQrScreenState extends State<MerchantProductQrScreen> {
                               child: Column(
                                 children: [
                                   QrImageView(
-                                    data: _invoiceData!,
+                                    data: _qrUnificado ?? _invoiceData!,
                                     version: QrVersions.auto,
                                     size: qrSize,
                                     backgroundColor: Colors.white,

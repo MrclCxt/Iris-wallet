@@ -8,6 +8,7 @@ import '../../core/currency_format.dart';
 import '../../core/bolt11.dart';
 import '../../core/lnurl.dart';
 import '../../core/tx_policy.dart';
+import '../../services/taxa_rede.dart';
 import '../../services/wallet_service.dart';
 import '../../services/liquid_wallet_service.dart';
 import '../../services/pix_service.dart';
@@ -351,8 +352,24 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
         await liquid.sendLbtc(
             toAddress: widget.liquidAddress!, sats: _satsAmount);
       } else if (_isOnchain) {
-        await wallet.sendOnchain(
+        final prep = await wallet.prepararEnvioOnchain(
             address: widget.btcAddress!, sats: _satsAmount);
+        if (!mounted) return;
+        Navigator.pop(context); // tira o "carregando" para mostrar a taxa
+        final alerta = TaxaRede.alerta(taxa: prep.taxa, valor: prep.sats);
+        if (prep.taxa >= prep.sats) {
+          _showError(alerta!);
+          return;
+        }
+        final confirmou = await _confirmarTaxa(prep, alerta);
+        if (!mounted || confirmou != true) return;
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+              child: CircularProgressIndicator(color: IrisTheme.primary)),
+        );
+        await wallet.confirmarEnvioOnchain(prep);
       } else if (params != null) {
         final invoice = await Lnurl.requestInvoice(params, _satsAmount * 1000);
         final parsed = Bolt11.decode(invoice);
@@ -382,6 +399,47 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
         _showError('Falha no pagamento: $e');
       }
     }
+  }
+
+  /// Mostra a taxa EXATA da transação já assinada antes de transmitir.
+  Future<bool?> _confirmarTaxa(EnvioPreparado prep, String? alerta) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: IrisTheme.s1,
+        title: const Text('Confirmar envio',
+            style: TextStyle(color: IrisTheme.textPrimary, fontSize: 16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildRow('Valor', CurrencyFormatter.formatBtcOrSats(prep.sats)),
+            const SizedBox(height: 6),
+            _buildRow('Taxa da rede',
+                '${CurrencyFormatter.formatBtcOrSats(prep.taxa)} '
+                    '(${prep.satPorVbyte.toStringAsFixed(1)} sat/vB)'),
+            const SizedBox(height: 6),
+            _buildRow('Total',
+                CurrencyFormatter.formatBtcOrSats(prep.sats + prep.taxa),
+                isBold: true),
+            if (alerta != null) ...[
+              const SizedBox(height: 12),
+              Text(alerta,
+                  style: const TextStyle(
+                      color: IrisTheme.warning, fontSize: 12, height: 1.4)),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Enviar')),
+        ],
+      ),
+    );
   }
 
   /// Assina sem transmitir: quem recebe lê o QR e envia para a rede.

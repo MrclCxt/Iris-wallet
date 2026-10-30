@@ -3340,6 +3340,7 @@ abstract class coreApiImplPlatform extends BaseApiImpl<coreWire> {
       SignedTransaction apiObj, wire_cst_signed_transaction wireObj) {
     wireObj.txid = cst_encode_String(apiObj.txid);
     wireObj.tx_hex = cst_encode_String(apiObj.txHex);
+    wireObj.fee_sats = cst_encode_u_64(apiObj.feeSats);
   }
 
   @protected
@@ -5617,6 +5618,32 @@ class coreWire implements BaseWire {
           .asFunction<
               void Function(int, ffi.Pointer<wire_cst_ldk_on_chain_payment>)>();
 
+  void wire__crate__api__on_chain__ldk_on_chain_payment_register_transaction(
+    int port_,
+    ffi.Pointer<wire_cst_ldk_on_chain_payment> that,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> tx_hex,
+  ) {
+    return _wire__crate__api__on_chain__ldk_on_chain_payment_register_transaction(
+      port_,
+      that,
+      tx_hex,
+    );
+  }
+
+  late final _wire__crate__api__on_chain__ldk_on_chain_payment_register_transactionPtr =
+      _lookup<
+              ffi.NativeFunction<
+                  ffi.Void Function(
+                      ffi.Int64,
+                      ffi.Pointer<wire_cst_ldk_on_chain_payment>,
+                      ffi.Pointer<wire_cst_list_prim_u_8_strict>)>>(
+          'frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_register_transaction');
+  late final _wire__crate__api__on_chain__ldk_on_chain_payment_register_transaction =
+      _wire__crate__api__on_chain__ldk_on_chain_payment_register_transactionPtr
+          .asFunction<
+              void Function(int, ffi.Pointer<wire_cst_ldk_on_chain_payment>,
+                  ffi.Pointer<wire_cst_list_prim_u_8_strict>)>();
+
   void wire__crate__api__on_chain__ldk_on_chain_payment_send_all_to_address(
     int port_,
     ffi.Pointer<wire_cst_ldk_on_chain_payment> that,
@@ -5677,12 +5704,16 @@ class coreWire implements BaseWire {
     ffi.Pointer<wire_cst_ldk_on_chain_payment> that,
     ffi.Pointer<wire_cst_address> address,
     int amount_sats,
+    ffi.Pointer<ffi.Uint64> fee_rate_sat_per_kwu,
+    bool registrar,
   ) {
     return _wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_address(
       port_,
       that,
       address,
       amount_sats,
+      fee_rate_sat_per_kwu,
+      registrar,
     );
   }
 
@@ -5693,13 +5724,20 @@ class coreWire implements BaseWire {
                       ffi.Int64,
                       ffi.Pointer<wire_cst_ldk_on_chain_payment>,
                       ffi.Pointer<wire_cst_address>,
-                      ffi.Uint64)>>(
+                      ffi.Uint64,
+                      ffi.Pointer<ffi.Uint64>,
+                      ffi.Bool)>>(
           'frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_address');
   late final _wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_address =
       _wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_addressPtr
           .asFunction<
-              void Function(int, ffi.Pointer<wire_cst_ldk_on_chain_payment>,
-                  ffi.Pointer<wire_cst_address>, int)>();
+              void Function(
+                  int,
+                  ffi.Pointer<wire_cst_ldk_on_chain_payment>,
+                  ffi.Pointer<wire_cst_address>,
+                  int,
+                  ffi.Pointer<ffi.Uint64>,
+                  bool)>();
 
   void wire__crate__api__spontaneous__ldk_spontaneous_payment_send(
     int port_,
@@ -7738,4 +7776,7 @@ final class wire_cst_signed_transaction extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> txid;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> tx_hex;
+
+  @ffi.Uint64()
+  external int fee_sats;
 }

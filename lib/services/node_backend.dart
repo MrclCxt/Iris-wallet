@@ -97,9 +97,17 @@ abstract class NodeApi {
 
   Future<String> sendOnchain({required String address, required int sats});
 
-  /// Assina sem transmitir (pagamento que viaja por QR/NFC até quem tem rede).
-  Future<({String txid, String txHex})> signOnchain(
-      {required String address, required int sats});
+  /// Assina sem transmitir. [satPorVbyte]: taxa escolhida pelo app (null =
+  /// estimativa do nó). [registrar]: marca como pendente já (pagamento
+  /// offline) ou deixa como prévia, para [registrarTransacao] após o OK.
+  Future<({String txid, String txHex, int feeSats})> signOnchain(
+      {required String address,
+      required int sats,
+      double? satPorVbyte,
+      bool registrar = true});
+
+  /// Marca como pendente uma transação assinada em prévia.
+  Future<void> registrarTransacao(String txHex);
 
   /// Transmite uma transação já assinada, recebida de outro aparelho.
   Future<String> broadcastTx(String txHex);
@@ -371,14 +379,27 @@ class EmbeddedNodeApi implements NodeApi {
   }
 
   @override
-  Future<({String txid, String txHex})> signOnchain(
-      {required String address, required int sats}) async {
+  Future<({String txid, String txHex, int feeSats})> signOnchain(
+      {required String address,
+      required int sats,
+      double? satPorVbyte,
+      bool registrar = true}) async {
     final onChain = await _n.onChainPayment();
     final tx = await onChain.signToAddress(
       address: ldk.Address(s: address),
       amountSats: BigInt.from(sats),
+      feeRateSatPerKwu: satPorVbyte == null
+          ? null
+          : BigInt.from((satPorVbyte * 250).ceil()),
+      registrar: registrar,
     );
-    return (txid: tx.txid, txHex: tx.txHex);
+    return (txid: tx.txid, txHex: tx.txHex, feeSats: tx.feeSats.toInt());
+  }
+
+  @override
+  Future<void> registrarTransacao(String txHex) async {
+    final onChain = await _n.onChainPayment();
+    await onChain.registerTransaction(txHex: txHex);
   }
 
   @override
@@ -703,11 +724,27 @@ class RemoteNodeApi implements NodeApi {
   }
 
   @override
-  Future<({String txid, String txHex})> signOnchain(
-      {required String address, required int sats}) async {
-    final r = await _post(
-        '/sign_onchain', {'address': address, 'amount_sats': sats});
-    return (txid: r['txid'] as String, txHex: r['tx_hex'] as String);
+  Future<({String txid, String txHex, int feeSats})> signOnchain(
+      {required String address,
+      required int sats,
+      double? satPorVbyte,
+      bool registrar = true}) async {
+    final r = await _post('/sign_onchain', {
+      'address': address,
+      'amount_sats': sats,
+      if (satPorVbyte != null) 'fee_rate_sat_per_kwu': (satPorVbyte * 250).ceil(),
+      'registrar': registrar,
+    });
+    return (
+      txid: r['txid'] as String,
+      txHex: r['tx_hex'] as String,
+      feeSats: (r['fee_sats'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  @override
+  Future<void> registrarTransacao(String txHex) async {
+    await _post('/register_tx', {'tx_hex': txHex});
   }
 
   @override

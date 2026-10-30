@@ -92,9 +92,13 @@ impl OnchainPayment {
 	/// registrada como pendente na carteira, e as reservas de canais âncora são
 	/// respeitadas como em [`Self::send_to_address`]. Até alguém transmitir, quem
 	/// recebe tem só uma promessa: não vale como pagamento confirmado.
+	///
+	/// Devolve a transação e a taxa exata em sats. Com `registrar` falso é só
+	/// uma prévia: nada muda na carteira até [`Self::register_unconfirmed`].
 	pub fn sign_to_address(
 		&self, address: &bitcoin::Address, amount_sats: u64, fee_rate: Option<FeeRate>,
-	) -> Result<bitcoin::Transaction, Error> {
+		registrar: bool,
+	) -> Result<(bitcoin::Transaction, u64), Error> {
 		if !*self.is_running.read().unwrap() {
 			return Err(Error::NotRunning);
 		}
@@ -104,7 +108,16 @@ impl OnchainPayment {
 		let send_amount =
 			OnchainSendAmount::ExactRetainingReserve { amount_sats, cur_anchor_reserve_sats };
 		let fee_rate_opt = maybe_map_fee_rate_opt!(fee_rate);
-		self.wallet.sign_without_broadcast(address, send_amount, fee_rate_opt)
+		self.wallet.sign_without_broadcast(address, send_amount, fee_rate_opt, registrar)
+	}
+
+	/// PATCH IRIS: marca como pendente uma transação que esta carteira assinou
+	/// com [`Self::sign_to_address`] e que foi (ou será) transmitida.
+	pub fn register_unconfirmed(&self, tx: &bitcoin::Transaction) -> Result<(), Error> {
+		if !*self.is_running.read().unwrap() {
+			return Err(Error::NotRunning);
+		}
+		self.wallet.register_unconfirmed(tx)
 	}
 
 	/// Send an on-chain payment to the given address, draining the available funds.

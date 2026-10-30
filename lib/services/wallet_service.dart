@@ -17,6 +17,7 @@ import '../core/rede.dart';
 import '../core/seed_crypto.dart';
 import '../core/vault_crypto.dart';
 import 'node_backend.dart';
+import 'taxa_rede.dart';
 import 'product_image_store.dart';
 import 'avatar_image_store.dart';
 import 'background_service_android.dart';
@@ -213,6 +214,24 @@ class RecebimentosAnunciados {
     } catch (_) {}
     return true;
   }
+}
+
+/// Envio on-chain assinado em prévia: a tela mostra [taxa] antes do OK.
+class EnvioPreparado {
+  final String endereco;
+  final int sats;
+  final String txid;
+  final String txHex;
+  final int taxa;
+  final double satPorVbyte;
+  const EnvioPreparado({
+    required this.endereco,
+    required this.sats,
+    required this.txid,
+    required this.txHex,
+    required this.taxa,
+    required this.satPorVbyte,
+  });
 }
 
 class ReceivedPayment {
@@ -3493,30 +3512,52 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  Future<String> sendOnchain(
+  /// Monta e assina o envio on-chain SEM registrar nem transmitir, com a
+  /// taxa consultada pelo app — para a tela mostrar a taxa exata antes do OK.
+  /// Cancelar depois disto não prende moeda nenhuma.
+  Future<EnvioPreparado> prepararEnvioOnchain(
       {required String address, required int sats}) async {
-    final handle = _consumerNode;
-
     await validarAntesDeEnviar(address: address, sats: sats);
+    final taxa = await TaxaRede.consultar();
+    if (taxa == null) {
+      throw Exception('Não foi possível consultar a taxa da rede agora. '
+          'O envio foi cancelado para não pagar uma taxa errada.');
+    }
+    final assinada = await _consumerNode.api!.signOnchain(
+      address: address,
+      sats: sats,
+      satPorVbyte: taxa.economico,
+      registrar: false,
+    );
+    return EnvioPreparado(
+      endereco: address,
+      sats: sats,
+      txid: assinada.txid,
+      txHex: assinada.txHex,
+      taxa: assinada.feeSats,
+      satPorVbyte: taxa.economico,
+    );
+  }
 
-    final String txid;
+  /// O usuário viu a taxa e confirmou: registra e transmite.
+  Future<String> confirmarEnvioOnchain(EnvioPreparado e) async {
+    final handle = _consumerNode;
+    await handle.api!.registrarTransacao(e.txHex);
+    final txid = e.txid;
+    final sats = e.sats;
     if (handle.api is EmbeddedNodeApi) {
       // O nó transmite só pelo servidor escolhido, e desiste depois de 4
       // timeouts — visto num Galaxy cuja rede deixava passar leituras mas
-      // derrubava o POST /tx. Assinamos sem transmitir e o app transmite por
-      // todos os servidores; se nenhum aceitar, a transação fica na fila e é
-      // reenviada até entrar na rede.
-      final assinada =
-          await handle.api!.signOnchain(address: address, sats: sats);
-      txid = assinada.txid;
+      // derrubava o POST /tx. O app transmite por todos os servidores; se
+      // nenhum aceitar, a transação fica na fila e é reenviada até entrar.
       try {
-        await EmbeddedNodeApi.transmitirPorEsplora(assinada.txHex);
-      } catch (e) {
-        debugPrint('Nenhum servidor aceitou $txid agora; fica na fila: $e');
-        await _enfileirarTransmissao(txid, assinada.txHex);
+        await EmbeddedNodeApi.transmitirPorEsplora(e.txHex);
+      } catch (erro) {
+        debugPrint('Nenhum servidor aceitou $txid agora; fica na fila: $erro');
+        await _enfileirarTransmissao(txid, e.txHex);
       }
     } else {
-      txid = await handle.api!.sendOnchain(address: address, sats: sats);
+      await handle.api!.broadcastTx(e.txHex);
     }
 
     final tx = Transaction(
@@ -3537,6 +3578,12 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     return txid;
   }
 
+  /// Envio sem tela de confirmação (atalho): prepara e confirma direto.
+  Future<String> sendOnchain(
+          {required String address, required int sats}) async =>
+      confirmarEnvioOnchain(
+          await prepararEnvioOnchain(address: address, sats: sats));
+
   /// Teto do pagamento assinado sem internet. Até alguém transmitir e a rede
   /// confirmar, quem recebe tem só uma promessa: valor alto aqui é golpe de
   /// gasto duplo esperando acontecer.
@@ -3552,8 +3599,12 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     }
     await validarAntesDeEnviar(address: address, sats: sats, exigirRede: false);
     final handle = _consumerNode;
-    final assinada =
-        await handle.api!.signOnchain(address: address, sats: sats);
+    // Sem internet não há como consultar a taxa: usa a última que funcionou.
+    final assinada = await handle.api!.signOnchain(
+      address: address,
+      sats: sats,
+      satPorVbyte: await TaxaRede.ultimaConhecida() ?? 2,
+    );
     _registrarTransacao(
       Transaction(
         id: assinada.txid,
@@ -3568,7 +3619,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     );
     handle.houveSaidaDesdeLeituraBoa = true;
     notifyListeners();
-    return assinada;
+    return (txid: assinada.txid, txHex: assinada.txHex);
   }
 
   /// Transmite um pagamento assinado em outro aparelho. Só vale quando a rede

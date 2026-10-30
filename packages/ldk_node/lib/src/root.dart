@@ -500,13 +500,29 @@ class OnChainPayment extends on_chain.LdkOnChainPayment {
     }
   }
 
-  ///Assina sem transmitir; a transação fica pendente na carteira.
+  ///Assina sem transmitir (prévia, ou já pendente com [registrar]).
   @override
   Future<on_chain.SignedTransaction> signToAddress(
-      {required types.Address address, required BigInt amountSats}) async {
+      {required types.Address address,
+      required BigInt amountSats,
+      BigInt? feeRateSatPerKwu,
+      required bool registrar}) async {
     try {
-      return await super
-          .signToAddress(address: address, amountSats: amountSats);
+      return await super.signToAddress(
+          address: address,
+          amountSats: amountSats,
+          feeRateSatPerKwu: feeRateSatPerKwu,
+          registrar: registrar);
+    } on error.LdkNodeError catch (e) {
+      throw mapLdkNodeError(e);
+    }
+  }
+
+  ///Registra como pendente uma transação assinada em prévia.
+  @override
+  Future<void> registerTransaction({required String txHex}) async {
+    try {
+      return await super.registerTransaction(txHex: txHex);
     } on error.LdkNodeError catch (e) {
       throw mapLdkNodeError(e);
     }

@@ -7,6 +7,7 @@ import '../core/rede.dart';
 import '../core/varredura.dart';
 import 'esplora_servidores.dart';
 import 'node_backend.dart';
+import 'taxa_rede.dart';
 import 'wallet_service.dart';
 
 /// Vouchers e carteiras de papel: resgatar (varrer uma chave avulsa para a
@@ -60,14 +61,23 @@ class VoucherService {
   /// Emite um voucher de [sats]: gera a chave, financia pela carteira e
   /// guarda a chave no cofre do aparelho (para reaver se não for resgatado).
   /// Quem tiver o papel tem o bitcoin — e quem emitiu também conhece a chave.
-  Future<ChaveAvulsa> emitir(int sats) async {
+  ///
+  /// [confirmar] recebe o envio já assinado (com a taxa exata) e decide se
+  /// segue; devolver false cancela sem mover nada. Devolve null se cancelado.
+  Future<ChaveAvulsa?> emitir(int sats,
+      {required Future<bool> Function(EnvioPreparado envio) confirmar}) async {
     final chave = ChaveAvulsa.nova(principal: Rede.principal);
+    final envio = await carteira.prepararEnvioOnchain(
+        address: chave.enderecoSegwit(Rede.hrpEndereco), sats: sats);
+    if (envio.taxa >= sats) {
+      throw Exception(TaxaRede.alerta(taxa: envio.taxa, valor: sats));
+    }
+    if (!await confirmar(envio)) return null;
     final emitidos = await emitidosGuardados();
     emitidos.add({'wif': chave.wif, 'sats': sats, 'em': DateTime.now().toIso8601String()});
     // Guarda ANTES de mandar o dinheiro: se o app cair no meio, a chave não se perde.
     await _cofre.write(key: _chaveEmitidos, value: jsonEncode(emitidos));
-    await carteira.sendOnchain(
-        address: chave.enderecoSegwit(Rede.hrpEndereco), sats: sats);
+    await carteira.confirmarEnvioOnchain(envio);
     return chave;
   }
 
@@ -78,12 +88,11 @@ class VoucherService {
   }
 
   Future<double> _taxa() async {
-    try {
-      final j = jsonDecode(await _esplora('/fee-estimates')) as Map<String, dynamic>;
-      final v = (j['6'] ?? j['3'] ?? j['1']) as num?;
-      if (v != null && v > 0) return v.toDouble();
-    } catch (_) {}
-    return 2;
+    final t = await TaxaRede.consultar();
+    if (t == null) {
+      throw Exception('Não foi possível consultar a taxa da rede agora.');
+    }
+    return t.economico;
   }
 
   Future<String> _esplora(String caminho) async {

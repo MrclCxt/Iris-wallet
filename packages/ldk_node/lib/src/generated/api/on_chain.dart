@@ -23,6 +23,12 @@ class LdkOnChainPayment {
         that: this,
       );
 
+  /// Marca como pendente uma transação assinada em prévia, depois que o
+  /// usuário confirmou a taxa.
+  Future<void> registerTransaction({required String txHex}) =>
+      core.instance.api.crateApiOnChainLdkOnChainPaymentRegisterTransaction(
+          that: this, txHex: txHex);
+
   Future<Txid> sendAllToAddress({required Address address}) =>
       core.instance.api.crateApiOnChainLdkOnChainPaymentSendAllToAddress(
           that: this, address: address);
@@ -32,12 +38,20 @@ class LdkOnChainPayment {
       core.instance.api.crateApiOnChainLdkOnChainPaymentSendToAddress(
           that: this, address: address, amountSats: amountSats);
 
-  /// Assina sem transmitir, para a transação viajar por QR/NFC até quem
-  /// tiver internet. Fica pendente na carteira até lá.
+  /// Assina sem transmitir. `fee_rate_sat_per_kwu`: taxa escolhida pelo app
+  /// (None = estimativa do nó). `registrar`: marca como pendente já (pagamento
+  /// offline) ou deixa como prévia para [`Self::register_transaction`].
   Future<SignedTransaction> signToAddress(
-          {required Address address, required BigInt amountSats}) =>
+          {required Address address,
+          required BigInt amountSats,
+          BigInt? feeRateSatPerKwu,
+          required bool registrar}) =>
       core.instance.api.crateApiOnChainLdkOnChainPaymentSignToAddress(
-          that: this, address: address, amountSats: amountSats);
+          that: this,
+          address: address,
+          amountSats: amountSats,
+          feeRateSatPerKwu: feeRateSatPerKwu,
+          registrar: registrar);
 
   @override
   int get hashCode => ptr.hashCode;
@@ -54,13 +68,17 @@ class SignedTransaction {
   final String txid;
   final String txHex;
 
+  /// Taxa exata que a transação paga, em sats.
+  final BigInt feeSats;
+
   const SignedTransaction({
     required this.txid,
     required this.txHex,
+    required this.feeSats,
   });
 
   @override
-  int get hashCode => txid.hashCode ^ txHex.hashCode;
+  int get hashCode => txid.hashCode ^ txHex.hashCode ^ feeSats.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -68,5 +86,6 @@ class SignedTransaction {
       other is SignedTransaction &&
           runtimeType == other.runtimeType &&
           txid == other.txid &&
-          txHex == other.txHex;
+          txHex == other.txHex &&
+          feeSats == other.feeSats;
 }

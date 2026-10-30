@@ -362,7 +362,7 @@ impl Wallet {
 		fee_rate: Option<FeeRate>,
 	) -> Result<Txid, Error> {
 		self.parse_and_validate_address(&address)?;
-		let tx = self.construir_e_assinar(address, send_amount, fee_rate)?;
+		let (tx, _) = self.construir_e_assinar(address, send_amount, fee_rate)?;
 
 		self.broadcaster.broadcast_transactions(&[&tx]);
 
@@ -407,7 +407,7 @@ impl Wallet {
 	fn construir_e_assinar(
 		&self, address: &bitcoin::Address, send_amount: OnchainSendAmount,
 		fee_rate: Option<FeeRate>,
-	) -> Result<Transaction, Error> {
+	) -> Result<(Transaction, u64), Error> {
 		self.parse_and_validate_address(&address)?;
 
 		// Use the set fee_rate or default to fee estimation.
@@ -579,26 +579,29 @@ impl Wallet {
 				Error::PersistenceFailed
 			})?;
 
-			psbt.extract_tx().map_err(|e| {
+			// PATCH IRIS: a taxa exata, para o app mostrar antes de transmitir.
+			let taxa = psbt.fee().map(|a| a.to_sat()).unwrap_or(0);
+			let tx = psbt.extract_tx().map_err(|e| {
 				log_error!(self.logger, "Failed to extract transaction: {}", e);
 				e
-			})?
+			})?;
+			(tx, taxa)
 		};
 		Ok(tx)
 	}
 
-	// PATCH IRIS: assina sem transmitir e já registra a transação como pendente,
-	// para as mesmas moedas não serem usadas de novo num envio seguinte.
+	// PATCH IRIS: assina sem transmitir. Com [registrar], já marca a transação
+	// como pendente na carteira (as mesmas moedas não são usadas de novo); sem
+	// ele, é uma prévia — o app mostra a taxa e só registra se o usuário
+	// confirmar (register_unconfirmed), para um cancelamento não prender moedas.
 	pub(crate) fn sign_without_broadcast(
 		&self, address: &bitcoin::Address, send_amount: OnchainSendAmount,
-		fee_rate: Option<FeeRate>,
-	) -> Result<Transaction, Error> {
-		let tx = self.construir_e_assinar(address, send_amount, fee_rate)?;
-		let agora = std::time::SystemTime::now()
-			.duration_since(std::time::UNIX_EPOCH)
-			.map(|d| d.as_secs())
-			.unwrap_or(0);
-		self.apply_mempool_txs(vec![(tx.clone(), agora)], Vec::new())?;
+		fee_rate: Option<FeeRate>, registrar: bool,
+	) -> Result<(Transaction, u64), Error> {
+		let (tx, taxa) = self.construir_e_assinar(address, send_amount, fee_rate)?;
+		if registrar {
+			self.register_unconfirmed(&tx)?;
+		}
 		log_info!(
 			self.logger,
 			"Transacao {} assinada sem transmitir ({} para {})",
@@ -609,7 +612,17 @@ impl Wallet {
 			},
 			address
 		);
-		Ok(tx)
+		Ok((tx, taxa))
+	}
+
+	// PATCH IRIS: registra como pendente uma transação já assinada por esta
+	// carteira (depois de o usuário confirmar a prévia).
+	pub(crate) fn register_unconfirmed(&self, tx: &Transaction) -> Result<(), Error> {
+		let agora = std::time::SystemTime::now()
+			.duration_since(std::time::UNIX_EPOCH)
+			.map(|d| d.as_secs())
+			.unwrap_or(0);
+		self.apply_mempool_txs(vec![(tx.clone(), agora)], Vec::new())
 	}
 
 	pub(crate) fn select_confirmed_utxos(

@@ -695,6 +695,7 @@ typedef struct wire_cst_node_status {
 typedef struct wire_cst_signed_transaction {
   struct wire_cst_list_prim_u_8_strict *txid;
   struct wire_cst_list_prim_u_8_strict *tx_hex;
+  uint64_t fee_sats;
 } wire_cst_signed_transaction;
 
 void frbgen_ldk_node_wire__crate__api__bolt11__ldk_bolt_11_payment_claim_for_hash(int64_t port_,
@@ -949,6 +950,10 @@ void frbgen_ldk_node_wire__crate__api__node__ldk_node_wait_next_event(int64_t po
 void frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_new_address(int64_t port_,
                                                                                   struct wire_cst_ldk_on_chain_payment *that);
 
+void frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_register_transaction(int64_t port_,
+                                                                                           struct wire_cst_ldk_on_chain_payment *that,
+                                                                                           struct wire_cst_list_prim_u_8_strict *tx_hex);
+
 void frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_send_all_to_address(int64_t port_,
                                                                                           struct wire_cst_ldk_on_chain_payment *that,
                                                                                           struct wire_cst_address *address);
@@ -961,7 +966,9 @@ void frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_send_to_ad
 void frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_address(int64_t port_,
                                                                                       struct wire_cst_ldk_on_chain_payment *that,
                                                                                       struct wire_cst_address *address,
-                                                                                      uint64_t amount_sats);
+                                                                                      uint64_t amount_sats,
+                                                                                      uint64_t *fee_rate_sat_per_kwu,
+                                                                                      bool registrar);
 
 void frbgen_ldk_node_wire__crate__api__spontaneous__ldk_spontaneous_payment_send(int64_t port_,
                                                                                  struct wire_cst_ldk_spontaneous_payment *that,
@@ -1254,6 +1261,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__node__ldk_node_verify_signature);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__node__ldk_node_wait_next_event);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_new_address);
+    dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_register_transaction);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_send_all_to_address);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_send_to_address);
     dummy_var ^= ((int64_t) (void*) frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_address);

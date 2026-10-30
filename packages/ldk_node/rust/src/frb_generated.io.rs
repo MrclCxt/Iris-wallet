@@ -1367,6 +1367,7 @@ impl CstDecode<crate::api::on_chain::SignedTransaction> for wire_cst_signed_tran
         crate::api::on_chain::SignedTransaction {
             txid: self.txid.cst_decode(),
             tx_hex: self.tx_hex.cst_decode(),
+            fee_sats: self.fee_sats.cst_decode(),
         }
     }
 }
@@ -2160,6 +2161,7 @@ impl NewWithNullPtr for wire_cst_signed_transaction {
         Self {
             txid: core::ptr::null_mut(),
             tx_hex: core::ptr::null_mut(),
+            fee_sats: Default::default(),
         }
     }
 }
@@ -2871,6 +2873,15 @@ pub extern "C" fn frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payme
 }
 
 #[no_mangle]
+pub extern "C" fn frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_register_transaction(
+    port_: i64,
+    that: *mut wire_cst_ldk_on_chain_payment,
+    tx_hex: *mut wire_cst_list_prim_u_8_strict,
+) {
+    wire__crate__api__on_chain__ldk_on_chain_payment_register_transaction_impl(port_, that, tx_hex)
+}
+
+#[no_mangle]
 pub extern "C" fn frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payment_send_all_to_address(
     port_: i64,
     that: *mut wire_cst_ldk_on_chain_payment,
@@ -2900,12 +2911,16 @@ pub extern "C" fn frbgen_ldk_node_wire__crate__api__on_chain__ldk_on_chain_payme
     that: *mut wire_cst_ldk_on_chain_payment,
     address: *mut wire_cst_address,
     amount_sats: u64,
+    fee_rate_sat_per_kwu: *mut u64,
+    registrar: bool,
 ) {
     wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_address_impl(
         port_,
         that,
         address,
         amount_sats,
+        fee_rate_sat_per_kwu,
+        registrar,
     )
 }
 
@@ -4282,6 +4297,7 @@ pub struct wire_cst_routing_fees {
 pub struct wire_cst_signed_transaction {
     txid: *mut wire_cst_list_prim_u_8_strict,
     tx_hex: *mut wire_cst_list_prim_u_8_strict,
+    fee_sats: u64,
 }
 #[repr(C)]
 #[derive(Clone, Copy)]

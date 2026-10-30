@@ -65,7 +65,7 @@ class core extends BaseEntrypoint<coreApi, coreApiImpl, coreWire> {
   String get codegenVersion => '2.0.0';
 
   @override
-  int get rustContentHash => -702804765;
+  int get rustContentHash => -2010395865;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -308,6 +308,9 @@ abstract class coreApi extends BaseApi {
   Future<Address> crateApiOnChainLdkOnChainPaymentNewAddress(
       {required LdkOnChainPayment that});
 
+  Future<void> crateApiOnChainLdkOnChainPaymentRegisterTransaction(
+      {required LdkOnChainPayment that, required String txHex});
+
   Future<Txid> crateApiOnChainLdkOnChainPaymentSendAllToAddress(
       {required LdkOnChainPayment that, required Address address});
 
@@ -319,7 +322,9 @@ abstract class coreApi extends BaseApi {
   Future<SignedTransaction> crateApiOnChainLdkOnChainPaymentSignToAddress(
       {required LdkOnChainPayment that,
       required Address address,
-      required BigInt amountSats});
+      required BigInt amountSats,
+      BigInt? feeRateSatPerKwu,
+      required bool registrar});
 
   Future<PaymentId> crateApiSpontaneousLdkSpontaneousPaymentSend(
       {required LdkSpontaneousPayment that,
@@ -2148,6 +2153,34 @@ class coreApiImpl extends coreApiImplPlatform implements coreApi {
       );
 
   @override
+  Future<void> crateApiOnChainLdkOnChainPaymentRegisterTransaction(
+      {required LdkOnChainPayment that, required String txHex}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        var arg0 = cst_encode_box_autoadd_ldk_on_chain_payment(that);
+        var arg1 = cst_encode_String(txHex);
+        return wire
+            .wire__crate__api__on_chain__ldk_on_chain_payment_register_transaction(
+                port_, arg0, arg1);
+      },
+      codec: DcoCodec(
+        decodeSuccessData: dco_decode_unit,
+        decodeErrorData: dco_decode_ldk_node_error,
+      ),
+      constMeta: kCrateApiOnChainLdkOnChainPaymentRegisterTransactionConstMeta,
+      argValues: [that, txHex],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiOnChainLdkOnChainPaymentRegisterTransactionConstMeta =>
+          const TaskConstMeta(
+            debugName: "ldk_on_chain_payment_register_transaction",
+            argNames: ["that", "txHex"],
+          );
+
+  @override
   Future<Txid> crateApiOnChainLdkOnChainPaymentSendAllToAddress(
       {required LdkOnChainPayment that, required Address address}) {
     return handler.executeNormal(NormalTask(
@@ -2209,22 +2242,26 @@ class coreApiImpl extends coreApiImplPlatform implements coreApi {
   Future<SignedTransaction> crateApiOnChainLdkOnChainPaymentSignToAddress(
       {required LdkOnChainPayment that,
       required Address address,
-      required BigInt amountSats}) {
+      required BigInt amountSats,
+      BigInt? feeRateSatPerKwu,
+      required bool registrar}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         var arg0 = cst_encode_box_autoadd_ldk_on_chain_payment(that);
         var arg1 = cst_encode_box_autoadd_address(address);
         var arg2 = cst_encode_u_64(amountSats);
+        var arg3 = cst_encode_opt_box_autoadd_u_64(feeRateSatPerKwu);
+        var arg4 = cst_encode_bool(registrar);
         return wire
             .wire__crate__api__on_chain__ldk_on_chain_payment_sign_to_address(
-                port_, arg0, arg1, arg2);
+                port_, arg0, arg1, arg2, arg3, arg4);
       },
       codec: DcoCodec(
         decodeSuccessData: dco_decode_signed_transaction,
         decodeErrorData: dco_decode_ldk_node_error,
       ),
       constMeta: kCrateApiOnChainLdkOnChainPaymentSignToAddressConstMeta,
-      argValues: [that, address, amountSats],
+      argValues: [that, address, amountSats, feeRateSatPerKwu, registrar],
       apiImpl: this,
     ));
   }
@@ -2232,7 +2269,13 @@ class coreApiImpl extends coreApiImplPlatform implements coreApi {
   TaskConstMeta get kCrateApiOnChainLdkOnChainPaymentSignToAddressConstMeta =>
       const TaskConstMeta(
         debugName: "ldk_on_chain_payment_sign_to_address",
-        argNames: ["that", "address", "amountSats"],
+        argNames: [
+          "that",
+          "address",
+          "amountSats",
+          "feeRateSatPerKwu",
+          "registrar"
+        ],
       );
 
   @override
@@ -3994,11 +4037,12 @@ class coreApiImpl extends coreApiImplPlatform implements coreApi {
   SignedTransaction dco_decode_signed_transaction(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return SignedTransaction(
       txid: dco_decode_String(arr[0]),
       txHex: dco_decode_String(arr[1]),
+      feeSats: dco_decode_u_64(arr[2]),
     );
   }
 
@@ -6048,7 +6092,9 @@ class coreApiImpl extends coreApiImplPlatform implements coreApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_txid = sse_decode_String(deserializer);
     var var_txHex = sse_decode_String(deserializer);
-    return SignedTransaction(txid: var_txid, txHex: var_txHex);
+    var var_feeSats = sse_decode_u_64(deserializer);
+    return SignedTransaction(
+        txid: var_txid, txHex: var_txHex, feeSats: var_feeSats);
   }
 
   @protected
@@ -8051,6 +8097,7 @@ class coreApiImpl extends coreApiImplPlatform implements coreApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.txid, serializer);
     sse_encode_String(self.txHex, serializer);
+    sse_encode_u_64(self.feeSats, serializer);
   }
 
   @protected

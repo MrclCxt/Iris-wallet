@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/currency_format.dart';
 import '../../core/theme.dart';
 import '../../core/varredura.dart';
+import '../../services/taxa_rede.dart';
 import '../../services/voucher_service.dart';
 import '../../services/wallet_service.dart';
 import '../../widgets/max_width_container.dart';
@@ -37,7 +38,31 @@ class _VouchersScreenState extends State<VouchersScreen> {
     }
     setState(() => _ocupado = true);
     try {
-      final k = await _svc.emitir(sats);
+      final k = await _svc.emitir(sats, confirmar: (envio) async {
+        final alerta = TaxaRede.alerta(taxa: envio.taxa, valor: sats);
+        final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: IrisTheme.s1,
+            title: const Text('Taxa da rede'),
+            content: Text(
+                'Financiar o voucher de ${CurrencyFormatter.formatBtcOrSats(sats)} '
+                'custa ${CurrencyFormatter.formatBtcOrSats(envio.taxa)} de taxa '
+                '(${envio.satPorVbyte.toStringAsFixed(1)} sat/vB).'
+                '${alerta != null ? '\n\n$alerta' : ''}'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancelar')),
+              ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Emitir')),
+            ],
+          ),
+        );
+        return ok == true;
+      });
+      if (k == null) return;
       setState(() {
         _ultimo = k;
         _ultimoSats = sats;

@@ -396,14 +396,30 @@ fn handle(
                 .map_err(|e| format!("endereço inválido: {e}"))?
                 .require_network(rede.network())
                 .map_err(|_| "endereço de outra rede".to_string())?;
-            let tx = node
+            let taxa = body["fee_rate_sat_per_kwu"]
+                .as_u64()
+                .map(ldk_node::bitcoin::FeeRate::from_sat_per_kwu);
+            let registrar = body["registrar"].as_bool().unwrap_or(true);
+            let (tx, fee) = node
                 .onchain_payment()
-                .sign_to_address(&address, sats, None)
+                .sign_to_address(&address, sats, taxa, registrar)
                 .map_err(|e| e.to_string())?;
             Ok(json!({
                 "txid": tx.compute_txid().to_string(),
                 "tx_hex": ldk_node::bitcoin::consensus::encode::serialize_hex(&tx),
+                "fee_sats": fee,
             }))
+        }
+        ("POST", "/register_tx") => {
+            let tx: ldk_node::bitcoin::Transaction =
+                ldk_node::bitcoin::consensus::encode::deserialize_hex(
+                    body["tx_hex"].as_str().ok_or("tx_hex ausente")?.trim(),
+                )
+                .map_err(|e| format!("transação inválida: {e}"))?;
+            node.onchain_payment()
+                .register_unconfirmed(&tx)
+                .map_err(|e| e.to_string())?;
+            Ok(json!({}))
         }
         ("POST", "/broadcast") => {
             let tx_hex = body["tx_hex"].as_str().ok_or("tx_hex ausente")?.trim();

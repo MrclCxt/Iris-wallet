@@ -256,6 +256,35 @@ def main():
         log(f"pagamento offline: A assinou {OFFLINE_SATS} sats sem rede, "
             "B transmitiu e recebeu")
 
+        # Taxa honesta: o app escolhe a taxa, vê o valor EXATO antes de
+        # confirmar, e uma prévia cancelada não prende moedas.
+        endereco_b2 = daemon("B", "GET", "/onchain_address")["address"]
+        previa = daemon("A", "POST", "/sign_onchain", {
+            "address": endereco_b2, "amount_sats": 12_000,
+            "fee_rate_sat_per_kwu": 2500, "registrar": False,
+        })
+        # Desistiu da prévia: um novo envio pode usar as mesmas moedas.
+        envio = daemon("A", "POST", "/sign_onchain", {
+            "address": endereco_b2, "amount_sats": 12_000,
+            "fee_rate_sat_per_kwu": 2500, "registrar": False,
+        })
+        decod = bitcoind_rpc("decoderawtransaction", envio["tx_hex"])
+        por_vb = envio["fee_sats"] / decod["vsize"]
+        if not 9.5 <= por_vb <= 11:
+            falhar(f"taxa pedida 10 sat/vB, saiu {por_vb:.2f}")
+        daemon("A", "POST", "/register_tx", {"tx_hex": envio["tx_hex"]})
+        daemon("B", "POST", "/broadcast", {"tx_hex": envio["tx_hex"]})
+        no_mempool = bitcoind_rpc("getmempoolentry", envio["txid"])
+        taxa_real = round(no_mempool["fees"]["base"] * 1e8)
+        if taxa_real != envio["fee_sats"]:
+            falhar(f"app mostrou {envio['fee_sats']} sats de taxa, rede viu {taxa_real}")
+        if previa["txid"] in bitcoind_rpc("getrawmempool"):
+            falhar("a prévia cancelada foi transmitida")
+        minerar(1, mina)
+        log(f"taxa: pedida 10 sat/vB, saiu {por_vb:.1f}; o app mostrou "
+            f"{envio['fee_sats']} sats e a rede cobrou {taxa_real}; prévia "
+            "cancelada não prendeu as moedas")
+
         # Garantia de troca sem custódia (hold invoice): A vende sats, B compra.
         # A guarda o segredo; B cria a fatura só com o hash. O pagamento fica
         # travado até A revelar o segredo — ninguém no meio segura o dinheiro.

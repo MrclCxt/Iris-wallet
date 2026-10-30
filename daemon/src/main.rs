@@ -76,6 +76,11 @@ struct Args {
     #[arg(long, default_value_t = 8380)]
     port: u16,
 
+    /// Porta Lightning (P2P) para outros nós abrirem canal com este; 0 desliga.
+    /// A API REST continua só em 127.0.0.1.
+    #[arg(long, default_value_t = 9735)]
+    p2p_porta: u16,
+
     /// Servidor Esplora próprio; pode repetir. Entram antes dos padrões.
     #[arg(long)]
     esplora: Vec<String>,
@@ -335,6 +340,14 @@ fn construir_e_iniciar(mnemonic: &str, args: &Args) -> Node {
             args.data_dir.clone().unwrap_or_else(|| args.rede.pasta_padrao().to_string()),
         );
         builder.set_chain_source_esplora(esplora.clone(), None);
+        if args.p2p_porta != 0 {
+            let endereco = format!("0.0.0.0:{}", args.p2p_porta)
+                .parse()
+                .expect("porta P2P inválida");
+            builder
+                .set_listening_addresses(vec![endereco])
+                .expect("endereço P2P inválido");
+        }
 
         let resultado = builder
             .build()
@@ -372,6 +385,13 @@ fn main() {
     let server = tiny_http::Server::http(("127.0.0.1", args.port))
         .expect("falha ao abrir a porta local");
     println!("iris-noded: API REST em http://127.0.0.1:{}", args.port);
+    if args.p2p_porta != 0 {
+        println!(
+            "iris-noded: aceitando canais em {}@<ip-desta-máquina>:{}",
+            node.node_id(),
+            args.p2p_porta
+        );
+    }
 
     for mut request in server.incoming_requests() {
         let method = request.method().as_str().to_uppercase();

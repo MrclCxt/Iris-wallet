@@ -145,6 +145,26 @@ class _TrocasCorpoState extends State<_TrocasCorpo> {
     }
   }
 
+  Future<void> _pagarConta() async {
+    final svc = context.read<TrocaService>();
+    final codigo = await _pedirTexto('Pagar conta',
+        'Linha digitável do boleto ou Pix copia e cola');
+    if (codigo == null || codigo.isEmpty) return;
+    final valor = await _pedirTexto('Valor da conta (R\$)', 'Ex.: 129,90',
+        teclado: const TextInputType.numberWithOptions(decimal: true));
+    final v = double.tryParse((valor ?? '').replaceAll('.', '').replaceAll(',', '.'));
+    if (v == null) return;
+    try {
+      final aceitos = await svc.pedirPagamentoDeConta(codigo: codigo, valorBrl: v);
+      _erro(aceitos == 0
+          ? 'Nenhum relay aceitou o pedido.'
+          : 'Pedido publicado. Quando alguém pagar a conta, os sats saem '
+              'travados da sua carteira e só são liberados por você.');
+    } catch (e) {
+      _erro(e);
+    }
+  }
+
   String _estadoTexto(Troca t) {
     final souV = t.papel == PapelTroca.vendedor;
     return switch (t.estado) {
@@ -153,8 +173,8 @@ class _TrocasCorpoState extends State<_TrocasCorpo> {
       EstadoTroca.faturaEnviada =>
         souV ? 'Fatura conferida — travar os sats' : 'Esperando o vendedor travar',
       EstadoTroca.travada => souV
-          ? 'Sats travados. Esperando o Pix'
-          : 'Sats travados! Pague o Pix e avise',
+          ? 'Sats travados. Esperando o pagamento'
+          : 'Sats travados! Pague e avise',
       EstadoTroca.realPago => souV
           ? 'Comprador diz que pagou. Confira o banco'
           : 'Esperando o vendedor liberar',
@@ -177,7 +197,7 @@ class _TrocasCorpoState extends State<_TrocasCorpo> {
       botoes.add(ElevatedButton(
         onPressed: () async {
           final c = await _pedirTexto(
-              'Comprovante do Pix', 'Código/ID da transação');
+              'Comprovante', 'Código/ID do pagamento');
           if (c == null || c.isEmpty) return;
           svc.informarPago(t, c).catchError(_erro);
         },
@@ -246,7 +266,7 @@ class _TrocasCorpoState extends State<_TrocasCorpo> {
             InkWell(
               onTap: () =>
                   Clipboard.setData(ClipboardData(text: t.instrucaoPagamento!)),
-              child: Text('Pague o Pix para: ${t.instrucaoPagamento}  (tocar copia)',
+              child: Text('Pague para: ${t.instrucaoPagamento}  (tocar copia)',
                   style: const TextStyle(color: IrisTheme.primary, fontSize: 13)),
             ),
           ],
@@ -309,6 +329,10 @@ class _TrocasCorpoState extends State<_TrocasCorpo> {
           iconTheme: const IconThemeData(color: IrisTheme.textPrimary),
           bottom: const TabBar(tabs: [Tab(text: 'Ofertas'), Tab(text: 'Minhas trocas')]),
           actions: [
+            IconButton(
+                icon: const Icon(Icons.receipt_long),
+                tooltip: 'Pagar conta com bitcoin',
+                onPressed: _pagarConta),
             IconButton(
                 icon: const Icon(Icons.refresh),
                 onPressed: () => setState(() => _ofertas = svc.ofertas())),

@@ -150,6 +150,21 @@ class TrocaService extends ChangeNotifier {
     return RelaysNostr.publicar(e);
   }
 
+  /// Pagar conta: vira uma venda de sats no valor exato da conta. Quem tomar
+  /// paga o boleto/Pix (o código vai cifrado só para essa pessoa) e recebe os
+  /// sats travados, liberados quando a conta aparecer paga.
+  Future<int> pedirPagamentoDeConta(
+      {required String codigo, required double valorBrl}) {
+    if (valorBrl <= 0) throw const ErroTroca('Informe o valor da conta.');
+    return anunciar(
+      vendo: true,
+      fiatMin: valorBrl,
+      fiatMax: valorBrl,
+      metodos: const ['Conta'],
+      instrucao: codigo,
+    );
+  }
+
   Future<void> retirarOferta(OfertaIris o) async {
     final tags = [
       for (final t in o.tags())

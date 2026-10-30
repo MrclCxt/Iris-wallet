@@ -25,7 +25,7 @@ Toda troca tem dois papéis:
 ## A garantia (hold invoice)
 
 1. **V** gera um segredo `s` (32 bytes aleatórios) e calcula `h = sha256(s)`.
-2. V manda `h` para C. Se a troca tiver árbitro, V também manda `s` cifrado
+2. V manda `h` para C, com a chave Pix ou o boleto onde quer receber. Se a troca tiver árbitro, V também manda `s` cifrado
    para a chave do árbitro (NIP-44).
 3. **C** cria uma fatura Lightning *para o hash `h`* (`receive_for_hash`). O nó
    de C não consegue receber sem `s`.
@@ -69,12 +69,26 @@ Mensagens entre as partes são cifradas com NIP-44 e trocadas por vários relays
 Passos (conteúdo JSON cifrado, campo `acao`):
 
 1. `aceitar` — C → V: aceita a oferta, informa o valor.
-2. `hash` — V → C: `h` e o valor em sats.
+2. `hash` — V → C: `h`, o valor em sats e `pagamento` (chave Pix ou código do
+   boleto onde V quer receber — nunca vai na oferta pública).
 3. `fatura` — C → V: a fatura para `h`.
 4. `travado` — V → C: confirma que pagou (C vê o `PaymentClaimable`).
 5. `pago` — C → V: comprovante do Real (texto/imagem).
 6. `segredo` — V → C: `s`. Fim.
 7. `cancelar` / `disputa` — qualquer lado.
+
+## Segurança implementada (`lib/troca/troca.dart`)
+
+- V só paga fatura que seja **para o hash do segredo dele** e **pelo valor
+  combinado** — senão C receberia sem trava.
+- C só aceita segredo que bata com o hash.
+- V não cancela depois de C dizer que pagou o Real (só disputa).
+- Quem anuncia confere o valor em sats proposto contra a própria cotação
+  (tolerância de 3%) antes de começar.
+- O segredo e o estado das trocas ficam no armazenamento seguro do aparelho:
+  um reinício não perde o segredo depois de o comprador pagar.
+- Mensagens com assinatura inválida são descartadas pelos relays do app; o
+  conteúdo vai cifrado (NIP-44). Os relays veem quem fala com quem, não o quê.
 
 ## O que a Iris nunca faz
 

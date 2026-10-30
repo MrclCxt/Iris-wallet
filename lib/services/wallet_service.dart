@@ -515,6 +515,10 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
   Stream<TravaRecebida> get travasRecebidas => _travasCtrl.stream;
 
+  /// Semente da carteira pessoal em uso (só em memória, desbloqueada). Dela
+  /// sai a identidade Nostr do P2P, pelo NIP-06.
+  String? get sementePessoal => _consumerNode.runningSeed;
+
   NodeApi _apiPessoal() {
     final api = _consumerNode.api;
     if (!_consumerNode.isRunning || api == null) {

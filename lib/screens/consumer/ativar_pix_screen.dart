@@ -4,6 +4,7 @@ import '../../core/theme.dart';
 import '../../services/pix_service.dart';
 import '../../widgets/max_width_container.dart';
 import 'pix_onboarding_screen.dart';
+import 'trocas_screen.dart';
 
 class AtivarPixScreen extends StatefulWidget {
   const AtivarPixScreen({super.key});
@@ -70,6 +71,15 @@ class _AtivarPixScreenState extends State<AtivarPixScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _statusCard(pix, enabled),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const TrocasScreen()),
+                  ),
+                  icon: const Icon(Icons.swap_horiz, size: 18),
+                  label: const Text('Prévia: trocas P2P da Iris'),
+                ),
                 const SizedBox(height: 24),
                 const Text(
                   'O Pix é opcional. Sua carteira já envia e recebe Bitcoin '

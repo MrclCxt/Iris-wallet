@@ -28,9 +28,10 @@ void main() {
     final v = par(PapelTroca.vendedor);
     final c = par(PapelTroca.comprador);
 
-    final mHash = v.enviarHash();
+    final mHash = v.enviarHash('chave-pix@exemplo');
     c.receberHash(mHash);
     expect(c.hashHex, v.hashHex);
+    expect(c.instrucaoPagamento, 'chave-pix@exemplo');
 
     final mFatura = c.enviarFatura('lntb-fatura');
     v.receberFatura(mFatura, decodificar: (_) => fatura(v.hashHex!, 15000));
@@ -47,7 +48,7 @@ void main() {
   });
 
   test('vendedor recusa fatura para outro hash (receber sem trava)', () {
-    final v = par(PapelTroca.vendedor)..enviarHash();
+    final v = par(PapelTroca.vendedor)..enviarHash('chave-pix@exemplo');
     expect(
         () => v.receberFatura(const MensagemTroca('t1', 'fatura', {'fatura': 'x'}),
             decodificar: (_) => fatura('0' * 64, 15000)),
@@ -56,7 +57,7 @@ void main() {
   });
 
   test('vendedor recusa fatura de valor diferente', () {
-    final v = par(PapelTroca.vendedor)..enviarHash();
+    final v = par(PapelTroca.vendedor)..enviarHash('chave-pix@exemplo');
     expect(
         () => v.receberFatura(const MensagemTroca('t1', 'fatura', {'fatura': 'x'}),
             decodificar: (_) => fatura(v.hashHex!, 16000)),
@@ -65,7 +66,7 @@ void main() {
 
   test('comprador recusa segredo que não bate com o hash', () {
     final v = par(PapelTroca.vendedor);
-    final c = par(PapelTroca.comprador)..receberHash(v.enviarHash());
+    final c = par(PapelTroca.comprador)..receberHash(v.enviarHash('chave-pix@exemplo'));
     c.enviarFatura('x');
     c.travaChegou(v.hashHex!);
     expect(
@@ -78,7 +79,18 @@ void main() {
     final c = par(PapelTroca.comprador);
     expect(
         () => c.receberHash(
-            MensagemTroca('t1', 'hash', {'hash': 'b' * 64, 'sats': 99999})),
+            MensagemTroca('t1', 'hash',
+                {'hash': 'b' * 64, 'sats': 99999, 'pagamento': 'x'})),
+        throwsA(isA<ErroTroca>()));
+  });
+
+  test('sem dizer onde pagar, a troca não começa', () {
+    final v = par(PapelTroca.vendedor);
+    expect(() => v.enviarHash('  '), throwsA(isA<ErroTroca>()));
+    final c = par(PapelTroca.comprador);
+    expect(
+        () => c.receberHash(
+            MensagemTroca('t1', 'hash', {'hash': 'b' * 64, 'sats': 15000})),
         throwsA(isA<ErroTroca>()));
   });
 
@@ -90,7 +102,7 @@ void main() {
 
   test('vendedor não cancela depois que o comprador diz que pagou', () {
     final v = par(PapelTroca.vendedor);
-    final c = par(PapelTroca.comprador)..receberHash(v.enviarHash());
+    final c = par(PapelTroca.comprador)..receberHash(v.enviarHash('chave-pix@exemplo'));
     v.receberFatura(c.enviarFatura('x'),
         decodificar: (_) => fatura(v.hashHex!, 15000));
     v.avisarTravado();

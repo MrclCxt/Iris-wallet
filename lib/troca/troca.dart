@@ -149,6 +149,9 @@ class Troca {
   String? segredoHex;
   String? fatura;
   String? comprovante;
+
+  /// Onde pagar o Real (chave Pix ou código do boleto), enviado cifrado por V.
+  String? instrucaoPagamento;
   final DateTime criadaEm;
 
   Troca({
@@ -163,8 +166,41 @@ class Troca {
     this.segredoHex,
     this.fatura,
     this.comprovante,
+    this.instrucaoPagamento,
     DateTime? criadaEm,
   }) : criadaEm = criadaEm ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'oferta': ofertaId,
+        'papel': papel.name,
+        'contraparte': contraparte,
+        'sats': sats,
+        'fiat': fiatBrl,
+        'estado': estado.name,
+        'hash': hashHex,
+        'segredo': segredoHex,
+        'fatura': fatura,
+        'comprovante': comprovante,
+        'instrucao': instrucaoPagamento,
+        'criada': criadaEm.millisecondsSinceEpoch,
+      };
+
+  factory Troca.fromJson(Map<String, dynamic> j) => Troca(
+        id: j['id'] as String,
+        ofertaId: j['oferta'] as String,
+        papel: PapelTroca.values.byName(j['papel'] as String),
+        contraparte: j['contraparte'] as String,
+        sats: (j['sats'] as num).toInt(),
+        fiatBrl: (j['fiat'] as num).toDouble(),
+        estado: EstadoTroca.values.byName(j['estado'] as String),
+        hashHex: j['hash'] as String?,
+        segredoHex: j['segredo'] as String?,
+        fatura: j['fatura'] as String?,
+        comprovante: j['comprovante'] as String?,
+        instrucaoPagamento: j['instrucao'] as String?,
+        criadaEm: DateTime.fromMillisecondsSinceEpoch((j['criada'] as num).toInt()),
+      );
 
   bool get encerrada =>
       estado == EstadoTroca.concluida || estado == EstadoTroca.cancelada;
@@ -176,15 +212,20 @@ class Troca {
     }
   }
 
-  /// V: gera o segredo e manda só o hash.
-  MensagemTroca enviarHash() {
+  /// V: gera o segredo e manda só o hash, junto com onde receber o Real.
+  MensagemTroca enviarHash(String instrucao) {
+    if (instrucao.trim().isEmpty) {
+      throw const ErroTroca('Informe a chave Pix ou o boleto para receber.');
+    }
     _exigir(PapelTroca.vendedor, {EstadoTroca.aceita}, 'hash');
     final r = Random.secure();
     final segredo = List<int>.generate(32, (_) => r.nextInt(256));
     segredoHex = paraHex(segredo);
     hashHex = sha256.convert(segredo).toString();
+    instrucaoPagamento = instrucao.trim();
     estado = EstadoTroca.hashEnviado;
-    return MensagemTroca(id, 'hash', {'hash': hashHex, 'sats': sats});
+    return MensagemTroca(id, 'hash',
+        {'hash': hashHex, 'sats': sats, 'pagamento': instrucaoPagamento});
   }
 
   /// C: recebe o hash; o próximo passo é criar a fatura para ele.
@@ -197,7 +238,12 @@ class Troca {
     if (m.dados['sats'] != sats) {
       throw const ErroTroca('Valor em sats diferente do combinado.');
     }
+    final pagamento = m.dados['pagamento'];
+    if (pagamento is! String || pagamento.trim().isEmpty) {
+      throw const ErroTroca('O vendedor não informou onde pagar.');
+    }
     hashHex = h;
+    instrucaoPagamento = pagamento;
     estado = EstadoTroca.hashEnviado;
   }
 

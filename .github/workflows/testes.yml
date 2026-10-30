@@ -54,6 +54,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: daemon }
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: '${{ env.FLUTTER_VERSION }}', channel: stable, cache: true }
+      - run: flutter pub get
       - name: Bitcoin Core (hash conferido)
         run: |
           f=bitcoin-${BITCOIN_VERSION}-x86_64-linux-gnu.tar.gz
@@ -63,5 +66,5 @@ jobs:
           echo "BITCOIN_BIN=$PWD/bitcoin-${BITCOIN_VERSION}/bin" >> $GITHUB_ENV
       - name: Compilar o iris-noded
         run: cargo build --release --manifest-path daemon/Cargo.toml
-      - name: Canal, pagamento e fechamento na regtest
-        run: python3 scripts/regtest_canal.py --bitcoin-bin "$BITCOIN_BIN"
+      - name: Canal, pagamentos, garantia, troca P2P do app e fechamento na regtest
+        run: python3 scripts/regtest_canal.py --bitcoin-bin "$BITCOIN_BIN" --flutter "$(which flutter)"

@@ -349,6 +349,12 @@ class Troca {
   }
 
   void receberPago(MensagemTroca m) {
+    // Relays não garantem ordem entre mensagens do mesmo segundo: se a
+    // disputa chegou antes, guarda o comprovante sem mudar o estado.
+    if (papel == PapelTroca.vendedor && estado == EstadoTroca.disputa) {
+      comprovante = m.dados['comprovante']?.toString() ?? '';
+      return;
+    }
     _exigir(PapelTroca.vendedor, {EstadoTroca.travada}, 'pago');
     comprovante = m.dados['comprovante']?.toString() ?? '';
     estado = EstadoTroca.realPago;

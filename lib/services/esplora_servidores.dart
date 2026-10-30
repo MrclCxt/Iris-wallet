@@ -51,12 +51,16 @@ class EsploraServidores {
       final g = await http
           .get(Uri.parse('$base/block-height/0'))
           .timeout(const Duration(seconds: 10));
-      if (g.statusCode != 200) return 'não respondeu (HTTP ${g.statusCode})';
+      // 2xx, não só 200: proxy de operadora móvel devolve 203 com o corpo
+      // intacto (visto num Galaxy em 4G); o conteúdo é conferido abaixo.
+      if (g.statusCode < 200 || g.statusCode > 299) {
+        return 'não respondeu (HTTP ${g.statusCode})';
+      }
       if (g.body.trim() != Rede.genesis) return 'está em outra rede';
       final f = await http
           .get(Uri.parse('$base/fee-estimates'))
           .timeout(const Duration(seconds: 10));
-      if (f.statusCode != 200 || f.body.isEmpty) {
+      if (f.statusCode < 200 || f.statusCode > 299 || !f.body.trimLeft().startsWith('{')) {
         return 'não informa taxas (HTTP ${f.statusCode})';
       }
       return null;

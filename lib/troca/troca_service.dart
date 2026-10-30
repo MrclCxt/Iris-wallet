@@ -67,18 +67,91 @@ class CasoArbitragem {
         ..decisao = j['decisao'] as String?;
 }
 
+/// O que a troca precisa da carteira. No app é o [WalletService]; nos testes
+/// de ponta a ponta, um nó da regtest.
+abstract class CarteiraTroca {
+  String? get sementePessoal;
+  Stream<TravaRecebida> get travasRecebidas;
+  Future<String> criarFaturaDeTroca({required String hashHex, required int sats});
+  Future<void> pagarFatura(String fatura);
+  Future<void> resgatarTrava(
+      {required String hashHex, required String segredoHex, required int amountMsat});
+  Future<void> recusarTrava(String hashHex);
+}
+
+class _CarteiraDoApp implements CarteiraTroca {
+  final WalletService w;
+  _CarteiraDoApp(this.w);
+  @override
+  String? get sementePessoal => w.sementePessoal;
+  @override
+  Stream<TravaRecebida> get travasRecebidas => w.travasRecebidas;
+  @override
+  Future<String> criarFaturaDeTroca({required String hashHex, required int sats}) =>
+      w.criarFaturaDeTroca(hashHex: hashHex, sats: sats);
+  @override
+  Future<void> pagarFatura(String fatura) => w.payLightningInvoice(fatura);
+  @override
+  Future<void> resgatarTrava(
+          {required String hashHex,
+          required String segredoHex,
+          required int amountMsat}) =>
+      w.resgatarTrava(
+          hashHex: hashHex, segredoHex: segredoHex, amountMsat: amountMsat);
+  @override
+  Future<void> recusarTrava(String hashHex) => w.recusarTrava(hashHex);
+}
+
+/// Onde a troca guarda segredo e estado. No app, o armazenamento seguro.
+abstract class CofreLocal {
+  Future<String?> ler(String chave);
+  Future<void> gravar(String chave, String valor);
+  Future<void> apagar(String chave);
+}
+
+class _CofreSeguro implements CofreLocal {
+  static const _s = FlutterSecureStorage();
+  @override
+  Future<String?> ler(String chave) => _s.read(key: chave);
+  @override
+  Future<void> gravar(String chave, String valor) => _s.write(key: chave, value: valor);
+  @override
+  Future<void> apagar(String chave) => _s.delete(key: chave);
+}
+
 /// Liga o protocolo de troca à rede Nostr e à carteira. Tudo roda no aparelho:
 /// não há servidor da Iris. As mensagens só são buscadas com a tela de trocas
 /// aberta (sem serviço em segundo plano, sem push de terceiros).
 class TrocaService extends ChangeNotifier {
-  final WalletService carteira;
-  final ExchangeRateService cotacao;
+  final CarteiraTroca carteira;
+  final int Function(double brl) _brlParaSats;
+  final CofreLocal _armazenamento;
 
-  TrocaService({required this.carteira, required this.cotacao}) {
+  /// Relays fixos (testes); sem isso, os do usuário e os padrão.
+  final List<String>? relays;
+
+  /// Prefixos de fatura aceitos (padrão: os da rede do build).
+  final List<String> prefixosFatura;
+
+  TrocaService({
+    required WalletService carteira,
+    required ExchangeRateService cotacao,
+  }) : this.comDependencias(
+          carteira: _CarteiraDoApp(carteira),
+          brlParaSats: cotacao.brlToSats,
+          cofre: _CofreSeguro(),
+        );
+
+  TrocaService.comDependencias({
+    required this.carteira,
+    required int Function(double brl) brlParaSats,
+    required CofreLocal cofre,
+    this.relays,
+    this.prefixosFatura = Rede.hrpFatura,
+  })  : _brlParaSats = brlParaSats,
+        _armazenamento = cofre {
     _travasSub = carteira.travasRecebidas.listen(_aoChegarTrava);
   }
-
-  static const _armazenamento = FlutterSecureStorage();
   static const Duration _intervalo = Duration(seconds: 6);
 
   StreamSubscription<TravaRecebida>? _travasSub;
@@ -110,7 +183,7 @@ class TrocaService extends ChangeNotifier {
 
   Future<void> abrir() async {
     try {
-      final bruto = await _armazenamento.read(key: _chaveArmazenada);
+      final bruto = await _armazenamento.ler(_chaveArmazenada);
       if (bruto != null) {
         final j = jsonDecode(bruto) as Map<String, dynamic>;
         for (final t in j['trocas'] as List) {
@@ -150,9 +223,7 @@ class TrocaService extends ChangeNotifier {
 
   Future<void> _salvar() async {
     final vistas = _mensagensVistas.toList();
-    await _armazenamento.write(
-        key: _chaveArmazenada,
-        value: jsonEncode({
+    await _armazenamento.gravar(_chaveArmazenada, jsonEncode({
           'trocas': [for (final t in _trocas.values) t.toJson()],
           'vistas': vistas.sublist(vistas.length > 500 ? vistas.length - 500 : 0),
           'casos': [for (final c in _casos.values) c.toJson()],
@@ -167,7 +238,7 @@ class TrocaService extends ChangeNotifier {
       '#y': [plataformaIris],
       '#s': ['pending'],
       'limit': 200,
-    });
+    }, relays: relays);
     final ultimas = <String, OfertaIris>{};
     for (final e in eventos) {
       final o = OfertaIris.doEvento(e, rede: redeNip69);
@@ -206,12 +277,11 @@ class TrocaService extends ChangeNotifier {
       if (instrucao == null || instrucao.trim().isEmpty) {
         throw const ErroTroca('Informe a chave Pix ou o boleto para receber.');
       }
-      await _armazenamento.write(
-          key: 'troca_instrucao_${oferta.id}', value: instrucao.trim());
+      await _armazenamento.gravar('troca_instrucao_${oferta.id}', instrucao.trim());
     }
     final e = EventoNostr.assinar(chaves,
         kind: kindOferta, conteudo: '', tags: oferta.tags());
-    return RelaysNostr.publicar(e);
+    return RelaysNostr.publicar(e, relays: relays);
   }
 
   /// Pagar conta: vira uma venda de sats no valor exato da conta. Quem tomar
@@ -235,12 +305,13 @@ class TrocaService extends ChangeNotifier {
         if (t[0] == 's') ['s', 'canceled'] else t
     ];
     await RelaysNostr.publicar(
-        EventoNostr.assinar(chaves, kind: kindOferta, conteudo: '', tags: tags));
+        EventoNostr.assinar(chaves, kind: kindOferta, conteudo: '', tags: tags),
+        relays: relays);
   }
 
   /// Sats pelo valor em Real, com o prêmio da oferta. Sem cotação, recusa.
   int satsPara(double fiatBrl, OfertaIris o) {
-    final base = cotacao.brlToSats(fiatBrl);
+    final base = _brlParaSats(fiatBrl);
     if (base <= 0) {
       throw const ErroTroca('Sem cotação do Real agora — tente em instantes.');
     }
@@ -291,7 +362,7 @@ class TrocaService extends ChangeNotifier {
         t.fatura == null) {
       return;
     }
-    await carteira.payLightningInvoice(t.fatura!);
+    await carteira.pagarFatura(t.fatura!);
     await _enviar(t, t.avisarTravado());
     await _salvar();
     notifyListeners();
@@ -371,11 +442,14 @@ class TrocaService extends ChangeNotifier {
           ['p', destino],
           ['t', 'iris-troca'],
         ]);
-    final aceitos = await RelaysNostr.publicar(e);
+    final aceitos = await RelaysNostr.publicar(e, relays: relays);
     if (aceitos == 0) {
       throw const ErroTroca('Nenhum relay aceitou a mensagem. Verifique a rede.');
     }
   }
+
+  /// Busca e processa mensagens agora (a vigia faz isso a cada poucos segundos).
+  Future<void> sincronizar() => _buscarMensagens();
 
   Future<void> _buscarMensagens() async {
     final ChavesNostr k;
@@ -388,7 +462,7 @@ class TrocaService extends ChangeNotifier {
       'kinds': [kindMensagemTroca],
       '#p': [k.publica],
       'since': _desde,
-    });
+    }, relays: relays);
     for (final e in eventos.reversed) {
       if (!_mensagensVistas.add(e.id) || e.tag('t') != 'iris-troca') continue;
       try {
@@ -441,7 +515,7 @@ class TrocaService extends ChangeNotifier {
             await carteira.criarFaturaDeTroca(hashHex: t.hashHex!, sats: t.sats);
         await _enviar(t, t.enviarFatura(fatura));
       case 'fatura':
-        t.receberFatura(m, redeAtual: (n) => Rede.hrpFatura.contains(n));
+        t.receberFatura(m, redeAtual: prefixosFatura.contains);
         await _salvar();
         await pagarFatura(t);
       case 'travado':
@@ -554,23 +628,23 @@ class TrocaService extends ChangeNotifier {
   }
 
   /// Árbitro que o usuário escolheu para as próprias ofertas (chave Nostr hex).
-  Future<String?> arbitroPadrao() => _armazenamento.read(key: 'troca_arbitro');
+  Future<String?> arbitroPadrao() => _armazenamento.ler('troca_arbitro');
 
   Future<void> definirArbitroPadrao(String? chave) async {
     if (chave == null || chave.trim().isEmpty) {
-      await _armazenamento.delete(key: 'troca_arbitro');
+      await _armazenamento.apagar('troca_arbitro');
       return;
     }
     if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(chave.trim())) {
       throw const ErroTroca('Chave do árbitro inválida (64 caracteres hex).');
     }
-    await _armazenamento.write(key: 'troca_arbitro', value: chave.trim());
+    await _armazenamento.gravar('troca_arbitro', chave.trim());
   }
 
   /// Onde o anunciante quer receber o Real numa oferta de venda. Fica só
   /// neste aparelho e vai cifrado a quem tomar a oferta.
   Future<String?> instrucaoDaOferta(String ofertaId) =>
-      _armazenamento.read(key: 'troca_instrucao_$ofertaId');
+      _armazenamento.ler('troca_instrucao_$ofertaId');
 
   void _aoChegarTrava(TravaRecebida tr) {
     _travaMsat[tr.hashHex] = tr.amountMsat;

@@ -127,6 +127,8 @@ def main():
     ap.add_argument("--bitcoin-bin", required=True)
     ap.add_argument("--daemon", default=os.path.join(
         RAIZ, "daemon", "target", "release", f"iris-noded{EXE}"))
+    ap.add_argument("--flutter", default=shutil.which("flutter"),
+                    help="flutter para o teste de troca com o código do app")
     ap.add_argument("--manter", action="store_true",
                     help="não apaga a pasta temporária (para investigar falhas)")
     args = ap.parse_args()
@@ -280,6 +282,24 @@ def main():
         esperar("o saldo de A voltar", lambda: (
             daemon("A", "GET", "/balances")["lightning_sats"] >= ln_a), 60)
         log("troca desfeita: B recusou e os sats voltaram para A")
+
+        # Troca P2P com o código real do app (TrocaService + RemoteNodeApi),
+        # conversando por um relay local: caminho feliz e disputa com árbitro.
+        if args.flutter:
+            env = dict(os.environ,
+                       IRIS_DAEMON_A=f"http://127.0.0.1:{PORTAS['A'][0]}",
+                       IRIS_DAEMON_B=f"http://127.0.0.1:{PORTAS['B'][0]}",
+                       IRIS_SEMENTE_A=SEMENTES["A"],
+                       IRIS_SEMENTE_B=SEMENTES["B"])
+            r = subprocess.run(
+                [args.flutter, "test", "test/integracao/troca_regtest_test.dart"],
+                cwd=RAIZ, env=env, shell=(os.name == "nt"))
+            if r.returncode != 0:
+                falhar("a troca P2P do app falhou contra os nós da regtest")
+            log("troca P2P do app: caminho feliz e disputa pelo árbitro, "
+                "com os nós da regtest")
+        else:
+            log("flutter não encontrado: pulando a troca P2P do app")
 
         onchain_b_antes = daemon("B", "GET", "/balances")["onchain_total_sats"]
         daemon("A", "POST", "/close_channel", {

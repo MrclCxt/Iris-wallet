@@ -87,6 +87,26 @@ impl OnchainPayment {
 		self.wallet.send_to_address(address, send_amount, fee_rate_opt)
 	}
 
+	/// PATCH IRIS: monta e assina um pagamento on-chain **sem transmitir**, para ser
+	/// entregue por QR, NFC ou Bluetooth a quem tiver internet. A transação fica
+	/// registrada como pendente na carteira, e as reservas de canais âncora são
+	/// respeitadas como em [`Self::send_to_address`]. Até alguém transmitir, quem
+	/// recebe tem só uma promessa: não vale como pagamento confirmado.
+	pub fn sign_to_address(
+		&self, address: &bitcoin::Address, amount_sats: u64, fee_rate: Option<FeeRate>,
+	) -> Result<bitcoin::Transaction, Error> {
+		if !*self.is_running.read().unwrap() {
+			return Err(Error::NotRunning);
+		}
+
+		let cur_anchor_reserve_sats =
+			crate::total_anchor_channels_reserve_sats(&self.channel_manager, &self.config);
+		let send_amount =
+			OnchainSendAmount::ExactRetainingReserve { amount_sats, cur_anchor_reserve_sats };
+		let fee_rate_opt = maybe_map_fee_rate_opt!(fee_rate);
+		self.wallet.sign_without_broadcast(address, send_amount, fee_rate_opt)
+	}
+
 	/// Send an on-chain payment to the given address, draining the available funds.
 	///
 	/// This is useful if you have closed all channels and want to migrate funds to another

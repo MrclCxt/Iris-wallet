@@ -54,6 +54,7 @@ use crate::payment::{PaymentDetails, PaymentDirection, PaymentStatus};
 use crate::types::{Broadcaster, PaymentStore};
 use crate::Error;
 
+#[derive(Clone, Copy)]
 pub(crate) enum OnchainSendAmount {
 	ExactRetainingReserve { amount_sats: u64, cur_anchor_reserve_sats: u64 },
 	AllRetainingReserve { cur_anchor_reserve_sats: u64 },
@@ -361,6 +362,53 @@ impl Wallet {
 		fee_rate: Option<FeeRate>,
 	) -> Result<Txid, Error> {
 		self.parse_and_validate_address(&address)?;
+		let tx = self.construir_e_assinar(address, send_amount, fee_rate)?;
+
+		self.broadcaster.broadcast_transactions(&[&tx]);
+
+		let txid = tx.compute_txid();
+
+		match send_amount {
+			OnchainSendAmount::ExactRetainingReserve { amount_sats, .. } => {
+				log_info!(
+					self.logger,
+					"Created new transaction {} sending {}sats on-chain to address {}",
+					txid,
+					amount_sats,
+					address
+				);
+			},
+			OnchainSendAmount::AllRetainingReserve { cur_anchor_reserve_sats } => {
+				log_info!(
+					self.logger,
+					"Created new transaction {} sending available on-chain funds retaining a reserve of {}sats to address {}",
+					txid,
+					cur_anchor_reserve_sats,
+					address,
+				);
+			},
+			OnchainSendAmount::AllDrainingReserve => {
+				log_info!(
+					self.logger,
+					"Created new transaction {} sending all available on-chain funds to address {}",
+					txid,
+					address
+				);
+			},
+		}
+
+		Ok(txid)
+	}
+
+	// PATCH IRIS: montar e assinar separado de transmitir, para a carteira poder
+	// entregar uma transação assinada sem internet (QR/NFC) e outro aparelho
+	// transmitir. O caminho normal (send_to_address) continua igual.
+	#[allow(deprecated)]
+	fn construir_e_assinar(
+		&self, address: &bitcoin::Address, send_amount: OnchainSendAmount,
+		fee_rate: Option<FeeRate>,
+	) -> Result<Transaction, Error> {
+		self.parse_and_validate_address(&address)?;
 
 		// Use the set fee_rate or default to fee estimation.
 		let confirmation_target = ConfirmationTarget::OnchainPayment;
@@ -536,41 +584,32 @@ impl Wallet {
 				e
 			})?
 		};
+		Ok(tx)
+	}
 
-		self.broadcaster.broadcast_transactions(&[&tx]);
-
-		let txid = tx.compute_txid();
-
-		match send_amount {
-			OnchainSendAmount::ExactRetainingReserve { amount_sats, .. } => {
-				log_info!(
-					self.logger,
-					"Created new transaction {} sending {}sats on-chain to address {}",
-					txid,
-					amount_sats,
-					address
-				);
+	// PATCH IRIS: assina sem transmitir e já registra a transação como pendente,
+	// para as mesmas moedas não serem usadas de novo num envio seguinte.
+	pub(crate) fn sign_without_broadcast(
+		&self, address: &bitcoin::Address, send_amount: OnchainSendAmount,
+		fee_rate: Option<FeeRate>,
+	) -> Result<Transaction, Error> {
+		let tx = self.construir_e_assinar(address, send_amount, fee_rate)?;
+		let agora = std::time::SystemTime::now()
+			.duration_since(std::time::UNIX_EPOCH)
+			.map(|d| d.as_secs())
+			.unwrap_or(0);
+		self.apply_mempool_txs(vec![(tx.clone(), agora)], Vec::new())?;
+		log_info!(
+			self.logger,
+			"Transacao {} assinada sem transmitir ({} para {})",
+			tx.compute_txid(),
+			match send_amount {
+				OnchainSendAmount::ExactRetainingReserve { amount_sats, .. } => amount_sats,
+				_ => 0,
 			},
-			OnchainSendAmount::AllRetainingReserve { cur_anchor_reserve_sats } => {
-				log_info!(
-					self.logger,
-					"Created new transaction {} sending available on-chain funds retaining a reserve of {}sats to address {}",
-					txid,
-					cur_anchor_reserve_sats,
-					address,
-				);
-			},
-			OnchainSendAmount::AllDrainingReserve => {
-				log_info!(
-					self.logger,
-					"Created new transaction {} sending all available on-chain funds to address {}",
-					txid,
-					address
-				);
-			},
-		}
-
-		Ok(txid)
+			address
+		);
+		Ok(tx)
 	}
 
 	pub(crate) fn select_confirmed_utxos(

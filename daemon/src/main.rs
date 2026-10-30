@@ -99,6 +99,7 @@ struct Args {
     bitcoind_rpc: Option<String>,
 }
 
+#[derive(Clone)]
 enum Fonte {
     Esplora(String),
     Bitcoind { host: String, porta: u16, usuario: String, senha: String },
@@ -111,6 +112,64 @@ impl Fonte {
             Fonte::Bitcoind { host, porta, .. } => format!("bitcoind {host}:{porta}"),
         }
     }
+}
+
+/// Transmite uma transação já assinada pelo mesmo servidor que o nó usa.
+fn transmitir(fonte: &Fonte, tx_hex: &str) -> Result<String, String> {
+    let timeout = std::time::Duration::from_secs(20);
+    match fonte {
+        Fonte::Esplora(url) => ureq::post(&format!("{url}/tx"))
+            .timeout(timeout)
+            .send_string(tx_hex)
+            .map_err(|e| match e {
+                ureq::Error::Status(_, r) => r.into_string().unwrap_or_default(),
+                outro => outro.to_string(),
+            })?
+            .into_string()
+            .map_err(|e| e.to_string()),
+        Fonte::Bitcoind { host, porta, usuario, senha } => {
+            use std::io::Write;
+            let mut cred = Vec::new();
+            write!(cred, "{usuario}:{senha}").unwrap();
+            let pedido = json!({
+                "jsonrpc": "1.0", "id": "iris", "method": "sendrawtransaction",
+                "params": [tx_hex],
+            });
+            let texto = match ureq::post(&format!("http://{host}:{porta}/"))
+                .timeout(timeout)
+                .set("Authorization", &format!("Basic {}", base64(&cred)))
+                .set("Content-Type", "application/json")
+                .send_string(&pedido.to_string())
+            {
+                Ok(r) => r.into_string(),
+                Err(ureq::Error::Status(_, r)) => r.into_string(),
+                Err(e) => return Err(e.to_string()),
+            }
+            .map_err(|e| e.to_string())?;
+            let resp: Value = serde_json::from_str(&texto).map_err(|e| e.to_string())?;
+            if !resp["error"].is_null() {
+                return Err(resp["error"]["message"].as_str().unwrap_or("erro").to_string());
+            }
+            Ok(resp["result"].as_str().unwrap_or_default().to_string())
+        }
+    }
+}
+
+fn base64(dados: &[u8]) -> String {
+    const T: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::new();
+    for bloco in dados.chunks(3) {
+        let b = [bloco[0], *bloco.get(1).unwrap_or(&0), *bloco.get(2).unwrap_or(&0)];
+        let n = (b[0] as u32) << 16 | (b[1] as u32) << 8 | b[2] as u32;
+        for i in 0..4 {
+            if i <= bloco.len() {
+                out.push(T[(n >> (18 - 6 * i) & 63) as usize] as char);
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
 }
 
 fn ler_bitcoind_rpc(s: &str) -> Fonte {
@@ -194,7 +253,14 @@ fn pagamentos(node: &Node) -> Value {
     json!({ "payments": lista })
 }
 
-fn handle(node: &Arc<Node>, rede: Rede, method: &str, path: &str, body: Value) -> Result<Value, String> {
+fn handle(
+    node: &Arc<Node>,
+    rede: Rede,
+    fonte: &Fonte,
+    method: &str,
+    path: &str,
+    body: Value,
+) -> Result<Value, String> {
     match (method, path) {
         ("GET", "/health") => Ok(json!({ "status": "ok", "network": rede.nome() })),
         ("GET", "/node_id") => Ok(json!({ "node_id": node.node_id().to_string() })),
@@ -258,6 +324,33 @@ fn handle(node: &Arc<Node>, rede: Rede, method: &str, path: &str, body: Value) -
                 .send_to_address(&address, sats, None)
                 .map_err(|e| e.to_string())?;
             Ok(json!({ "txid": txid.to_string() }))
+        }
+        ("POST", "/sign_onchain") => {
+            // Assina sem transmitir: a transação viaja por QR/NFC até alguém com
+            // internet. Até lá, quem recebe tem só uma promessa.
+            let address_str = body["address"].as_str().ok_or("address ausente")?;
+            let sats = body["amount_sats"].as_u64().ok_or("amount_sats ausente")?;
+            let address = address_str
+                .parse::<ldk_node::bitcoin::Address<_>>()
+                .map_err(|e| format!("endereço inválido: {e}"))?
+                .require_network(rede.network())
+                .map_err(|_| "endereço de outra rede".to_string())?;
+            let tx = node
+                .onchain_payment()
+                .sign_to_address(&address, sats, None)
+                .map_err(|e| e.to_string())?;
+            Ok(json!({
+                "txid": tx.compute_txid().to_string(),
+                "tx_hex": ldk_node::bitcoin::consensus::encode::serialize_hex(&tx),
+            }))
+        }
+        ("POST", "/broadcast") => {
+            let tx_hex = body["tx_hex"].as_str().ok_or("tx_hex ausente")?.trim();
+            let tx: ldk_node::bitcoin::Transaction =
+                ldk_node::bitcoin::consensus::encode::deserialize_hex(tx_hex)
+                    .map_err(|e| format!("transação inválida: {e}"))?;
+            let txid = transmitir(fonte, tx_hex)?;
+            Ok(json!({ "txid": if txid.is_empty() { tx.compute_txid().to_string() } else { txid } }))
         }
         ("GET", "/channels") => {
             let channels: Vec<Value> = node
@@ -386,7 +479,7 @@ fn esploras_em_ordem(proprios: &[String], rede: Rede) -> Vec<String> {
     lista
 }
 
-fn construir_e_iniciar(mnemonic: &str, args: &Args) -> Node {
+fn construir_e_iniciar(mnemonic: &str, args: &Args) -> (Node, Fonte) {
     const TENTATIVAS: usize = 3;
     let fontes: Vec<Fonte> = match &args.bitcoind_rpc {
         Some(s) => vec![ler_bitcoind_rpc(s)],
@@ -435,7 +528,7 @@ fn construir_e_iniciar(mnemonic: &str, args: &Args) -> Node {
             .map_err(|e| e.to_string())
             .and_then(|node| node.start().map_err(|e| e.to_string()).map(|_| node));
         match resultado {
-            Ok(node) => return node,
+            Ok(node) => return (node, fonte.clone()),
             Err(e) => {
                 println!(
                     "iris-noded: tentativa {}/{TENTATIVAS} de iniciar o nó falhou ({}): {e}",
@@ -460,7 +553,8 @@ fn main() {
         .trim()
         .to_string();
 
-    let node = Arc::new(construir_e_iniciar(&mnemonic, &args));
+    let (node, fonte) = construir_e_iniciar(&mnemonic, &args);
+    let node = Arc::new(node);
 
     println!("iris-noded: nó {} rodando ({})", node.node_id(), args.rede.nome());
 
@@ -483,7 +577,7 @@ fn main() {
         let _ = request.as_reader().read_to_string(&mut body_str);
         let body: Value = serde_json::from_str(&body_str).unwrap_or(json!({}));
 
-        let (status, payload) = match handle(&node, args.rede, &method, &path, body) {
+        let (status, payload) = match handle(&node, args.rede, &fonte, &method, &path, body) {
             Ok(v) => (200, v),
             Err(e) => (500, json!({ "error": e })),
         };

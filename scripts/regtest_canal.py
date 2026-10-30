@@ -1,8 +1,9 @@
 """Teste de ponta a ponta do Lightning do Iris, sem celular e sem internet.
 
 Sobe um bitcoind em regtest e dois iris-noded (A e B), e prova o caminho do
-dinheiro: A recebe on-chain, abre canal com B, paga uma fatura de B, o canal
-fecha e o saldo volta para a blockchain. Termina com código 0 só se tudo bater.
+dinheiro: A recebe on-chain, abre canal com B, paga uma fatura de B, assina um
+pagamento on-chain sem transmitir que B transmite, o canal fecha e o saldo
+volta para a blockchain. Termina com código 0 só se tudo bater.
 
     python scripts/regtest_canal.py --bitcoin-bin <pasta com bitcoind e bitcoin-cli>
 
@@ -36,6 +37,7 @@ PORTAS = {"A": (18390, 19735), "B": (18391, 19736)}
 
 PAGAMENTO_SATS = 10_000
 CANAL_SATS = 500_000
+OFFLINE_SATS = 20_000
 
 
 def log(msg):
@@ -200,6 +202,26 @@ def main():
             falhar(f"histórico de B deveria ter um recebimento de {PAGAMENTO_SATS}: "
                    f"{recebidos}")
         log(f"B recebeu {PAGAMENTO_SATS} sats pelo canal, uma linha no histórico")
+
+        # Pagamento offline: A assina sem transmitir, a transação viaja (aqui,
+        # pelo próprio teste — no app, por QR/NFC) e B transmite.
+        endereco_b = daemon("B", "GET", "/onchain_address")["address"]
+        assinada = daemon("A", "POST", "/sign_onchain", {
+            "address": endereco_b, "amount_sats": OFFLINE_SATS,
+        })
+        if assinada["txid"] in bitcoind_rpc("getrawmempool"):
+            falhar("a transação assinada offline foi transmitida sozinha")
+        daemon("B", "POST", "/broadcast", {"tx_hex": assinada["tx_hex"]})
+        if assinada["txid"] not in bitcoind_rpc("getrawmempool"):
+            falhar("B transmitiu, mas a transação não chegou ao mempool")
+        onchain_b_offline = daemon("B", "GET", "/balances")["onchain_total_sats"]
+        minerar(1, mina)
+        esperar("B ver o pagamento offline confirmado", lambda: (
+            sincronizar("B") or
+            daemon("B", "GET", "/balances")["onchain_total_sats"]
+            >= onchain_b_offline + OFFLINE_SATS))
+        log(f"pagamento offline: A assinou {OFFLINE_SATS} sats sem rede, "
+            "B transmitiu e recebeu")
 
         onchain_b_antes = daemon("B", "GET", "/balances")["onchain_total_sats"]
         daemon("A", "POST", "/close_channel", {

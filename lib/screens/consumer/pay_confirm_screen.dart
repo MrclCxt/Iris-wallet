@@ -396,9 +396,36 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
-        _showError('Falha no pagamento: $e');
+        _showError(_mensagemDeErroPagamento(e));
       }
     }
+  }
+
+  /// Traduz os erros crus do nó para algo que o usuário entende.
+  String _mensagemDeErroPagamento(Object e) {
+    final s = e.toString();
+    if (s.contains('duplicatePayment')) {
+      return 'Essa fatura já foi paga ou tem um pagamento em andamento. '
+          'Gere uma nova fatura para cobrar de novo.';
+    }
+    if (s.contains('InsufficientFunds') || s.contains('insufficient')) {
+      return 'Saldo insuficiente nos canais Lightning para este valor.';
+    }
+    if (s.contains('noRoute') ||
+        s.contains('RouteNotFound') ||
+        s.contains('route')) {
+      return 'Não encontrei rota para esse destino agora. '
+          'Tente de novo em instantes.';
+    }
+    if (s.contains('walletOperationFailed') ||
+        s.contains('conduct wallet operation')) {
+      return 'O nó não conseguiu falar com a rede agora (servidores da '
+          'testnet4 instáveis). Tente novamente em instantes.';
+    }
+    if (s.contains('Expired') || s.contains('expired')) {
+      return 'Essa fatura expirou. Peça uma nova.';
+    }
+    return 'Falha no pagamento. Tente novamente em instantes.';
   }
 
   /// Mostra a taxa EXATA da transação já assinada antes de transmitir.

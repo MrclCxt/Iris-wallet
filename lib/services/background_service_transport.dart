@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'isolate_node_api.dart';
 import 'node_backend.dart';
@@ -31,6 +32,19 @@ class ServicoNoDeFundo {
 
   Future<void> configurar() async {
     if (_configurado) return;
+    // O canal PRECISA existir antes de o serviço ir a primeiro plano, senão o
+    // Android recusa a notificação e derruba o processo
+    // (CannotPostForegroundServiceNotificationException). Importância baixa:
+    // notificação discreta, sem som, só para manter o serviço vivo.
+    final plugin = FlutterLocalNotificationsPlugin();
+    final android = plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await android?.createNotificationChannel(const AndroidNotificationChannel(
+      'iris_no_fundo',
+      'Carteira ativa',
+      description: 'Mantém o nó Lightning rodando em segundo plano',
+      importance: Importance.low,
+    ));
     await _servico.configure(
       androidConfiguration: AndroidConfiguration(
         onStart: onStartNoDeFundo,

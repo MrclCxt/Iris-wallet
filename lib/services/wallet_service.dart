@@ -2149,14 +2149,32 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
         if (!await dir.exists()) {
           await dir.create(recursive: true);
         }
-        await ServicoNoDeFundo.instancia.iniciarComNo(
-          mnemonic: mnemonic,
-          storagePath: nodePath,
-          listeningPort: isMerchant ? 9736 : 9735,
-        );
-        api = criarNoDeFundo();
-        handle.isRemote = false;
-        handle.usandoFundo = true;
+        try {
+          await ServicoNoDeFundo.instancia.iniciarComNo(
+            mnemonic: mnemonic,
+            storagePath: nodePath,
+            listeningPort: isMerchant ? 9736 : 9735,
+          );
+          api = criarNoDeFundo();
+          handle.isRemote = false;
+          handle.usandoFundo = true;
+        } catch (e) {
+          // Se o modo fundo falhar, desliga o beta e cai para o nó embarcado —
+          // o beta nunca deixa o app sem carteira.
+          debugPrint('Nó de fundo falhou ($e); voltando ao nó embarcado.');
+          _noDeFundoV2 = false;
+          await _storage.write(key: 'no_fundo_v2', value: '0');
+          try {
+            await ServicoNoDeFundo.instancia.parar();
+          } catch (_) {}
+          api = EmbeddedNodeApi(
+            mnemonic: mnemonic,
+            storagePath: nodePath,
+            listeningPort: isMerchant ? 9736 : 9735,
+          )..abortarSe = () => _fingerprintDesejada != fingerprint;
+          handle.isRemote = false;
+          handle.usandoFundo = false;
+        }
       } else {
         final directory = await getApplicationDocumentsDirectory();
         final nodePath = '${directory.path}/$dirName';

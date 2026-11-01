@@ -20,6 +20,7 @@ import '../core/seed_crypto.dart';
 import 'dispositivo.dart';
 import '../core/vault_crypto.dart';
 import 'node_backend.dart';
+import 'esplora_servidores.dart';
 import 'taxa_rede.dart';
 import 'product_image_store.dart';
 import 'avatar_image_store.dart';
@@ -1339,7 +1340,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<int> limparTransacoesFantasma({bool forMerchant = false}) async {
-    final base = EmbeddedNodeApi.esploraEmUso;
+    final base = await _esploraParaConsulta();
     if (base == null) return 0;
 
     final lista =
@@ -2795,7 +2796,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     final handle = _deviceNode;
     if (handle.api == null || !handle.isRunning || handle.isMock) return;
 
-    final base = EmbeddedNodeApi.esploraEmUso;
+    final base = await _esploraParaConsulta();
     if (base == null) return;
 
     try {
@@ -3755,6 +3756,20 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     };
   }
 
+  /// Esplora para consultas da própria UI (verificar envio, vigia, reenvio).
+  /// Prefere o estático do nó embarcado, mas ele é LOCAL da isolate onde o nó
+  /// roda — com o nó em segundo plano (beta) ou via daemon, essa isolate não é
+  /// a da UI e o estático fica null. Nesses casos cai para o último servidor bom
+  /// (salvo em SharedPreferences, visível entre isolates) ou para os candidatos.
+  Future<String?> _esploraParaConsulta() async {
+    final emUso = EmbeddedNodeApi.esploraEmUso;
+    if (emUso != null && emUso.isNotEmpty) return emUso;
+    final ultimo = await EsploraServidores.ultimoBom();
+    if (ultimo != null && ultimo.isNotEmpty) return ultimo;
+    final c = await EsploraServidores.candidatos();
+    return c.isEmpty ? null : c.first;
+  }
+
   Future<void> validarAntesDeEnviar(
       {required String address,
       required int sats,
@@ -3774,13 +3789,13 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     if (sats <= 0) {
       throw Exception('Informe um valor maior que zero.');
     }
-    if (sats > handle.onchainBalanceSats) {
+    if (sats > handle.onchainSpendableSats) {
       throw Exception(
-          'Saldo on-chain insuficiente: você tem ${handle.onchainBalanceSats} sats disponíveis.');
+          'Saldo on-chain insuficiente: você tem ${handle.onchainSpendableSats} sats confirmados disponíveis.');
     }
     if (!exigirRede) return;
 
-    final base = EmbeddedNodeApi.esploraEmUso;
+    final base = await _esploraParaConsulta();
     if (base == null) {
       throw Exception('Nenhum servidor da rede configurado.');
     }
@@ -3962,7 +3977,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _verificarBroadcast(String txid,
       {required bool isMerchant}) async {
-    final base = EmbeddedNodeApi.esploraEmUso;
+    final base = await _esploraParaConsulta();
     if (base == null) return;
 
     const tentativas = 10;

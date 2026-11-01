@@ -2167,6 +2167,9 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
           try {
             await ServicoNoDeFundo.instancia.parar();
           } catch (_) {}
+          // Dá tempo do serviço encerrar o nó e liberar a pasta/porta antes de
+          // subir o nó embarcado — nunca dois nós no mesmo armazenamento.
+          await Future.delayed(const Duration(seconds: 3));
           api = EmbeddedNodeApi(
             mnemonic: mnemonic,
             storagePath: nodePath,

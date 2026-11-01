@@ -164,9 +164,22 @@ class EmbeddedNodeApi implements NodeApi {
 
   static String? esploraEmUso;
 
-  static const int _tentativasDeStart = 2;
+  static const int _tentativasDeStart = 3;
 
   bool Function()? abortarSe;
+
+  // Alguns ambientes recusam o bind de escuta P2P em 0.0.0.0 (visto na isolate
+  // de fundo no Android e no daemon no Windows): o ldk-node devolve
+  // `invalidSocketAddress`/"network address is invalid" e o nó não sobe. Nesse
+  // caso subimos SEM endereço de escuta — o nó ainda recebe por canais
+  // existentes, paga e abre canais de saída; só não aceita conexões de entrada.
+  static bool _ehErroDeEndereco(Object e) {
+    final m = e.toString().toLowerCase();
+    return m.contains('invalidsocketaddress') ||
+        m.contains('socket address') ||
+        m.contains('network address') ||
+        m.contains('listening');
+  }
 
   @override
   Future<void> start() async {
@@ -176,6 +189,7 @@ class EmbeddedNodeApi implements NodeApi {
         ? [esploraUrl]
         : await EsploraServidores.emOrdemDeUso();
 
+    var semEscuta = false;
     for (var tentativa = 1; tentativa <= _tentativasDeStart; tentativa++) {
       if (abortarSe?.call() ?? false) {
         debugPrint('Start do nó abandonado: outra carteira assumiu.');
@@ -184,18 +198,21 @@ class EmbeddedNodeApi implements NodeApi {
 
       final esplora = candidatos[(tentativa - 1) % candidatos.length];
       esploraEmUso = esplora;
-      debugPrint('Iniciando nó com Esplora: $esplora');
+      debugPrint(
+          'Iniciando nó com Esplora: $esplora${semEscuta ? ' (sem escuta P2P)' : ''}');
       try {
         final builder = ldk.Builder()
           ..setEntropyBip39Mnemonic(
               mnemonic: ldk.Mnemonic(seedPhrase: mnemonic))
           ..setNetwork(
               Rede.principal ? ldk.Network.bitcoin : ldk.Network.testnet4)
-          ..setStorageDirPath(storagePath)
-          ..setListeningAddresses([
+          ..setStorageDirPath(storagePath);
+        if (!semEscuta) {
+          builder.setListeningAddresses([
             ldk.SocketAddress.hostname(addr: '0.0.0.0', port: listeningPort)
-          ])
-          ..setEsploraServer(esplora);
+          ]);
+        }
+        builder.setEsploraServer(esplora);
         final node = await builder.build();
         await node.start();
         _node = node;
@@ -204,6 +221,12 @@ class EmbeddedNodeApi implements NodeApi {
         ultimoErro = e;
         debugPrint(
             'Tentativa $tentativa/$_tentativasDeStart de iniciar o nó falhou ($esplora): $e');
+        // Se foi o endereço de escuta, desliga a escuta e tenta de novo já.
+        if (!semEscuta && _ehErroDeEndereco(e)) {
+          semEscuta = true;
+          debugPrint('Escuta P2P recusada; repetindo sem endereço de escuta.');
+          continue;
+        }
         if (tentativa < _tentativasDeStart) {
           await Future.delayed(const Duration(seconds: 3));
         }

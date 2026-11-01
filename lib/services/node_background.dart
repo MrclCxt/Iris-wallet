@@ -26,6 +26,7 @@ Future<void> onStartNoDeFundo(ServiceInstance service) async {
   EmbeddedNodeApi? no;
   var appEmPrimeiroPlano = true;
   var drenando = false;
+  var iniciando = false;
 
   Future<void> notificar(String texto) async {
     if (service is AndroidServiceInstance) {
@@ -78,11 +79,15 @@ Future<void> onStartNoDeFundo(ServiceInstance service) async {
   }
 
   service.on('boot').listen((d) async {
+    if (no != null) {
+      service.invoke('booted', {'ok': true});
+      return;
+    }
+    // Reenvios de boot (a UI reenvia caso a escuta não estivesse pronta) não
+    // podem disparar starts concorrentes no mesmo armazenamento.
+    if (iniciando) return;
+    iniciando = true;
     try {
-      if (no != null) {
-        service.invoke('booted', {'ok': true});
-        return;
-      }
       final novo = EmbeddedNodeApi(
         mnemonic: d!['mnemonic'] as String,
         storagePath: d['storagePath'] as String,
@@ -111,6 +116,8 @@ Future<void> onStartNoDeFundo(ServiceInstance service) async {
       service.invoke('booted', {'ok': true});
     } catch (e) {
       service.invoke('booted', {'ok': false, 'e': e.toString()});
+    } finally {
+      iniciando = false;
     }
   });
 

@@ -105,19 +105,21 @@ class ServicoNoDeFundo {
           'esploraUrl': esploraUrl,
         });
 
+    // Reenvia o boot periodicamente caso a 1ª mensagem chegue antes de a isolate
+    // registrar a escuta. O host serializa (guard `iniciando`), então reenviar é
+    // inofensivo. O start do nó pode demorar na testnet4 (Esplora instável).
+    final reenvio = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (!pronto.isCompleted) mandarBoot();
+    });
     try {
-      for (var tentativa = 0; tentativa < 6; tentativa++) {
-        mandarBoot();
-        final r = await pronto.future
-            .timeout(const Duration(seconds: 15))
-            .catchError((_) => <String, dynamic>{'_timeout': true});
-        if (r['_timeout'] != true) {
-          if (r['ok'] == true) return;
-          throw Exception(r['e'] ?? 'falha ao iniciar o nó de fundo');
-        }
-      }
-      throw Exception('o nó de fundo não respondeu ao iniciar');
+      mandarBoot();
+      final r = await pronto.future
+          .timeout(const Duration(seconds: 180))
+          .catchError((_) => <String, dynamic>{'ok': false, 'e': 'tempo esgotado'});
+      if (r['ok'] == true) return;
+      throw Exception(r['e'] ?? 'falha ao iniciar o nó de fundo');
     } finally {
+      reenvio.cancel();
       await sub.cancel();
     }
   }

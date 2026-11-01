@@ -450,17 +450,24 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
       } else if (_looksLikeBitcoin(input)) {
         final parsed = _parseBip21(input);
 
-        final useLightning = parsed.lightning != null &&
-            parsed.sats != null &&
-            !TxPolicy.shouldUseOnchain(parsed.sats!);
-        if (useLightning && Bolt11.looksLikeInvoice(parsed.lightning!)) {
-          final inv = Bolt11.decode(parsed.lightning!);
+        // Prefere Lightning sempre que o QR trouxer uma fatura válida e o valor
+        // (da própria fatura OU do QR) não for grande o bastante para justificar
+        // on-chain. Antes exigia valor no QR (`parsed.sats != null`), então um QR
+        // unificado SEM valor caía em on-chain mesmo tendo fatura Lightning — era
+        // por isso que pagamentos pequenos iam parar on-chain sem querer.
+        final temFatura = parsed.lightning != null &&
+            Bolt11.looksLikeInvoice(parsed.lightning!);
+        final inv = temFatura ? Bolt11.decode(parsed.lightning!) : null;
+        final valorLn = inv?.amountSats ?? parsed.sats;
+        final useLightning = temFatura &&
+            !(valorLn != null && TxPolicy.shouldUseOnchain(valorLn));
+        if (useLightning) {
           if (!mounted) return;
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => PayConfirmScreen(
-                satsAmount: inv.amountSats ?? parsed.sats ?? 0,
+                satsAmount: inv!.amountSats ?? parsed.sats ?? 0,
                 destination: inv.description.isNotEmpty
                     ? inv.description
                     : 'Fatura Lightning',

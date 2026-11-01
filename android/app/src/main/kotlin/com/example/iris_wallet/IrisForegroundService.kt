@@ -77,7 +77,17 @@ class IrisForegroundService : Service() {
             .setContentText("Nó Lightning ativo em segundo plano")
             .setSmallIcon(applicationInfo.icon)
             .setOngoing(true)
+            .setShowWhen(false)
             .setContentIntent(contentIntent)
-        return builder.build()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            builder.setCategory(Notification.CATEGORY_SERVICE)
+        }
+        val notification = builder.build()
+        // Notificação FIXA: não some ao deslizar enquanto o nó está ativo.
+        // setOngoing já marca FLAG_ONGOING_EVENT; FLAG_NO_CLEAR impede o
+        // "limpar tudo" de removê-la.
+        notification.flags =
+            notification.flags or Notification.FLAG_NO_CLEAR or Notification.FLAG_ONGOING_EVENT
+        return notification
     }
 }

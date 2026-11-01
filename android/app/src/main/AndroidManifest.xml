@@ -22,12 +22,16 @@
         android:dataExtractionRules="@xml/regras_extracao"
         android:usesCleartextTraffic="false"
         android:networkSecurityConfig="@xml/seguranca_rede">
+        <!-- Retrato fixo (screenOrientation): o app não reage ao sensor nem
+             parece "ligar" a rotação automática quando o sistema está travado.
+             Não altera nada do aparelho (sem WRITE_SETTINGS). NFC segue normal. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
+            android:screenOrientation="portrait"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
@@ -60,6 +64,22 @@
             android:name=".IrisForegroundService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <!-- Nada de trabalho de segundo plano não-essencial no startup: o
+             ProfileInstaller do AndroidX compila perfis ART em background (só
+             otimização). Desligado — tira o inicializador do App Startup e o
+             receiver que responde a broadcasts externos. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+                tools:node="remove" />
+        </provider>
+        <receiver
+            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+            tools:node="remove" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

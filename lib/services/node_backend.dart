@@ -177,6 +177,24 @@ class EmbeddedNodeApi implements NodeApi {
 
   bool Function()? abortarSe;
 
+  // LSP (LSPS2) configurado neste nó → podemos receber via canal JIT.
+  bool _temLsp = false;
+
+  /// Soma da liquidez de ENTRADA (msat) nos canais usáveis. Zero = não dá para
+  /// receber sem um canal novo (JIT).
+  Future<int> _inboundDisponivelMsat() async {
+    try {
+      final chs = await _n.listChannels();
+      var soma = 0;
+      for (final ch in chs) {
+        if (ch.isUsable) soma += ch.inboundCapacityMsat.toInt();
+      }
+      return soma;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   // Alguns ambientes recusam o bind de escuta P2P em 0.0.0.0 (visto na isolate
   // de fundo no Android e no daemon no Windows): o ldk-node devolve
   // `invalidSocketAddress`/"network address is invalid" e o nó não sobe. Nesse
@@ -225,6 +243,22 @@ class EmbeddedNodeApi implements NodeApi {
           ]);
         }
         builder.setEsploraServer(esplora);
+        // LSP do Mutinynet (LSPS2): habilita canais JIT para RECEBER Lightning
+        // desde o primeiro uso, sem o usuário abrir canal — o LSP abre um canal
+        // na hora que a fatura é paga. Só na signet (é o único LSP configurado);
+        // na mainnet exige outro LSP. O nó conecta NO LSP (saída), então funciona
+        // mesmo sem escuta P2P (ex.: Android no fallback sem listening).
+        if (Rede.ehSignet) {
+          builder.setLiquiditySourceLsps2(
+            address: ldk.SocketAddress.hostname(
+                addr: '44.219.111.31', port: 39735),
+            publicKey: ldk.PublicKey(
+                hex:
+                    '0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b'),
+            token: 'JZWN9YLW',
+          );
+          _temLsp = true;
+        }
         final node = await builder.build();
         await node.start();
         _node = node;
@@ -274,6 +308,31 @@ class EmbeddedNodeApi implements NodeApi {
       required String description,
       required int expirySecs}) async {
     final bolt11 = await _n.bolt11Payment();
+
+    // Receber desde o 1º uso: com LSP (signet) e SEM liquidez de entrada
+    // suficiente, cria a fatura via canal JIT — o LSP abre um canal na hora em
+    // que a fatura é paga. Sem isso, uma carteira nova não tem como receber.
+    if (_temLsp) {
+      final inbound = await _inboundDisponivelMsat();
+      final precisaJit =
+          amountMsat == null ? inbound <= 0 : inbound < amountMsat;
+      if (precisaJit) {
+        if (amountMsat == null) {
+          final inv = await bolt11.receiveVariableAmountViaJitChannel(
+            description: description,
+            expirySecs: expirySecs,
+          );
+          return inv.signedRawInvoice;
+        }
+        final inv = await bolt11.receiveViaJitChannel(
+          amountMsat: BigInt.from(amountMsat),
+          description: description,
+          expirySecs: expirySecs,
+        );
+        return inv.signedRawInvoice;
+      }
+    }
+
     if (amountMsat == null) {
       final inv = await bolt11.receiveVariableAmount(
         expirySecs: expirySecs,

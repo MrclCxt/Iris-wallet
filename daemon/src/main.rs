@@ -918,6 +918,80 @@ fn autorizar(req: &tiny_http::Request, token: &str, porta: u16) -> Result<(), (u
     Ok(())
 }
 
+/// Painel admin do hub: HTML renderizado no servidor (sem token; navegação
+/// local só, o servidor escuta em 127.0.0.1), com auto-refresh a cada 5s.
+fn painel_admin_html(node: &Arc<Node>, rede: Rede, p2p_porta: u16) -> String {
+    let b = node.list_balances();
+    let canais = node.list_channels();
+    let node_id = node.node_id().to_string();
+    let n_canais = canais.len();
+    let n_ativos = canais.iter().filter(|c| c.is_usable).count();
+
+    let mut linhas = String::new();
+    if canais.is_empty() {
+        linhas.push_str(
+            "<tr><td colspan=5 style='text-align:center;color:#8094C8'>Nenhum canal ainda — \
+             clientes abrem o 1º canal (JIT) ao receber.</td></tr>",
+        );
+    } else {
+        for c in &canais {
+            let cp = c.counterparty_node_id.to_string();
+            let cp_curto: String = cp.chars().take(16).collect();
+            let status = if c.is_usable {
+                "<span style='color:#00E676'>● Ativo</span>"
+            } else if c.is_channel_ready {
+                "<span style='color:#FF7A2F'>● Pronto (par offline?)</span>"
+            } else {
+                "<span style='color:#FFD60A'>● Pendente (confirmando)</span>"
+            };
+            linhas.push_str(&format!(
+                "<tr><td class='mono'>{cp_curto}…</td><td>{}</td><td>{}</td><td>{}</td><td>{status}</td></tr>",
+                c.channel_value_sats,
+                c.outbound_capacity_msat / 1000,
+                c.inbound_capacity_msat / 1000,
+            ));
+        }
+    }
+
+    format!(
+        r#"<!doctype html><html lang="pt-br"><head>
+<meta charset="utf-8"><meta http-equiv="refresh" content="5">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iris Hub — Painel</title>
+<style>
+ body{{background:#06080F;color:#F0F4FF;font-family:system-ui,'Segoe UI',sans-serif;margin:0;padding:24px}}
+ h1{{font-size:20px;margin:0 0 4px}} .sub{{color:#8094C8;font-size:13px;margin-bottom:20px}}
+ .cards{{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px}}
+ .card{{background:#0C0E1A;border:1px solid #171B32;border-radius:14px;padding:16px 20px;min-width:150px}}
+ .card .k{{color:#8094C8;font-size:12px}} .card .v{{font-size:22px;font-weight:700;margin:4px 0}}
+ table{{width:100%;border-collapse:collapse;background:#0C0E1A;border-radius:12px;overflow:hidden}}
+ th,td{{padding:10px 14px;text-align:left;font-size:13px;border-bottom:1px solid #171B32}}
+ th{{color:#8094C8;font-weight:600}} code{{color:#00CFFF;font-size:11px;word-break:break-all}}
+ .mono{{font-family:monospace}}
+</style></head><body>
+<h1>⚡ Iris Hub — Painel Admin</h1>
+<div class="sub">rede <b>{rede}</b> · atualiza a cada 5s · LSP/P2P porta <span class="mono">{p2p}</span></div>
+<div class="cards">
+ <div class="card"><div class="k">On-chain confirmado</div><div class="v">{onchain_sp}</div><div class="k">de {onchain_tot} total · sats</div></div>
+ <div class="card"><div class="k">Lightning</div><div class="v">{ln}</div><div class="k">sats em canais</div></div>
+ <div class="card"><div class="k">Canais</div><div class="v">{ativos}/{ncanais}</div><div class="k">ativos / total</div></div>
+</div>
+<div class="sub">node_id: <code>{nid}</code></div>
+<table><thead><tr><th>Par (cliente)</th><th>Capacidade</th><th>Posso enviar</th><th>Posso receber</th><th>Status</th></tr></thead>
+<tbody>{linhas}</tbody></table>
+</body></html>"#,
+        rede = rede.nome(),
+        p2p = p2p_porta,
+        onchain_sp = b.spendable_onchain_balance_sats,
+        onchain_tot = b.total_onchain_balance_sats,
+        ln = b.total_lightning_balance_sats,
+        ativos = n_ativos,
+        ncanais = n_canais,
+        nid = node_id,
+        linhas = linhas,
+    )
+}
+
 fn main() {
     let args = Args::parse();
 
@@ -961,6 +1035,18 @@ fn main() {
     for mut request in server.incoming_requests() {
         let method = request.method().as_str().to_uppercase();
         let path = request.url().split('?').next().unwrap_or("/").to_string();
+
+        // Painel admin: HTML sem token (navegação local; escuta só 127.0.0.1).
+        if method == "GET" && (path == "/admin" || path == "/") {
+            let html = painel_admin_html(&node, args.rede, args.p2p_porta);
+            let response = tiny_http::Response::from_string(html).with_header(
+                "Content-Type: text/html; charset=utf-8"
+                    .parse::<tiny_http::Header>()
+                    .unwrap(),
+            );
+            let _ = request.respond(response);
+            continue;
+        }
 
         let (status, payload) = match autorizar(&request, &token, args.port) {
             Err((codigo, motivo)) => (codigo, json!({ "error": motivo })),

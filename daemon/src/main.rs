@@ -6,6 +6,8 @@ use ldk_node::payment::{PaymentDirection, PaymentKind, PaymentStatus};
 use ldk_node::bitcoin::hashes::Hash;
 use ldk_node::lightning_types::payment::{PaymentHash, PaymentPreimage};
 use ldk_node::{Builder, Event, Node, UserChannelId};
+
+mod payjoin;
 use serde_json::{json, Value};
 use std::fs;
 use std::str::FromStr;

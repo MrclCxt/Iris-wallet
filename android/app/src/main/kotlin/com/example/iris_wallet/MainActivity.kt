@@ -121,6 +121,27 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     }
                     "pareceRoot" -> result.success(pareceRoot())
+                    // true se o app já está isento da otimização de bateria.
+                    "isentoDeBateria" -> {
+                        val pm = getSystemService(android.os.PowerManager::class.java)
+                        result.success(pm?.isIgnoringBatteryOptimizations(packageName) == true)
+                    }
+                    // Abre o pedido de isenção de bateria (melhora a sobrevida
+                    // do nó em segundo plano na Samsung).
+                    "pedirIsencaoDeBateria" -> {
+                        try {
+                            val pm = getSystemService(android.os.PowerManager::class.java)
+                            if (pm?.isIgnoringBatteryOptimizations(packageName) != true) {
+                                startActivity(
+                                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                                        .setData(android.net.Uri.parse("package:$packageName"))
+                                )
+                            }
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    }
                     // Segredo de hardware para a cifra da semente; null se o
                     // Keystore falhar (aí o app usa só o PIN, como no desktop).
                     "pepper" -> {

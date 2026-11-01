@@ -13,6 +13,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Na Samsung, a otimização de bateria mata o serviço em primeiro plano.
+         Com isenção (pedida só quando o usuário liga "manter nó ativo"), o nó
+         sobrevive muito mais tempo com o app minimizado. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
     <application
         android:label="IRIS"
         android:name="${applicationName}"

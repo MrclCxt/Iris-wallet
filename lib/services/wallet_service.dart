@@ -357,6 +357,15 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       if (_fastWatchTimer != null) _reagendarFastWatch();
     }
     if (!emUso) return;
+
+    // Se o nó caiu enquanto o app estava em segundo plano (o Android mata o
+    // processo), reergue ao voltar — assim o usuário não fica sem nó.
+    if ((_isUnlocked || _isMerchantUnlocked) &&
+        _keepNodeAliveInBackground &&
+        !(_deviceNode.isRunning && _deviceNode.api != null)) {
+      unawaited(reativarNoSeNecessario());
+    }
+
     final agora = DateTime.now();
 
     if (_ultimoSyncPorRetorno != null &&
@@ -498,12 +507,34 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     _keepNodeAliveInBackground = enabled;
     await _storage.write(
         key: 'keep_node_alive_background', value: enabled ? '1' : '0');
-    if (enabled && _deviceNode.isRunning && _deviceNode.api != null) {
-      await BackgroundServiceAndroid.start();
-    } else if (!enabled) {
+    if (enabled) {
+      // Religar o toggle sempre REERGUE o nó se ele tiver morrido — antes só
+      // reiniciava o serviço, e só se o nó já estivesse vivo, então quem
+      // parasse o segundo plano não conseguia reativar.
+      await reativarNoSeNecessario();
+      if (_deviceNode.isRunning && _deviceNode.api != null) {
+        await BackgroundServiceAndroid.start();
+      }
+    } else {
       await BackgroundServiceAndroid.stop();
     }
     notifyListeners();
+  }
+
+  /// Reergue o nó do dispositivo para a sessão desbloqueada atual, se ele não
+  /// estiver rodando. Resolve "parei o segundo plano e não consigo reativar".
+  Future<void> reativarNoSeNecessario() async {
+    final emAndamento = _startEmAndamento;
+    if (emAndamento != null) {
+      try {
+        await emAndamento;
+      } catch (_) {}
+    }
+    if (_deviceNode.isRunning && _deviceNode.api != null) return;
+    final merchant = _isMerchantUnlocked && !_isUnlocked;
+    final seed = merchant ? activeMerchant?.seed : activeConsumer?.seed;
+    if (seed == null || seed.isEmpty) return;
+    await _startNode(_deviceNode, seed, _nodeDirFor(seed), isMerchant: merchant);
   }
 
   bool _hideBalance = false;

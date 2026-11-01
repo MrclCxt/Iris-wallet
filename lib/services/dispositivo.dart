@@ -42,6 +42,24 @@ class Dispositivo {
     }
   }
 
+  /// Pede ao usuário a isenção da otimização de bateria (Android). Sem efeito
+  /// fora do Android. Melhora muito a sobrevida do nó em segundo plano.
+  static Future<void> pedirIsencaoDeBateria() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _canal.invokeMethod('pedirIsencaoDeBateria');
+    } catch (_) {}
+  }
+
+  static Future<bool> isentoDeBateria() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      return await _canal.invokeMethod<bool>('isentoDeBateria') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Sinais de root. Só serve para AVISAR; não é prova nem bloqueio.
   static Future<bool> pareceRoot() async {
     if (!Platform.isAndroid) return false;

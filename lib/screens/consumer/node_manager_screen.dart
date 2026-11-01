@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/services.dart';
 import '../../services/wallet_service.dart';
+import '../../services/dispositivo.dart';
 import '../../services/node_backend.dart';
 import '../../services/exchange_rate_service.dart';
 import '../../widgets/currency_toggle_btn.dart';
@@ -595,7 +596,12 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
           Switch(
             value: enabled,
             activeColor: IrisTheme.primary,
-            onChanged: (v) => wallet.setKeepNodeAliveInBackground(v),
+            onChanged: (v) async {
+              await wallet.setKeepNodeAliveInBackground(v);
+              // Ao ligar, pede a isenção de bateria (Samsung mata o serviço sem
+              // ela). Só mostra o diálogo do sistema se ainda não estiver isento.
+              if (v) await Dispositivo.pedirIsencaoDeBateria();
+            },
           ),
         ],
       ),

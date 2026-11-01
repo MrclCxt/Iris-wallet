@@ -47,6 +47,23 @@ class IrisForegroundService : Service() {
         return START_STICKY
     }
 
+    // Quando o usuário fecha o app (desliza dos recentes), o Android remove a
+    // tarefa. Reagendamos o próprio serviço para que o sistema o recrie e a
+    // notificação volte. ATENÇÃO: isto mantém o SERVIÇO vivo, mas o nó Lightning
+    // roda na isolate principal do app, que é destruída com a tarefa — para o nó
+    // de fato continuar após fechar o app é preciso rodá-lo numa isolate de
+    // fundo (ver nota no código Dart) ou usar o daemon no PC.
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        val restart = Intent(applicationContext, IrisForegroundService::class.java)
+            .setAction("repor_notificacao")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(restart)
+        } else {
+            startService(restart)
+        }
+        super.onTaskRemoved(rootIntent)
+    }
+
     private fun buildNotification(): Notification {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = getSystemService(NotificationManager::class.java)
@@ -72,6 +89,17 @@ class IrisForegroundService : Service() {
         val builder = Notification.Builder(this).let {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) it.setChannelId(CHANNEL_ID) else it
         }
+        // Android 14+ (o aparelho é 16): o sistema permite DESLIZAR a
+        // notificação de serviço em primeiro plano, e FLAG_NO_CLEAR não impede
+        // mais. Para deixá-la "fixa", quando o usuário descarta, o deleteIntent
+        // reinicia o serviço — que recoloca a notificação na hora.
+        val repostIntent = Intent(this, IrisForegroundService::class.java)
+            .setAction("repor_notificacao")
+        val deleteIntent = PendingIntent.getForegroundService(
+            this, 1, repostIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         builder
             .setContentTitle("Iris Wallet")
             .setContentText("Nó Lightning ativo em segundo plano")
@@ -79,6 +107,7 @@ class IrisForegroundService : Service() {
             .setOngoing(true)
             .setShowWhen(false)
             .setContentIntent(contentIntent)
+            .setDeleteIntent(deleteIntent)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             builder.setCategory(Notification.CATEGORY_SERVICE)
         }

@@ -15,6 +15,11 @@ use std::sync::Arc;
 enum Rede {
     Testnet4,
     Bitcoin,
+    /// Signet. O padrão aponta para o Mutinynet (blocos de ~30s, Esplora e
+    /// faucet públicos), ideal para testar Lightning sem depender de PC ligado.
+    /// Para o ldk-node/rust-bitcoin, Mutinynet É signet: mesmo genesis do signet
+    /// padrão, então o ChainHash do Lightning bate sem patch.
+    Signet,
     /// Blockchain local de teste (exige --bitcoind-rpc ou --esplora próprio).
     Regtest,
 }
@@ -24,6 +29,7 @@ impl Rede {
         match self {
             Rede::Testnet4 => Network::Testnet4,
             Rede::Bitcoin => Network::Bitcoin,
+            Rede::Signet => Network::Signet,
             Rede::Regtest => Network::Regtest,
         }
     }
@@ -32,6 +38,7 @@ impl Rede {
         match self {
             Rede::Testnet4 => "testnet4",
             Rede::Bitcoin => "bitcoin",
+            Rede::Signet => "signet",
             Rede::Regtest => "regtest",
         }
     }
@@ -40,6 +47,8 @@ impl Rede {
         match self {
             Rede::Testnet4 => "00000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf043",
             Rede::Bitcoin => "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
+            // Genesis do Mutinynet (verificado ao vivo em /block-height/0).
+            Rede::Signet => "00000008819873e925422c1ff0f99f7cc9bbb232af63a077a480a3633bee1ef6",
             Rede::Regtest => "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206",
         }
     }
@@ -56,6 +65,12 @@ impl Rede {
                 "https://blockstream.info/api",
                 "https://mempool.va1.mempool.space/api",
             ],
+            // Mutinynet: um operador só (ponto único de falha — ver veredito do
+            // conselho). O mirror ltbl é alternativa se o principal cair.
+            Rede::Signet => &[
+                "https://mutinynet.com/api",
+                "https://mutinynet.ltbl.io/api",
+            ],
             Rede::Regtest => &[],
         }
     }
@@ -64,6 +79,7 @@ impl Rede {
         match self {
             Rede::Testnet4 => "./iris_node_data_tn4n",
             Rede::Bitcoin => "./iris_node_data_main",
+            Rede::Signet => "./iris_node_data_signet",
             Rede::Regtest => "./iris_node_data_regtest",
         }
     }

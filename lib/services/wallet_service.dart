@@ -256,6 +256,10 @@ class ReceivedPayment {
 
   final bool isConfirmation;
 
+  /// true = SAÍDA (envio do usuário); false = entrada (recebimento). Reusa o
+  /// mesmo stream/aviso, só muda o texto e a direção do ícone.
+  final bool isSent;
+
   ReceivedPayment({
     required this.isMerchant,
     required this.paymentHashHex,
@@ -263,6 +267,7 @@ class ReceivedPayment {
     this.isOnchain = false,
     this.isPending = false,
     this.isConfirmation = false,
+    this.isSent = false,
   });
 }
 
@@ -734,24 +739,32 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   // e, só em memória, o filtro estaria vazio e a notificação voltaria.
   final RecebimentosAnunciados _recebimentosAnunciados = RecebimentosAnunciados();
 
-  static String _faseDoRecebimento(ReceivedPayment p) => p.isConfirmation
-      ? 'confirmado'
-      : (p.isPending ? 'pendente' : 'recebido');
+  static String _faseDoRecebimento(ReceivedPayment p) {
+    final base = p.isConfirmation
+        ? 'confirmado'
+        : (p.isPending ? 'pendente' : 'recebido');
+    // Saída usa chave distinta para não colidir com a entrada do mesmo hash.
+    return p.isSent ? 'env-$base' : base;
+  }
 
   void _emitirRecebimento(ReceivedPayment p) {
+    // Envio imediato (ainda não confirmado): só aviso in-app, sem push do
+    // sistema — o usuário acabou de tocar "enviar"; um push seria redundante.
+    // A confirmação do envio, sim, vale um push (útil com o app em segundo plano).
+    final comSistema = !(p.isSent && !p.isConfirmation);
     if (p.isOnchain || p.paymentHashHex.isEmpty) {
       _paymentsCtrl.add(p);
-      unawaited(_notificarNoSistema(p));
+      if (comSistema) unawaited(_notificarNoSistema(p));
       return;
     }
     final chave = '${p.paymentHashHex}:${_faseDoRecebimento(p)}';
     unawaited(_recebimentosAnunciados.registrar(chave).then((primeira) {
       if (!primeira) {
-        debugPrint('Recebimento Lightning já anunciado ($chave) — ignorando.');
+        debugPrint('Aviso de pagamento já anunciado ($chave) — ignorando.');
         return;
       }
       _paymentsCtrl.add(p);
-      unawaited(_notificarNoSistema(p));
+      if (comSistema) unawaited(_notificarNoSistema(p));
     }));
   }
 
@@ -762,7 +775,10 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
     late final String titulo;
     late final String corpo;
-    if (p.isConfirmation) {
+    if (p.isSent) {
+      titulo = p.isConfirmation ? 'Envio confirmado' : 'Enviado $valor';
+      corpo = '$valor $via · $conta';
+    } else if (p.isConfirmation) {
       titulo = 'Transação confirmada';
       corpo = '$valor $via já disponível · $conta';
     } else if (p.isPending) {
@@ -3746,6 +3762,13 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     unawaited(_salvarHistorico(false));
     handle.houveSaidaDesdeLeituraBoa = true;
     await _refreshBalances(handle);
+    _emitirRecebimento(ReceivedPayment(
+      isMerchant: false,
+      paymentHashHex: parsed.paymentHashHex,
+      amountSats: sats,
+      isOnchain: false,
+      isSent: true,
+    ));
     notifyListeners();
 
     return {
@@ -3900,6 +3923,14 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     unawaited(_salvarHistorico(false));
     handle.houveSaidaDesdeLeituraBoa = true;
     await _refreshBalances(handle);
+    _emitirRecebimento(ReceivedPayment(
+      isMerchant: false,
+      paymentHashHex: '',
+      amountSats: sats,
+      isOnchain: true,
+      isSent: true,
+      isPending: true,
+    ));
     notifyListeners();
 
     unawaited(_verificarBroadcast(txid, isMerchant: false));

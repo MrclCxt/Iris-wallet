@@ -42,7 +42,21 @@ class _PaymentNotifierState extends State<PaymentNotifier> {
     late final IconData icone;
     late final Color cor;
 
-    if (p.isConfirmation) {
+    if (p.isSent) {
+      if (p.isConfirmation) {
+        texto = 'Envio confirmado — $valor $via';
+        icone = Icons.check_circle;
+        cor = IrisTheme.success;
+      } else if (p.isPending) {
+        texto = 'Enviando $valor $via — aguardando confirmação';
+        icone = Icons.arrow_upward;
+        cor = IrisTheme.blue;
+      } else {
+        texto = 'Enviado $valor $via';
+        icone = Icons.arrow_upward;
+        cor = IrisTheme.blue;
+      }
+    } else if (p.isConfirmation) {
       texto = 'Transação confirmada — $valor $via já disponível';
       icone = Icons.check_circle;
       cor = IrisTheme.success;

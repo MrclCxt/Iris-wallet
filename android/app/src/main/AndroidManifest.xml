@@ -68,6 +68,14 @@
             android:name=".IrisForegroundService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <!-- Nó em segundo plano (fase 2): o flutter_background_service hospeda o
+             nó Lightning numa isolate própria. O plugin declara o serviço sem
+             tipo; no Android 14+ um FGS de sincronização de dados PRECISA do
+             foregroundServiceType no manifesto, senão falha ao iniciar. -->
+        <service
+            android:name="id.flutter.flutter_background_service.BackgroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
         <!-- Nada de trabalho de segundo plano não-essencial no startup: o
              ProfileInstaller do AndroidX compila perfis ART em background (só
              otimização). Desligado — tira o inicializador do App Startup e o

@@ -24,6 +24,7 @@ import 'taxa_rede.dart';
 import 'product_image_store.dart';
 import 'avatar_image_store.dart';
 import 'background_service_android.dart';
+import 'background_service_transport.dart';
 import 'notification_service.dart';
 
 class Product {
@@ -315,13 +316,30 @@ class _NodeHandle {
   bool saldoConfirmadoPorSync = false;
   bool _eventLoopActive = false;
 
+  // Fase 2: este nó roda na isolate de fundo (via IsolateNodeApi) em vez da
+  // isolate principal. Muda como o laço de eventos e o encerramento funcionam.
+  bool usandoFundo = false;
+  StreamSubscription<NodeEvent>? subEventosFundo;
+
   int get totalSats => lightningBalanceSats + onchainBalanceSats;
 
   Future<void> stop() async {
     _eventLoopActive = false;
-    try {
-      await api?.stop();
-    } catch (_) {}
+    await subEventosFundo?.cancel();
+    subEventosFundo = null;
+    final eraFundo = usandoFundo;
+    usandoFundo = false;
+    if (eraFundo) {
+      // parar() mata o serviço de fundo (e o nó com ele); chamar api.stop()
+      // depois só bateria num IPC morto e esperaria o timeout.
+      try {
+        await ServicoNoDeFundo.instancia.parar();
+      } catch (_) {}
+    } else {
+      try {
+        await api?.stop();
+      } catch (_) {}
+    }
     api = null;
     isRunning = false;
     balancesInitialized = false;
@@ -355,6 +373,11 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       _appEmPrimeiroPlano = emUso;
       if (_syncTimer != null) _reagendarSyncTimer();
       if (_fastWatchTimer != null) _reagendarFastWatch();
+      // Em modo fundo, isto decide de onde sai a notificação de recebimento:
+      // da isolate de fundo (app fora) ou da UI (app aberto).
+      if (_noDeFundoV2) {
+        ServicoNoDeFundo.instancia.informarPrimeiroPlano(emUso);
+      }
     }
     if (!emUso) return;
 
@@ -503,6 +526,22 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   bool _keepNodeAliveInBackground = true;
   bool get keepNodeAliveInBackground => _keepNodeAliveInBackground;
 
+  // Nova arquitetura (fase 2): nó numa isolate de fundo que sobrevive a fechar
+  // o app. Flag desligada por padrão — o caminho atual (nó na isolate
+  // principal) continua sendo o default até isto ser validado no aparelho.
+  bool _noDeFundoV2 = false;
+  bool get noDeFundoV2 => _noDeFundoV2;
+
+  Future<void> setNoDeFundoV2(bool ligado) async {
+    if (_noDeFundoV2 == ligado) return;
+    _noDeFundoV2 = ligado;
+    await _storage.write(key: 'no_fundo_v2', value: ligado ? '1' : '0');
+    // Reinicia o nó no novo modo: para o atual e reergue pela via escolhida.
+    await _deviceNode.stop();
+    await reativarNoSeNecessario();
+    notifyListeners();
+  }
+
   Future<void> setKeepNodeAliveInBackground(bool enabled) async {
     _keepNodeAliveInBackground = enabled;
     await _storage.write(
@@ -512,10 +551,14 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       // reiniciava o serviço, e só se o nó já estivesse vivo, então quem
       // parasse o segundo plano não conseguia reativar.
       await reativarNoSeNecessario();
-      if (_deviceNode.isRunning && _deviceNode.api != null) {
+      // No modo fundo o próprio flutter_background_service é o FGS; não se usa
+      // o IrisForegroundService.
+      if (!_noDeFundoV2 &&
+          _deviceNode.isRunning &&
+          _deviceNode.api != null) {
         await BackgroundServiceAndroid.start();
       }
-    } else {
+    } else if (!_noDeFundoV2) {
       await BackgroundServiceAndroid.stop();
     }
     notifyListeners();
@@ -530,7 +573,16 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
         await emAndamento;
       } catch (_) {}
     }
-    if (_deviceNode.isRunning && _deviceNode.api != null) return;
+    if (_deviceNode.isRunning && _deviceNode.api != null) {
+      // Em modo fundo, "rodando" pode ser um handle obsoleto se o SO matou o
+      // serviço. Se o serviço não está mais de pé, derruba o handle e reergue.
+      if (_deviceNode.usandoFundo &&
+          !await ServicoNoDeFundo.instancia.estaRodando()) {
+        await _deviceNode.stop();
+      } else {
+        return;
+      }
+    }
     final merchant = _isMerchantUnlocked && !_isUnlocked;
     final seed = merchant ? activeMerchant?.seed : activeConsumer?.seed;
     if (seed == null || seed.isEmpty) return;
@@ -1488,6 +1540,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
     _keepNodeAliveInBackground =
         (await _storage.read(key: 'keep_node_alive_background')) != '0';
+    _noDeFundoV2 = (await _storage.read(key: 'no_fundo_v2')) == '1';
     _hideBalance = (await _storage.read(key: 'hide_balance')) == '1';
     _consumerTab =
         int.tryParse(await _storage.read(key: 'consumer_tab') ?? '') ?? 0;
@@ -2086,6 +2139,24 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       if (daemonUrl != null && daemonUrl.isNotEmpty) {
         api = RemoteNodeApi(daemonUrl);
         handle.isRemote = true;
+        handle.usandoFundo = false;
+      } else if (Platform.isAndroid && _noDeFundoV2) {
+        // Fase 2: o nó roda na isolate de fundo (sobrevive a fechar o app). O
+        // serviço constrói e INICIA o nó no boot; aqui só pegamos o proxy.
+        final directory = await getApplicationDocumentsDirectory();
+        final nodePath = '${directory.path}/$dirName';
+        final dir = Directory(nodePath);
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
+        }
+        await ServicoNoDeFundo.instancia.iniciarComNo(
+          mnemonic: mnemonic,
+          storagePath: nodePath,
+          listeningPort: isMerchant ? 9736 : 9735,
+        );
+        api = criarNoDeFundo();
+        handle.isRemote = false;
+        handle.usandoFundo = true;
       } else {
         final directory = await getApplicationDocumentsDirectory();
         final nodePath = '${directory.path}/$dirName';
@@ -2099,9 +2170,11 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
           listeningPort: isMerchant ? 9736 : 9735,
         )..abortarSe = () => _fingerprintDesejada != fingerprint;
         handle.isRemote = false;
+        handle.usandoFundo = false;
       }
 
-      await api.start();
+      // No modo fundo o nó já foi iniciado pelo serviço no boot.
+      if (!handle.usandoFundo) await api.start();
       handle.api = api;
       handle.isRunning = true;
       handle.isMock = false;
@@ -2111,7 +2184,10 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       handle.runningSeed = mnemonic;
       handle.consecutiveSyncFailures = 0;
 
-      if (_keepNodeAliveInBackground) {
+      // No modo fundo, o próprio flutter_background_service já é o serviço em
+      // 1º plano; não se usa o IrisForegroundService (que manteria a isolate
+      // principal, onde o nó não roda neste modo).
+      if (_keepNodeAliveInBackground && !handle.usandoFundo) {
         unawaited(BackgroundServiceAndroid.start());
       }
 
@@ -2142,7 +2218,12 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       }
 
       await _refreshBalances(handle);
-      _runEventLoop(handle, isMerchant: isMerchant);
+      if (handle.usandoFundo) {
+        _ouvirEventosDeFundo(handle, isMerchant: isMerchant);
+        ServicoNoDeFundo.instancia.informarPrimeiroPlano(_appEmPrimeiroPlano);
+      } else {
+        _runEventLoop(handle, isMerchant: isMerchant);
+      }
       // O histórico vem do armazenamento local do nó (listPayments), que não
       // depende de rede. Antes ele só era reconciliado depois de um sync bem
       // sucedido — e numa rede com proxy que derruba o sync, linhas fantasma
@@ -2181,6 +2262,8 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   String? nodeStartError({bool forMerchant = false}) =>
       (forMerchant ? _merchantNode : _consumerNode).lastStartError;
 
+  /// Laço legado: o nó roda na isolate principal, então a própria UI drena os
+  /// eventos (nextEvent/eventHandled).
   void _runEventLoop(_NodeHandle handle, {required bool isMerchant}) {
     if (handle._eventLoopActive) return;
     handle._eventLoopActive = true;
@@ -2193,71 +2276,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
             await Future.delayed(const Duration(seconds: 1));
             continue;
           }
-
-          switch (event.type) {
-            case 'payment_received':
-              final sats = event.amountMsat ~/ 1000;
-              final tx = Transaction(
-                id: event.paymentHashHex,
-                title: isMerchant ? 'Venda recebida' : 'Recebido via Lightning',
-                emoji: '⚡',
-                amountSats: sats,
-                isIncoming: true,
-                date: DateTime.now(),
-                brlNaHora: _brlDe(sats),
-              );
-              final listaTx =
-                  isMerchant ? _merchantTransactions : _consumerTransactions;
-              if (confirmarRecebimentoExistente(listaTx, event.paymentHashHex)) {
-                unawaited(_salvarHistorico(isMerchant));
-              } else {
-                _registrarTransacao(tx, isMerchant: isMerchant);
-              }
-              _emitirRecebimento(ReceivedPayment(
-                isMerchant: isMerchant,
-                paymentHashHex: event.paymentHashHex,
-                amountSats: sats,
-              ));
-
-              if (!ehOfferBolt12(handle.fixedInvoice)) {
-                try {
-                  final inv = await handle.api!.createInvoice(
-                    amountMsat: null,
-                    description: isMerchant ? 'Loja' : 'Carteira Principal',
-                    expirySecs: 31536000,
-                  );
-                  handle.fixedInvoice = inv;
-                  await _saveFixedInvoice(isMerchant, inv);
-                } catch (e) {
-                  debugPrint('Falha ao regenerar fatura fixa: $e');
-                }
-              }
-              break;
-            case 'payment_claimable':
-              _travasCtrl.add(TravaRecebida(
-                hashHex: event.paymentHashHex,
-                amountMsat: event.amountMsat,
-                prazoBloco: event.claimDeadline,
-              ));
-              break;
-            case 'payment_successful':
-            case 'payment_failed':
-              final novoStatus =
-                  event.type == 'payment_successful' ? 'confirmed' : 'failed';
-              final txs =
-                  isMerchant ? _merchantTransactions : _consumerTransactions;
-              var mudou = false;
-              for (final tx in txs) {
-                if (tx.id == event.paymentHashHex && tx.status == 'pending') {
-                  tx.status = novoStatus;
-                  mudou = true;
-                }
-              }
-
-              if (mudou) unawaited(_salvarHistorico(isMerchant));
-              break;
-          }
-
+          await _tratarEventoDoNo(handle, event, isMerchant: isMerchant);
           await handle.api!.eventHandled();
           await _refreshBalances(handle);
           notifyListeners();
@@ -2267,6 +2286,92 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
         }
       }
     }();
+  }
+
+  /// Modo fase 2: o nó roda na isolate de fundo, que drena e acka os eventos e
+  /// os repassa por um stream. A UI só faz a contabilidade de cada evento (a
+  /// notificação de recebimento com o app fechado sai da isolate de fundo).
+  void _ouvirEventosDeFundo(_NodeHandle handle, {required bool isMerchant}) {
+    handle.subEventosFundo?.cancel();
+    handle.subEventosFundo =
+        ServicoNoDeFundo.instancia.eventos.listen((event) async {
+      try {
+        await _tratarEventoDoNo(handle, event, isMerchant: isMerchant);
+        await _refreshBalances(handle);
+        notifyListeners();
+      } catch (e) {
+        debugPrint('Evento do nó de fundo: $e');
+      }
+    });
+  }
+
+  /// Contabilidade de um evento do nó — comum aos dois modos. NÃO chama
+  /// eventHandled (quem drena é responsável por isso).
+  Future<void> _tratarEventoDoNo(_NodeHandle handle, NodeEvent event,
+      {required bool isMerchant}) async {
+    switch (event.type) {
+      case 'payment_received':
+        final sats = event.amountMsat ~/ 1000;
+        final tx = Transaction(
+          id: event.paymentHashHex,
+          title: isMerchant ? 'Venda recebida' : 'Recebido via Lightning',
+          emoji: '⚡',
+          amountSats: sats,
+          isIncoming: true,
+          date: DateTime.now(),
+          brlNaHora: _brlDe(sats),
+        );
+        final listaTx =
+            isMerchant ? _merchantTransactions : _consumerTransactions;
+        if (confirmarRecebimentoExistente(listaTx, event.paymentHashHex)) {
+          unawaited(_salvarHistorico(isMerchant));
+        } else {
+          _registrarTransacao(tx, isMerchant: isMerchant);
+        }
+        _emitirRecebimento(ReceivedPayment(
+          isMerchant: isMerchant,
+          paymentHashHex: event.paymentHashHex,
+          amountSats: sats,
+        ));
+
+        if (!ehOfferBolt12(handle.fixedInvoice)) {
+          try {
+            final inv = await handle.api!.createInvoice(
+              amountMsat: null,
+              description: isMerchant ? 'Loja' : 'Carteira Principal',
+              expirySecs: 31536000,
+            );
+            handle.fixedInvoice = inv;
+            await _saveFixedInvoice(isMerchant, inv);
+          } catch (e) {
+            debugPrint('Falha ao regenerar fatura fixa: $e');
+          }
+        }
+        break;
+      case 'payment_claimable':
+        _travasCtrl.add(TravaRecebida(
+          hashHex: event.paymentHashHex,
+          amountMsat: event.amountMsat,
+          prazoBloco: event.claimDeadline,
+        ));
+        break;
+      case 'payment_successful':
+      case 'payment_failed':
+        final novoStatus =
+            event.type == 'payment_successful' ? 'confirmed' : 'failed';
+        final txs =
+            isMerchant ? _merchantTransactions : _consumerTransactions;
+        var mudou = false;
+        for (final tx in txs) {
+          if (tx.id == event.paymentHashHex && tx.status == 'pending') {
+            tx.status = novoStatus;
+            mudou = true;
+          }
+        }
+
+        if (mudou) unawaited(_salvarHistorico(isMerchant));
+        break;
+    }
   }
 
   Future<void> _rotateCachedAddressAposDeposito(_NodeHandle handle) async {}

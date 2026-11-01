@@ -577,32 +577,72 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: IrisTheme.bdr),
       ),
-      child: Row(
+      child: Column(
         children: [
-          const Icon(Icons.sync_alt, color: IrisTheme.primary, size: 20),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            children: [
+              const Icon(Icons.sync_alt, color: IrisTheme.primary, size: 20),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Manter nó ativo em segundo plano',
+                        style: TextStyle(
+                            color: IrisTheme.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+              Switch(
+                value: enabled,
+                activeColor: IrisTheme.primary,
+                onChanged: (v) async {
+                  await wallet.setKeepNodeAliveInBackground(v);
+                  // Ao ligar, pede a isenção de bateria (Samsung mata o serviço
+                  // sem ela). Só mostra o diálogo se ainda não estiver isento.
+                  if (v) await Dispositivo.pedirIsencaoDeBateria();
+                },
+              ),
+            ],
+          ),
+          if (Platform.isAndroid) ...[
+            const Divider(color: IrisTheme.bdr, height: 20),
+            Row(
               children: [
-                Text('Manter nó ativo em segundo plano',
-                    style: TextStyle(
-                        color: IrisTheme.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600)),
+                const Icon(Icons.rocket_launch_outlined,
+                    color: IrisTheme.primary, size: 20),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Nó em segundo plano (beta)',
+                          style: TextStyle(
+                              color: IrisTheme.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600)),
+                      SizedBox(height: 2),
+                      Text(
+                          'Roda o nó num serviço próprio para seguir vivo e '
+                          'recebendo mesmo com o app fechado.',
+                          style: TextStyle(
+                              color: IrisTheme.textSecondary, fontSize: 11)),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: wallet.noDeFundoV2,
+                  activeColor: IrisTheme.primary,
+                  onChanged: (v) async {
+                    await wallet.setNoDeFundoV2(v);
+                    if (v) await Dispositivo.pedirIsencaoDeBateria();
+                  },
+                ),
               ],
             ),
-          ),
-          Switch(
-            value: enabled,
-            activeColor: IrisTheme.primary,
-            onChanged: (v) async {
-              await wallet.setKeepNodeAliveInBackground(v);
-              // Ao ligar, pede a isenção de bateria (Samsung mata o serviço sem
-              // ela). Só mostra o diálogo do sistema se ainda não estiver isento.
-              if (v) await Dispositivo.pedirIsencaoDeBateria();
-            },
-          ),
+          ],
         ],
       ),
     );

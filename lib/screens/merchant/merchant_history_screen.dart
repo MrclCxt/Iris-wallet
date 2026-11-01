@@ -257,12 +257,11 @@ class MerchantHistoryScreen extends StatelessWidget {
                     Text(time,
                         style: const TextStyle(
                             fontSize: 11, color: IrisTheme.textSecondary)),
-                    if (status != 'confirmed') ...[
-                      const SizedBox(width: 6),
-                      Flexible(
-                          child: TxStatusChip(
-                              status: status, compact: true, isIncoming: true)),
-                    ],
+                    const SizedBox(width: 6),
+                    // Sempre visível, inclusive "Confirmada" (venda liquidada).
+                    Flexible(
+                        child: TxStatusChip(
+                            status: status, compact: true, isIncoming: true)),
                   ],
                 ),
               ],

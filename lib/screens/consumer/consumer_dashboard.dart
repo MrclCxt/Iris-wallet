@@ -512,12 +512,13 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                           fontSize: 11,
                           color: IrisTheme.textSecondary,
                           fontFamily: 'monospace')),
-                  if (status != 'confirmed') ...[
-                    const SizedBox(width: 6),
-                    Flexible(
-                        child: TxStatusChip(
-                            status: status, compact: true, isIncoming: isPos)),
-                  ],
+                  const SizedBox(width: 6),
+                  // Mostra sempre — inclusive "Confirmada" (verde): sem o selo,
+                  // uma tx confirmada ficava sem indicação e não dava pra saber
+                  // se estava pendente ou não.
+                  Flexible(
+                      child: TxStatusChip(
+                          status: status, compact: true, isIncoming: isPos)),
                 ],
               ),
             ],

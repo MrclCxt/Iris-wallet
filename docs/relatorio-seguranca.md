@@ -161,10 +161,62 @@ FlutterSecureStorage (Keystore) e o histórico é cifrado por conta.
 - **Relays Nostr** veem quem conversa com quem nas trocas P2P (não o
   conteúdo, cifrado com NIP-44).
 
+## 9. IAST/DAST do daemon (fuzzing da API)
+
+Fuzzer próprio (`scratchpad/dast_daemon.py`) contra o `iris-noded` compilado
+em **debug** (com checagem de estouro), atacando a API por fora e vigiando o
+processo a cada caso: ~700 casos — sem token, métodos e rotas inexistentes,
+tentativas de burlar token/Host/Origin, corpos gigantes/UTF-8 inválido/JSON
+aninhado, valores extremos em todos os campos, e slowloris. A autenticação
+recusou tudo (401/403/415/400) e o serviço continuou de pé e atendendo. (Os
+"pânicos" vistos no fuzzer foram do daemon **debug** com overflow-checks em
+inteiros fora de faixa num campo que o app nunca manda; o release não aborta,
+e o pedido já cairia no 500. Vale endurecer a validação desses campos.)
+
+## 10. Incidente de recuperação de PIN e a correção
+
+**O que foi feito** (a pedido do dono, para reaver 6 carteiras cujo PIN ele
+esqueceu e sem ter a semente): como o aparelho tinha o build **debug
+(depurável)**, deu para instalar por cima uma tela que, rodando dentro do
+app (com acesso ao Keystore), exportou os blobs `encSeed`/`pinHash` já fora
+da camada do Keystore. Com o blob em mãos, um PC de 16 núcleos testou os
+1.000.000 de PINs de 6 dígitos contra cada carteira — a primeira caiu em ~41
+min, as demais em minutos. **Recuperou os 6 PINs e as 6 sementes.**
+
+**Causa raiz, honesta:**
+1. O build instalado era **depurável** (`run-as`, VM service, reinstalável por
+   cima). Num **release** (`debuggable=false`) nada disso é possível.
+2. A cifra da semente dependia **só do PIN** (`enc1`): com o blob vazado, 6
+   dígitos caem rápido fora do aparelho.
+
+**Correção (implementada):**
+- **Cifra vinculada ao hardware** (`enc2`/`v3`): a chave da semente passa a
+  depender do PIN **mais um HMAC calculado por uma chave não-exportável do
+  Android Keystore/StrongBox** ([Dispositivo.pepper], [SeedCrypto],
+  `MainActivity.kt`). Sem o aparelho não dá para derivar a chave — a força
+  bruta offline dos 6 dígitos fica **impossível**, mesmo que o blob vaze.
+  Migração `enc1→enc2` e `v2→v3` no primeiro desbloqueio. No desktop (sem
+  Keystore) mantém-se o modo só-PIN. Provado em `test/seed_crypto_pepper_test.dart`.
+- **Nunca distribuir build depurável.** O release tem `debuggable=false`; as
+  chaves do Keystore são atreladas à assinatura do app, então **repackaging
+  quebra o acesso aos segredos**.
+- **Engenharia reversa:** release com `--obfuscate --split-debug-info` (Dart)
+  e R8/minify (Java/Kotlin) — os símbolos e strings legíveis no `kernel_blob`
+  do debug somem no release.
+- **Recuperação de PIN legítima:** a tela "Esqueci meu PIN" agora pede as
+  12/24 palavras da semente e define um PIN novo (único caminho possível, já
+  que o PIN nunca é guardado de forma reversível). A tela de despejo usada no
+  incidente foi removida.
+
+**Lição de produto:** as carteiras criadas nos testes tiveram as sementes
+expostas neste processo e devem ser descartadas; e o app precisa deixar
+gritante, na criação, que sem as 12 palavras ninguém recupera o acesso.
+
 ## Próximos passos
 
 1. Repetir o item 6 (armazenamento) no aparelho quando a depuração USB for
    autorizada.
-2. Auditoria externa (incluindo iOS e Frida) antes da rede principal.
-3. Rodar o SCA a cada atualização de dependência
+2. Endurecer a validação de faixa dos campos numéricos do daemon (item 9).
+3. Auditoria externa (incluindo iOS e Frida) antes da rede principal.
+4. Rodar o SCA a cada atualização de dependência
    (`python sca_osv.py`, consulta ao OSV).

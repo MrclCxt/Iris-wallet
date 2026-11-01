@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../services/wallet_service.dart';
 import '../services/liquid_wallet_service.dart';
 import '../core/theme.dart';
+import 'recuperacao_pin_screen.dart';
 
 enum PinMode { unlock, create }
 
@@ -289,7 +290,17 @@ class _PinScreenState extends State<PinScreen> {
                   if (isCreate) ...[
                     const SizedBox(height: 16),
                     _buildCancelBtn(),
-                  ],
+                  ] else
+                    TextButton(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const RecuperacaoPinScreen(),
+                        ),
+                      ),
+                      child: const Text('Esqueci meu PIN',
+                          style: TextStyle(
+                              color: IrisTheme.textTertiary, fontSize: 13)),
+                    ),
                   const SizedBox(height: 24),
                 ],
               ),

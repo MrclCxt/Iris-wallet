@@ -1,7 +1,19 @@
 package com.example.iris_wallet
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.PersistableBundle
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
+import java.security.KeyStore
+import javax.crypto.KeyGenerator
+import javax.crypto.Mac
+import javax.crypto.SecretKey
 import android.view.WindowManager
 import java.io.File
 import android.content.pm.PackageManager
@@ -25,6 +37,42 @@ class MainActivity : FlutterActivity() {
 
     private val channelName = "app.iriswallet/device"
     private var backgroundServiceRunning = false
+
+    // Segredo de hardware ("pepper") que entra na cifra da semente. A chave HMAC
+    // vive no Android Keystore (TEE/StrongBox) e NÃO é exportável: nem com root
+    // dá para tirá-la do aparelho. Assim, derivar a chave da semente exige o
+    // próprio celular — um PIN de 6 dígitos deixa de ser quebrável por força
+    // bruta fora dele, mesmo que o blob cifrado vaze.
+    private val pepperAlias = "iris_pepper_v1"
+
+    private fun pepperKey(): SecretKey {
+        val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        (ks.getEntry(pepperAlias, null) as? KeyStore.SecretKeyEntry)?.let {
+            return it.secretKey
+        }
+        val gen = KeyGenerator.getInstance(
+            KeyProperties.KEY_ALGORITHM_HMAC_SHA256, "AndroidKeyStore"
+        )
+        fun spec(strongBox: Boolean) = KeyGenParameterSpec.Builder(
+            pepperAlias, KeyProperties.PURPOSE_SIGN
+        ).apply {
+            if (strongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                setIsStrongBoxBacked(true)
+            }
+        }.build()
+        return try {
+            gen.init(spec(true)); gen.generateKey()
+        } catch (e: Exception) {
+            // Aparelho sem StrongBox: cai no TEE normal, ainda não-exportável.
+            gen.init(spec(false)); gen.generateKey()
+        }
+    }
+
+    private fun pepper(pin: String): String {
+        val mac = Mac.getInstance("HmacSHA256")
+        mac.init(pepperKey())
+        return Base64.encodeToString(mac.doFinal(pin.toByteArray()), Base64.NO_WRAP)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -73,6 +121,35 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     }
                     "pareceRoot" -> result.success(pareceRoot())
+                    // Segredo de hardware para a cifra da semente; null se o
+                    // Keystore falhar (aí o app usa só o PIN, como no desktop).
+                    "pepper" -> {
+                        try {
+                            result.success(pepper(call.arguments as String))
+                        } catch (e: Exception) {
+                            result.success(null)
+                        }
+                    }
+                    // Chave privada na área de transferência: marcada como
+                    // sensível (o Android 13+ esconde a prévia) e apagada em 60 s
+                    // se ninguém copiou outra coisa por cima.
+                    "copiarSensivel" -> {
+                        val texto = call.arguments as String
+                        val cb = getSystemService(ClipboardManager::class.java)
+                        val clip = ClipData.newPlainText("Iris", texto)
+                        clip.description.extras = PersistableBundle().apply {
+                            putBoolean("android.content.extra.IS_SENSITIVE", true)
+                        }
+                        cb.setPrimaryClip(clip)
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            val atual = cb.primaryClip?.getItemAt(0)?.text?.toString()
+                            if (atual == texto) {
+                                if (Build.VERSION.SDK_INT >= 28) cb.clearPrimaryClip()
+                                else cb.setPrimaryClip(ClipData.newPlainText("", ""))
+                            }
+                        }, 60_000)
+                        result.success(true)
+                    }
                     else -> result.notImplemented()
                 }
             }

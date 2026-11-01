@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/currency_format.dart';
 import '../../core/theme.dart';
 import '../../core/varredura.dart';
+import '../../services/dispositivo.dart';
 import '../../services/taxa_rede.dart';
 import '../../services/voucher_service.dart';
 import '../../services/wallet_service.dart';
@@ -148,8 +148,7 @@ class _VouchersScreenState extends State<VouchersScreen> {
                     style: const TextStyle(color: IrisTheme.textSecondary)),
               ),
               TextButton(
-                onPressed: () =>
-                    Clipboard.setData(ClipboardData(text: _ultimo!.wif)),
+                onPressed: () => Dispositivo.copiarSensivel(_ultimo!.wif),
                 child: const Text('Copiar chave (para imprimir)'),
               ),
             ],

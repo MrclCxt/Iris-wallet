@@ -176,7 +176,9 @@ class TrocaService extends ChangeNotifier {
   List<Troca> get trocas =>
       _trocas.values.toList()..sort((a, b) => b.criadaEm.compareTo(a.criadaEm));
 
-  static String get redeNip69 => Rede.principal ? 'mainnet' : 'testnet4';
+  static String get redeNip69 => Rede.principal
+      ? 'mainnet'
+      : (Rede.ehSignet ? 'signet' : 'testnet4');
 
   ChavesNostr get chaves {
     final semente = carteira.sementePessoal;

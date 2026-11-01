@@ -313,6 +313,103 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
     );
   }
 
+  Future<void> _showLspDialog() async {
+    final wallet = context.read<WalletService>();
+    final atual = await wallet.lspPersonalizado();
+    if (!mounted) return;
+    final pkCtrl = TextEditingController(text: atual?.pubkey ?? '');
+    final hostCtrl = TextEditingController(text: atual?.host ?? '');
+    final portCtrl =
+        TextEditingController(text: atual != null ? '${atual.port}' : '');
+    final tokenCtrl = TextEditingController(text: atual?.token ?? '');
+    final messenger = ScaffoldMessenger.of(context);
+
+    InputDecoration dec(String label) => InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(color: IrisTheme.textSecondary),
+          filled: true,
+          fillColor: IrisTheme.bg,
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none),
+        );
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: IrisTheme.s1,
+        title: const Text('LSP (hub) do Lightning',
+            style: TextStyle(color: IrisTheme.textPrimary, fontSize: 16)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Aponta os canais JIT para o SEU hub, em vez do LSP público do '
+                'Mutinynet. Campos vazios = padrão. Vale no próximo desbloqueio.',
+                style: TextStyle(color: IrisTheme.textSecondary, fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                  controller: pkCtrl,
+                  style: const TextStyle(
+                      color: IrisTheme.textPrimary, fontSize: 12),
+                  decoration: dec('node_id (pubkey) do hub')),
+              const SizedBox(height: 8),
+              TextField(
+                  controller: hostCtrl,
+                  style: const TextStyle(
+                      color: IrisTheme.textPrimary, fontSize: 13),
+                  decoration: dec('host / IP')),
+              const SizedBox(height: 8),
+              TextField(
+                  controller: portCtrl,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(
+                      color: IrisTheme.textPrimary, fontSize: 13),
+                  decoration: dec('porta P2P')),
+              const SizedBox(height: 8),
+              TextField(
+                  controller: tokenCtrl,
+                  style: const TextStyle(
+                      color: IrisTheme.textPrimary, fontSize: 13),
+                  decoration: dec('token (opcional)')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await wallet.setLspPersonalizado();
+              if (ctx.mounted) Navigator.pop(ctx);
+              messenger.showSnackBar(const SnackBar(
+                  content: Text(
+                      'LSP de volta ao padrão. Bloqueie/desbloqueie para aplicar.')));
+            },
+            child: const Text('Voltar ao padrão',
+                style: TextStyle(color: IrisTheme.textSecondary)),
+          ),
+          FilledButton(
+            onPressed: () async {
+              await wallet.setLspPersonalizado(
+                pubkey: pkCtrl.text,
+                host: hostCtrl.text,
+                port: int.tryParse(portCtrl.text.trim()),
+                token: tokenCtrl.text,
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+              messenger.showSnackBar(const SnackBar(
+                  content: Text(
+                      'Hub LSP salvo. Bloqueie/desbloqueie para aplicar.')));
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showBackendDialog() {
     final wallet = context.read<WalletService>();
     final urlCtrl = TextEditingController(text: wallet.consumerDaemonUrl ?? '');
@@ -385,6 +482,16 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
               icon: const Icon(Icons.vpn_key,
                   size: 18, color: IrisTheme.textSecondary),
               label: const Text('Exportar semente p/ daemon (cifrada)',
+                  style: TextStyle(color: IrisTheme.textSecondary)),
+            ),
+            TextButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _showLspDialog();
+              },
+              icon: const Icon(Icons.hub,
+                  size: 18, color: IrisTheme.textSecondary),
+              label: const Text('LSP (hub) do Lightning',
                   style: TextStyle(color: IrisTheme.textSecondary)),
             ),
           ],

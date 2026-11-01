@@ -2144,6 +2144,53 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     return file.path;
   }
 
+  /// LSP (hub) personalizado: aponta o canal JIT para o SEU nó em vez do LSP
+  /// público do Mutinynet. Chaves por rede. Campos vazios voltam ao padrão.
+  /// Vale no próximo desbloqueio (o nó lê isto ao iniciar).
+  Future<void> setLspPersonalizado(
+      {String? pubkey, String? host, int? port, String? token}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final n = Rede.nome;
+    if (pubkey == null ||
+        pubkey.trim().isEmpty ||
+        host == null ||
+        host.trim().isEmpty ||
+        port == null ||
+        port <= 0) {
+      await prefs.remove('lsp_pubkey_$n');
+      await prefs.remove('lsp_host_$n');
+      await prefs.remove('lsp_port_$n');
+      await prefs.remove('lsp_token_$n');
+    } else {
+      await prefs.setString('lsp_pubkey_$n', pubkey.trim());
+      await prefs.setString('lsp_host_$n', host.trim());
+      await prefs.setInt('lsp_port_$n', port);
+      final t = token?.trim() ?? '';
+      if (t.isEmpty) {
+        await prefs.remove('lsp_token_$n');
+      } else {
+        await prefs.setString('lsp_token_$n', t);
+      }
+    }
+    notifyListeners();
+  }
+
+  Future<({String pubkey, String host, int port, String? token})?>
+      lspPersonalizado() async {
+    final prefs = await SharedPreferences.getInstance();
+    final n = Rede.nome;
+    final pk = prefs.getString('lsp_pubkey_$n');
+    final host = prefs.getString('lsp_host_$n');
+    final port = prefs.getInt('lsp_port_$n');
+    if (pk == null || host == null || port == null) return null;
+    return (
+      pubkey: pk,
+      host: host,
+      port: port,
+      token: prefs.getString('lsp_token_$n')
+    );
+  }
+
   Future<void>? _startEmAndamento;
 
   String? _fingerprintDesejada;

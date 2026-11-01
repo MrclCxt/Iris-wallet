@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:ldk_node/ldk_node.dart' as ldk;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/rede.dart';
 import 'esplora_servidores.dart';
 
@@ -195,6 +196,39 @@ class EmbeddedNodeApi implements NodeApi {
     }
   }
 
+  /// Config do LSP: o HUB próprio do usuário (gravado nas prefs) ou, na falta,
+  /// o LSP público do Mutinynet (só signet). null = sem LSP (ex.: mainnet sem
+  /// hub configurado). Chaves por rede para não misturar signet/mainnet.
+  static Future<({String pubkey, String host, int port, String? token})?>
+      _lspConfig() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final n = Rede.nome;
+      final pk = prefs.getString('lsp_pubkey_$n');
+      final host = prefs.getString('lsp_host_$n');
+      final port = prefs.getInt('lsp_port_$n');
+      if (pk != null && pk.isNotEmpty && host != null && host.isNotEmpty &&
+          port != null) {
+        return (
+          pubkey: pk,
+          host: host,
+          port: port,
+          token: prefs.getString('lsp_token_$n')
+        );
+      }
+    } catch (_) {}
+    if (Rede.ehSignet) {
+      return (
+        pubkey:
+            '0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b',
+        host: '44.219.111.31',
+        port: 39735,
+        token: 'JZWN9YLW',
+      );
+    }
+    return null;
+  }
+
   // Alguns ambientes recusam o bind de escuta P2P em 0.0.0.0 (visto na isolate
   // de fundo no Android e no daemon no Windows): o ldk-node devolve
   // `invalidSocketAddress`/"network address is invalid" e o nó não sobe. Nesse
@@ -243,19 +277,17 @@ class EmbeddedNodeApi implements NodeApi {
           ]);
         }
         builder.setEsploraServer(esplora);
-        // LSP do Mutinynet (LSPS2): habilita canais JIT para RECEBER Lightning
-        // desde o primeiro uso, sem o usuário abrir canal — o LSP abre um canal
-        // na hora que a fatura é paga. Só na signet (é o único LSP configurado);
-        // na mainnet exige outro LSP. O nó conecta NO LSP (saída), então funciona
-        // mesmo sem escuta P2P (ex.: Android no fallback sem listening).
-        if (Rede.ehSignet) {
+        // LSP (LSPS2): canais JIT para RECEBER desde o 1º uso — o LSP abre o
+        // canal na hora em que a fatura é paga. A config vem das prefs (HUB
+        // próprio do usuário) ou, na falta, cai no LSP público do Mutinynet
+        // (signet). O nó conecta NO LSP (saída), então funciona mesmo sem escuta
+        // P2P (ex.: Android no fallback sem listening).
+        final lsp = await _lspConfig();
+        if (lsp != null) {
           builder.setLiquiditySourceLsps2(
-            address: ldk.SocketAddress.hostname(
-                addr: '44.219.111.31', port: 39735),
-            publicKey: ldk.PublicKey(
-                hex:
-                    '0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b'),
-            token: 'JZWN9YLW',
+            address: ldk.SocketAddress.hostname(addr: lsp.host, port: lsp.port),
+            publicKey: ldk.PublicKey(hex: lsp.pubkey),
+            token: lsp.token,
           );
           _temLsp = true;
         }

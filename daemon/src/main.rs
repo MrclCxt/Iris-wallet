@@ -135,6 +135,21 @@ struct Args {
     /// carteira não saem desta máquina.
     #[arg(long)]
     bitcoind_rpc: Option<String>,
+
+    /// Roda como LSP (LSPS2): este nó vira o HUB que abre canais JIT para as
+    /// carteiras clientes — elas recebem Lightning desde o primeiro uso, com o
+    /// primeiro canal sempre apontando para cá. Exige fundos on-chain neste nó
+    /// (para financiar os canais) e escuta P2P aberta. Experimental (alpha).
+    #[arg(long)]
+    lsp: bool,
+
+    /// Taxa de abertura de canal do LSP, em ppm do valor recebido (0 = grátis).
+    #[arg(long, default_value_t = 0)]
+    lsp_taxa_ppm: u32,
+
+    /// Token exigido dos clientes do LSP (vazio = aceita qualquer carteira).
+    #[arg(long)]
+    lsp_token: Option<String>,
 }
 
 #[derive(Clone)]
@@ -690,6 +705,32 @@ fn construir_e_iniciar(mnemonic: &str, args: &Args) -> (Node, Fonte) {
             builder
                 .set_listening_addresses(vec![endereco])
                 .expect("endereço P2P inválido");
+        }
+
+        // Modo HUB/LSP: este nó passa a abrir canais JIT para as carteiras
+        // clientes (LSPS2). O primeiro canal de cada carteira é com este nó, e
+        // elas recebem Lightning desde o primeiro uso. Precisa de escuta P2P
+        // (os clientes conectam aqui) e de fundos on-chain (para financiar os
+        // canais). Experimental (alpha no ldk-node).
+        if args.lsp {
+            if pular_listening || args.p2p_porta == 0 {
+                println!(
+                    "iris-noded: AVISO — modo LSP sem escuta P2P; clientes não \
+                     conseguem conectar. Abra a porta P2P para o LSP funcionar."
+                );
+            }
+            builder.set_liquidity_provider_lsps2(ldk_node::liquidity::LSPS2ServiceConfig {
+                require_token: args.lsp_token.clone(),
+                advertise_service: false,
+                channel_opening_fee_ppm: args.lsp_taxa_ppm,
+                channel_over_provisioning_ppm: 0,
+                min_channel_opening_fee_msat: 0,
+                min_channel_lifetime: 1008,
+                max_client_to_self_delay: 1440,
+                min_payment_size_msat: 1_000,
+                max_payment_size_msat: 1_000_000_000,
+                client_trusts_lsp: false,
+            });
         }
 
         let resultado = builder

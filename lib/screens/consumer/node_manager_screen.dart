@@ -367,6 +367,26 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
               label: const Text('Servidores de dados (Esplora)',
                   style: TextStyle(color: IrisTheme.textSecondary)),
             ),
+            TextButton.icon(
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  final caminho =
+                      await wallet.exportarSementeCifradaParaDaemon();
+                  messenger.showSnackBar(SnackBar(
+                      duration: const Duration(seconds: 8),
+                      content: Text(
+                          'Semente CIFRADA exportada p/ o daemon:\n$caminho\n'
+                          '(inútil sem o PIN).')));
+                } catch (e) {
+                  messenger.showSnackBar(SnackBar(content: Text('$e')));
+                }
+              },
+              icon: const Icon(Icons.vpn_key,
+                  size: 18, color: IrisTheme.textSecondary),
+              label: const Text('Exportar semente p/ daemon (cifrada)',
+                  style: TextStyle(color: IrisTheme.textSecondary)),
+            ),
           ],
         ),
         actions: [

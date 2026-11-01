@@ -2118,6 +2118,32 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  /// Exporta a semente CIFRADA (`enc1$…`, derivada só do PIN) da carteira ativa
+  /// para um arquivo que o daemon lê com `--mnemonic-file` (decifra com
+  /// `IRIS_SENHA=<PIN>`). NUNCA grava texto puro — o blob é inútil sem o PIN.
+  /// Recusa semente presa ao hardware (enc2/v3, Keystore do Android): um daemon
+  /// noutra máquina não conseguiria decifrar. Devolve o caminho do arquivo.
+  Future<String> exportarSementeCifradaParaDaemon({bool forMerchant = false}) async {
+    final conta = forMerchant ? activeMerchant : activeConsumer;
+    if (conta == null) throw Exception('Nenhuma carteira ativa.');
+    final enc = conta.encSeed;
+    if (enc == null || !SeedCrypto.isEncrypted(enc)) {
+      throw Exception(
+          'A semente desta carteira não está cifrada; não é seguro exportar.');
+    }
+    if (SeedCrypto.exigeHardware(enc)) {
+      throw Exception(
+          'Esta semente está presa ao hardware deste aparelho (Keystore). '
+          'Exporte a partir do desktop, onde a cifra é só por PIN.');
+    }
+    // getApplicationSupportDirectory (AppData\Roaming no Windows) em vez de
+    // Documentos para o blob NÃO sincronizar pro OneDrive.
+    final dir = await getApplicationSupportDirectory();
+    final file = File('${dir.path}/iris_daemon_seed_${Rede.nome}.enc');
+    await file.writeAsString(enc, flush: true);
+    return file.path;
+  }
+
   Future<void>? _startEmAndamento;
 
   String? _fingerprintDesejada;

@@ -161,6 +161,13 @@ Future<Object?> _chamar(
         amountSats: a['amountSats'] as int,
       );
       return null;
+    case 'closeChannel':
+      await no.closeChannel(
+        userChannelId: a['userChannelId'] as String,
+        counterpartyNodeId: a['counterpartyNodeId'] as String,
+        force: a['force'] as bool? ?? false,
+      );
+      return null;
     case 'updateForwardingFee':
       await no.updateForwardingFee(
         counterpartyNodeId: a['counterpartyNodeId'] as String,

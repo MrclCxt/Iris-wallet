@@ -8,11 +8,23 @@ class TxStatusStyle {
   final Color color;
   const TxStatusStyle(this.label, this.icon, this.color);
 
-  static TxStatusStyle of(String status) {
+  /// [isIncoming] deixa o rótulo explícito: o mesmo "pendente" vira
+  /// "Recebendo" ou "Enviada — confirmando" conforme a direção.
+  static TxStatusStyle of(String status, {bool isIncoming = false}) {
     switch (status) {
-      case 'pending':
+      // Em andamento (transitório): a operação está acontecendo agora.
+      case 'sending':
         return const TxStatusStyle(
-            'Aguardando confirmação', Icons.schedule, IrisTheme.warning);
+            'Enviando…', Icons.arrow_upward, IrisTheme.blue);
+      case 'receiving':
+        return const TxStatusStyle(
+            'Recebendo…', Icons.arrow_downward, IrisTheme.cyan);
+      // Já na rede, aguardando confirmação — agora direcional.
+      case 'pending':
+        return TxStatusStyle(
+            isIncoming ? 'Recebendo — confirmando' : 'Enviada — confirmando',
+            Icons.schedule,
+            IrisTheme.warning);
       case 'failed':
         return const TxStatusStyle(
             'Não validada', Icons.error_outline, IrisTheme.danger);
@@ -26,11 +38,16 @@ class TxStatusStyle {
 class TxStatusChip extends StatelessWidget {
   final String status;
   final bool compact;
-  const TxStatusChip({super.key, required this.status, this.compact = false});
+  final bool isIncoming;
+  const TxStatusChip(
+      {super.key,
+      required this.status,
+      this.compact = false,
+      this.isIncoming = false});
 
   @override
   Widget build(BuildContext context) {
-    final s = TxStatusStyle.of(status);
+    final s = TxStatusStyle.of(status, isIncoming: isIncoming);
     return Container(
       padding: EdgeInsets.symmetric(
           horizontal: compact ? 6 : 8, vertical: compact ? 2 : 4),

@@ -212,7 +212,7 @@ class MerchantHistoryScreen extends StatelessWidget {
                           color: IrisTheme.success,
                           fontFamily: 'monospace',
                           fontWeight: FontWeight.bold))),
-                  DataCell(TxStatusChip(status: tx.status)),
+                  DataCell(TxStatusChip(status: tx.status, isIncoming: true)),
                 ],
               );
             }).toList(),
@@ -260,7 +260,8 @@ class MerchantHistoryScreen extends StatelessWidget {
                     if (status != 'confirmed') ...[
                       const SizedBox(width: 6),
                       Flexible(
-                          child: TxStatusChip(status: status, compact: true)),
+                          child: TxStatusChip(
+                              status: status, compact: true, isIncoming: true)),
                     ],
                   ],
                 ),

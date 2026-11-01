@@ -168,6 +168,17 @@ class IsolateNodeApi implements NodeApi {
       });
 
   @override
+  Future<void> closeChannel(
+          {required String userChannelId,
+          required String counterpartyNodeId,
+          bool force = false}) async =>
+      _cmd('closeChannel', {
+        'userChannelId': userChannelId,
+        'counterpartyNodeId': counterpartyNodeId,
+        'force': force,
+      });
+
+  @override
   Future<void> updateForwardingFee(
           {required String counterpartyNodeId,
           required String userChannelId,

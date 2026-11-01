@@ -323,6 +323,13 @@ class _NodeHandle {
 
   int get totalSats => lightningBalanceSats + onchainBalanceSats;
 
+  /// Saldo CONFIRMADO exibido ao usuário: on-chain só conta o que já confirmou
+  /// (`spendable` exclui entrada pendente/não confirmada). Um depósito
+  /// pendente aparece como movimentação "Recebendo — confirmando", mas NÃO
+  /// mexe neste número até a rede confirmar. O total com pendente fica em
+  /// [onchainBalanceSats], usado só para detectar o pendente.
+  int get saldoConfirmadoSats => lightningBalanceSats + onchainSpendableSats;
+
   Future<void> stop() async {
     _eventLoopActive = false;
     await subEventosFundo?.cancel();
@@ -856,27 +863,30 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       _deviceNode.runningSeedFingerprint == _seedFingerprint(seed);
 
   int get consumerBalance => _noEDoPerfil(activeConsumer?.seed)
-      ? _deviceNode.totalSats
+      ? _deviceNode.saldoConfirmadoSats
       : _somaReserva(activeConsumer?.seed);
   int get merchantBalance => _noEDoPerfil(activeMerchant?.seed)
-      ? _deviceNode.totalSats
+      ? _deviceNode.saldoConfirmadoSats
       : _somaReserva(activeMerchant?.seed);
   int get consumerLightningSats => _noEDoPerfil(activeConsumer?.seed)
       ? _deviceNode.lightningBalanceSats
       : _saldoDeReserva(activeConsumer?.seed).lightning;
+  // On-chain exibido = só o confirmado (spendable). O pendente não entra aqui;
+  // ele aparece como "Recebendo — confirmando" e no aviso de recebimento.
   int get consumerOnchainSats => _noEDoPerfil(activeConsumer?.seed)
-      ? _deviceNode.onchainBalanceSats
-      : _saldoDeReserva(activeConsumer?.seed).total;
+      ? _deviceNode.onchainSpendableSats
+      : _saldoDeReserva(activeConsumer?.seed).spendable;
   int get merchantLightningSats => _noEDoPerfil(activeMerchant?.seed)
       ? _deviceNode.lightningBalanceSats
       : _saldoDeReserva(activeMerchant?.seed).lightning;
   int get merchantOnchainSats => _noEDoPerfil(activeMerchant?.seed)
-      ? _deviceNode.onchainBalanceSats
-      : _saldoDeReserva(activeMerchant?.seed).total;
+      ? _deviceNode.onchainSpendableSats
+      : _saldoDeReserva(activeMerchant?.seed).spendable;
 
   int _somaReserva(String? seed) {
     final r = _saldoDeReserva(seed);
-    return r.total + r.lightning;
+    // Confirmado: spendable (sem pendente) + Lightning.
+    return r.spendable + r.lightning;
   }
 
   bool get saldoDesatualizado {
@@ -2651,7 +2661,10 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
   int _ciclosDeSync = 0;
 
-  static const int _ciclosEntreVarreduras = 12;
+  // Com o sync a 90s (antes 5min), manter a varredura completa a cada 12 ciclos
+  // a dispararia a cada 18min — cara e propensa a 429. 40 ciclos mantém a
+  // revarredura ~1×/hora, como era antes.
+  static const int _ciclosEntreVarreduras = 40;
 
   void _ensureSyncTimer() {
     Future<void> tick() async {
@@ -2701,9 +2714,13 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
   void _reagendarSyncTimer() {
     _syncTimer?.cancel();
+    // Com o app aberto, o saldo on-chain precisa acompanhar depósitos e
+    // confirmações sem o usuário esperar. O recebimento Lightning já é
+    // instantâneo (event loop). 90s dá um backbone bem mais ágil que os 5min
+    // de antes; a vigia de 5s continua pegando depósito no endereço mostrado.
     final intervalo = _appEmPrimeiroPlano
-        ? const Duration(minutes: 5)
-        : const Duration(minutes: 10);
+        ? const Duration(seconds: 90)
+        : const Duration(minutes: 5);
     _syncTimer = Timer.periodic(intervalo, (_) => _dispararSync?.call());
   }
 
@@ -3605,6 +3622,25 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  /// Fecha um canal e devolve o saldo para a carteira on-chain (Lightning →
+  /// on-chain). [force] fecha unilateralmente quando o parceiro está offline.
+  Future<void> closeChannel({
+    required String userChannelId,
+    required String counterpartyNodeId,
+    bool force = false,
+  }) async {
+    if (!_consumerNode.isRunning || _consumerNode.api == null) {
+      throw Exception('Nó offline');
+    }
+    await _consumerNode.api!.closeChannel(
+      userChannelId: userChannelId,
+      counterpartyNodeId: counterpartyNodeId,
+      force: force,
+    );
+    await _refreshBalances(_consumerNode);
+    notifyListeners();
+  }
+
   Future<void> updateForwardingFee({
     required String counterpartyNodeId,
     required String userChannelId,
@@ -3677,11 +3713,8 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
           'Motor do nó indisponível nesta plataforma. Verifique a instalação ou configure um daemon local.');
     }
 
-    await handle.api!.payInvoice(
-      invoiceStr.trim(),
-      amountMsat: parsed.amountSats == null ? sats * 1000 : null,
-    );
-
+    // Mostra "Enviando…" já, antes de a rota fechar — o usuário vê o estado em
+    // andamento em vez de uma tela parada até dar certo ou erro.
     final tx = Transaction(
       id: parsed.paymentHashHex,
       title: parsed.description.isNotEmpty
@@ -3691,9 +3724,25 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       amountSats: sats,
       isIncoming: false,
       date: DateTime.now(),
-      status: 'pending',
+      status: 'sending',
     );
     _registrarTransacao(tx, isMerchant: false);
+    notifyListeners();
+
+    try {
+      await handle.api!.payInvoice(
+        invoiceStr.trim(),
+        amountMsat: parsed.amountSats == null ? sats * 1000 : null,
+      );
+    } catch (e) {
+      tx.status = 'failed';
+      unawaited(_salvarHistorico(false));
+      notifyListeners();
+      rethrow;
+    }
+
+    tx.status = 'pending';
+    unawaited(_salvarHistorico(false));
     handle.houveSaidaDesdeLeituraBoa = true;
     await _refreshBalances(handle);
     notifyListeners();
@@ -3791,24 +3840,11 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   /// O usuário viu a taxa e confirmou: registra e transmite.
   Future<String> confirmarEnvioOnchain(EnvioPreparado e) async {
     final handle = _consumerNode;
-    await handle.api!.registrarTransacao(e.txHex);
     final txid = e.txid;
     final sats = e.sats;
-    if (handle.api is EmbeddedNodeApi) {
-      // O nó transmite só pelo servidor escolhido, e desiste depois de 4
-      // timeouts — visto num Galaxy cuja rede deixava passar leituras mas
-      // derrubava o POST /tx. O app transmite por todos os servidores; se
-      // nenhum aceitar, a transação fica na fila e é reenviada até entrar.
-      try {
-        await EmbeddedNodeApi.transmitirPorEsplora(e.txHex);
-      } catch (erro) {
-        debugPrint('Nenhum servidor aceitou $txid agora; fica na fila: $erro');
-        await _enfileirarTransmissao(txid, e.txHex);
-      }
-    } else {
-      await handle.api!.broadcastTx(e.txHex);
-    }
 
+    // "Enviando…" aparece antes da transmissão — o usuário acompanha o envio
+    // em vez de só ver "pendente" depois ou um erro.
     final tx = Transaction(
       id: txid,
       title: 'Envio on-chain (Bitcoin)',
@@ -3816,9 +3852,37 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       amountSats: sats,
       isIncoming: false,
       date: DateTime.now(),
-      status: 'pending',
+      status: 'sending',
     );
     _registrarTransacao(tx, isMerchant: false);
+    notifyListeners();
+
+    try {
+      await handle.api!.registrarTransacao(e.txHex);
+      if (handle.api is EmbeddedNodeApi) {
+        // O nó transmite só pelo servidor escolhido, e desiste depois de 4
+        // timeouts — visto num Galaxy cuja rede deixava passar leituras mas
+        // derrubava o POST /tx. O app transmite por todos os servidores; se
+        // nenhum aceitar, a transação fica na fila e é reenviada até entrar.
+        try {
+          await EmbeddedNodeApi.transmitirPorEsplora(e.txHex);
+        } catch (erro) {
+          debugPrint('Nenhum servidor aceitou $txid agora; fica na fila: $erro');
+          await _enfileirarTransmissao(txid, e.txHex);
+        }
+      } else {
+        await handle.api!.broadcastTx(e.txHex);
+      }
+    } catch (erro) {
+      tx.status = 'failed';
+      unawaited(_salvarHistorico(false));
+      notifyListeners();
+      rethrow;
+    }
+
+    // Transmitida (ou enfileirada p/ reenvio): aguardando confirmação da rede.
+    tx.status = 'pending';
+    unawaited(_salvarHistorico(false));
     handle.houveSaidaDesdeLeituraBoa = true;
     await _refreshBalances(handle);
     notifyListeners();

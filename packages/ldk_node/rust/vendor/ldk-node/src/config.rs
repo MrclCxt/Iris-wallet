@@ -58,7 +58,14 @@ pub(crate) const DEFAULT_ESPLORA_CLIENT_TIMEOUT_SECS: u64 = 10;
 pub(crate) const BDK_CLIENT_STOP_GAP: usize = 150;
 
 // The number of concurrent requests made against the API provider.
-pub(crate) const BDK_CLIENT_CONCURRENCY: usize = 4;
+//
+// PATCH IRIS: era 4. Contra Esplora publico com limite de taxa (testnet4 e tambem a mainnet),
+// 4 requisicoes em paralelo levavam HTTP 429 JUNTAS e o retry nativo do esplora-client (que nao
+// tem jitter) as reenviava em lockstep — efeito manada que re-disparava o 429 em loop ate o sync
+// estourar. Com 2, a carga no provedor cai pela metade e as requisicoes espalham no tempo, sem
+// paralisar a varredura (que so pesa uma vez por pasta de no). A cura definitiva de mainnet
+// (jitter no backoff / fonte de cadeia propria) continua pendente; isto reduz a pressao agora.
+pub(crate) const BDK_CLIENT_CONCURRENCY: usize = 2;
 
 // The timeout after which we abandon retrying failed payments.
 pub(crate) const LDK_PAYMENT_RETRY_TIMEOUT: Duration = Duration::from_secs(10);
@@ -82,14 +89,25 @@ pub(crate) const NODE_ANN_BCAST_INTERVAL: Duration = Duration::from_secs(60 * 60
 pub(crate) const WALLET_SYNC_INTERVAL_MINIMUM_SECS: u64 = 10;
 
 // The timeout after which we abort a wallet syncing operation.
-pub(crate) const BDK_WALLET_SYNC_TIMEOUT_SECS: u64 = 20;
+//
+// PATCH IRIS: era 20. O esplora-client ja repete em 429/500/503 com backoff exponencial
+// (256ms dobrando, ate 6x => ~16s so de espera), mas 20s nao cabiam o backoff + as requisicoes
+// reais, entao o sync incremental era abortado NO MEIO do retry e falhava com 429 em laco. 45s
+// deixa o backoff nativo terminar antes de desistir.
+pub(crate) const BDK_WALLET_SYNC_TIMEOUT_SECS: u64 = 45;
 
 // PATCH IRIS: a varredura completa consulta centenas de enderecos e nao cabe nos 20s do sync
 // incremental. Timeout proprio para ela; o incremental segue rapido.
 pub(crate) const BDK_WALLET_FULL_SCAN_TIMEOUT_SECS: u64 = 180;
 
 // The timeout after which we abort a wallet syncing operation.
-pub(crate) const LDK_WALLET_SYNC_TIMEOUT_SECS: u64 = 10;
+//
+// PATCH IRIS: era 10 — o furo mais grave. Este e o sync que detecta recebimento Lightning, e 10s
+// nao absorvem NENHUM backoff do retry nativo (o 1o retry ja espera 256ms e eles dobram ate ~16s).
+// Sob 429 do Esplora, o sync Lightning era cortado antes de qualquer reenvio e o recebimento nao
+// era visto. 45s da folego pro backoff completar. Roda a cada 90s (intervalo patchado), entao
+// nao ha sobreposicao.
+pub(crate) const LDK_WALLET_SYNC_TIMEOUT_SECS: u64 = 45;
 
 // The timeout after which we give up waiting on LDK's event handler to exit on shutdown.
 pub(crate) const LDK_EVENT_HANDLER_SHUTDOWN_TIMEOUT_SECS: u64 = 30;

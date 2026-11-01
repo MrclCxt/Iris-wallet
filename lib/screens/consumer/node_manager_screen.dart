@@ -112,6 +112,55 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
     }
   }
 
+  Future<void> _fecharCanal(ChannelSummary ch) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final wallet = context.read<WalletService>();
+    final escolha = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: IrisTheme.s1,
+        title: const Text('Fechar canal'),
+        content: const Text(
+          'O saldo do canal volta para a sua carteira on-chain quando a rede '
+          'confirmar.\n\n'
+          '• Cooperativo: rápido e com taxa menor — exige o outro lado online.\n'
+          '• Forçado: use só se o parceiro estiver offline. O saldo volta '
+          'depois do atraso de segurança do canal (pode levar horas).',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'force'),
+            child:
+                const Text('Forçar', style: TextStyle(color: IrisTheme.danger)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, 'coop'),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+    if (escolha == null || !mounted) return;
+    try {
+      await wallet.closeChannel(
+        userChannelId: ch.userChannelId,
+        counterpartyNodeId: ch.counterpartyNodeId,
+        force: escolha == 'force',
+      );
+      messenger.showSnackBar(const SnackBar(
+          content: Text(
+              'Fechamento enviado. O saldo volta ao on-chain quando a rede confirmar.')));
+      await _loadNodeData();
+    } catch (e) {
+      messenger
+          .showSnackBar(SnackBar(content: Text('Falha ao fechar canal: $e')));
+    }
+  }
+
   void _showOpenChannelDialog() {
     final pubkeyCtrl = TextEditingController();
     final hostCtrl = TextEditingController();
@@ -993,6 +1042,20 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
                             ),
                           ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _fecharCanal(ch),
+                      icon: const Icon(Icons.logout, size: 16),
+                      label: const Text('Fechar canal (devolve ao on-chain)'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: IrisTheme.danger,
+                        side: BorderSide(
+                            color: IrisTheme.danger.withOpacity(0.4)),
+                      ),
                     ),
                   ),
                 ],

@@ -468,7 +468,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                         color: color,
                         fontFamily: 'monospace',
                         fontWeight: FontWeight.bold))),
-                DataCell(TxStatusChip(status: tx.status)),
+                DataCell(TxStatusChip(status: tx.status, isIncoming: tx.isIncoming)),
               ],
             );
           }).toList(),
@@ -515,7 +515,8 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                   if (status != 'confirmed') ...[
                     const SizedBox(width: 6),
                     Flexible(
-                        child: TxStatusChip(status: status, compact: true)),
+                        child: TxStatusChip(
+                            status: status, compact: true, isIncoming: isPos)),
                   ],
                 ],
               ),

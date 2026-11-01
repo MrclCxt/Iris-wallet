@@ -134,6 +134,15 @@ abstract class NodeApi {
     required int amountSats,
   });
 
+  /// Fecha um canal, devolvendo o saldo para a carteira on-chain. [force]
+  /// fecha unilateralmente (quando o parceiro está offline) — só vale no nó
+  /// embarcado; no daemon o fechamento é sempre cooperativo.
+  Future<void> closeChannel({
+    required String userChannelId,
+    required String counterpartyNodeId,
+    bool force = false,
+  });
+
   Future<void> updateForwardingFee({
     required String counterpartyNodeId,
     required String userChannelId,
@@ -204,8 +213,11 @@ class EmbeddedNodeApi implements NodeApi {
         final builder = ldk.Builder()
           ..setEntropyBip39Mnemonic(
               mnemonic: ldk.Mnemonic(seedPhrase: mnemonic))
-          ..setNetwork(
-              Rede.principal ? ldk.Network.bitcoin : ldk.Network.testnet4)
+          ..setNetwork(Rede.principal
+              ? ldk.Network.bitcoin
+              : (Rede.ehSignet
+                  ? ldk.Network.signet
+                  : ldk.Network.testnet4))
           ..setStorageDirPath(storagePath);
         if (!semEscuta) {
           builder.setListeningAddresses([
@@ -551,6 +563,25 @@ class EmbeddedNodeApi implements NodeApi {
   }
 
   @override
+  Future<void> closeChannel({
+    required String userChannelId,
+    required String counterpartyNodeId,
+    bool force = false,
+  }) async {
+    final uid = ldk.UserChannelId(data: _hexToBytes(userChannelId));
+    final peer = ldk.PublicKey(hex: counterpartyNodeId);
+    // Cooperativo quando os dois lados estão online (taxa menor, confirma
+    // rápido). Forçado é a saída quando o parceiro sumiu — o saldo só volta
+    // depois do atraso de segurança do canal.
+    if (force) {
+      await _n.forceCloseChannel(
+          userChannelId: uid, counterpartyNodeId: peer);
+    } else {
+      await _n.closeChannel(userChannelId: uid, counterpartyNodeId: peer);
+    }
+  }
+
+  @override
   Future<void> updateForwardingFee({
     required String counterpartyNodeId,
     required String userChannelId,
@@ -884,6 +915,19 @@ class RemoteNodeApi implements NodeApi {
       'host': host,
       'port': port,
       'amount_sats': amountSats,
+    });
+  }
+
+  @override
+  Future<void> closeChannel({
+    required String userChannelId,
+    required String counterpartyNodeId,
+    bool force = false,
+  }) async {
+    // O daemon só tem fechamento cooperativo; [force] é ignorado aqui.
+    await _post('/close_channel', {
+      'user_channel_id': userChannelId,
+      'counterparty_node_id': counterpartyNodeId,
     });
   }
 

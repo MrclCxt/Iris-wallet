@@ -2662,7 +2662,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
       final r = await http
           .get(Uri.parse('$base/address/$addr'))
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 12));
       if (r.statusCode == 429) {
         _seguidos429++;
         final ciclos = (12 * (1 << (_seguidos429 - 1))).clamp(12, 360);
@@ -2749,7 +2749,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
     final r = await http
         .get(Uri.parse('$base/tx/${alvo.id}'))
-        .timeout(const Duration(seconds: 8));
+        .timeout(const Duration(seconds: 12));
     if (r.statusCode != 200) return;
 
     final j = jsonDecode(r.body) as Map<String, dynamic>;

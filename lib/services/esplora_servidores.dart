@@ -11,6 +11,28 @@ class EsploraServidores {
 
   static const String _chave = Rede.chaveEsploraProprios;
 
+  // Último Esplora que realmente funcionou. Quando todos falham a verificação
+  // (comum na testnet4, onde os servidores dão 429/timeout em rajadas), vale
+  // mais tentar primeiro o que respondeu da última vez do que a ordem fixa.
+  static const String _chaveUltimoBom = 'esplora_ultimo_bom_${Rede.nome}';
+
+  static Future<String?> ultimoBom() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final u = prefs.getString(_chaveUltimoBom);
+      return (u != null && u.isNotEmpty) ? u : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> _marcarBom(String url) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_chaveUltimoBom, url);
+    } catch (_) {}
+  }
+
   static String normalizar(String url) {
     var u = url.trim();
     while (u.endsWith('/')) {
@@ -45,43 +67,76 @@ class EsploraServidores {
     return lista.map(normalizar).toSet().toList();
   }
 
-  /// `null` quando o servidor está pronto; senão, o motivo em linguagem simples.
-  static Future<String?> verificar(String base) async {
+  /// Estado de um servidor: pronto, apenas ocupado (429 — passageiro, não vale
+  /// insistir agora) ou fora do ar.
+  static Future<({bool ok, bool limitado, String? motivo})> _checar(
+      String base) async {
     try {
       final g = await http
           .get(Uri.parse('$base/block-height/0'))
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 15));
+      if (g.statusCode == 429) {
+        return (ok: false, limitado: true, motivo: 'ocupado (limite de requisições)');
+      }
       // 2xx, não só 200: proxy de operadora móvel devolve 203 com o corpo
       // intacto (visto num Galaxy em 4G); o conteúdo é conferido abaixo.
       if (g.statusCode < 200 || g.statusCode > 299) {
-        return 'não respondeu (HTTP ${g.statusCode})';
+        return (ok: false, limitado: false, motivo: 'não respondeu (HTTP ${g.statusCode})');
       }
-      if (g.body.trim() != Rede.genesis) return 'está em outra rede';
+      if (g.body.trim() != Rede.genesis) {
+        return (ok: false, limitado: false, motivo: 'está em outra rede');
+      }
       final f = await http
           .get(Uri.parse('$base/fee-estimates'))
-          .timeout(const Duration(seconds: 10));
-      if (f.statusCode < 200 || f.statusCode > 299 || !f.body.trimLeft().startsWith('{')) {
-        return 'não informa taxas (HTTP ${f.statusCode})';
+          .timeout(const Duration(seconds: 15));
+      if (f.statusCode == 429) {
+        return (ok: false, limitado: true, motivo: 'ocupado (limite de requisições)');
       }
-      return null;
+      if (f.statusCode < 200 || f.statusCode > 299 || !f.body.trimLeft().startsWith('{')) {
+        return (ok: false, limitado: false, motivo: 'não informa taxas (HTTP ${f.statusCode})');
+      }
+      return (ok: true, limitado: false, motivo: null);
     } catch (e) {
-      return 'fora do ar';
+      return (ok: false, limitado: false, motivo: 'fora do ar');
     }
   }
 
-  /// Ordena os candidatos pondo primeiro o primeiro que passar na verificação,
-  /// para o nó não gastar uma tentativa de partida num servidor morto.
+  /// `null` quando o servidor está pronto; senão, o motivo em linguagem simples.
+  static Future<String?> verificar(String base) async {
+    final r = await _checar(base);
+    return r.ok ? null : r.motivo;
+  }
+
+  /// Ordena os candidatos pondo primeiro o que passar na verificação, para o nó
+  /// não gastar uma tentativa de partida num servidor morto. Começa pelo último
+  /// que funcionou. Faz 2 rodadas (os 429/timeout da testnet4 são passageiros)
+  /// e não reinsiste num servidor que respondeu 429 — isso só pioraria o limite.
   static Future<List<String>> emOrdemDeUso() async {
-    final lista = await candidatos();
-    for (var i = 0; i < lista.length; i++) {
-      final motivo = await verificar(lista[i]);
-      if (motivo == null) {
-        debugPrint('Esplora escolhido: ${lista[i]}');
-        return [...lista.sublist(i), ...lista.sublist(0, i)];
+    final base = await candidatos();
+    final ultimo = await ultimoBom();
+    final lista = <String>[
+      if (ultimo != null && base.contains(ultimo)) ultimo,
+      ...base.where((u) => u != ultimo),
+    ];
+
+    final limitados = <String>{};
+    for (var rodada = 1; rodada <= 2; rodada++) {
+      for (var i = 0; i < lista.length; i++) {
+        if (limitados.contains(lista[i])) continue;
+        final r = await _checar(lista[i]);
+        if (r.ok) {
+          debugPrint('Esplora escolhido: ${lista[i]}');
+          await _marcarBom(lista[i]);
+          return [...lista.sublist(i), ...lista.sublist(0, i)];
+        }
+        if (r.limitado) limitados.add(lista[i]);
+        debugPrint('Esplora ${lista[i]} ${r.motivo}; tentando outro.');
       }
-      debugPrint('Esplora ${lista[i]} $motivo; tentando outro.');
+      if (rodada < 2 && limitados.length < lista.length) {
+        await Future.delayed(const Duration(seconds: 4));
+      }
     }
-    debugPrint('Nenhum Esplora passou na verificação; tentando na ordem.');
+    debugPrint('Nenhum Esplora passou; tentando na ordem (último bom na frente).');
     return lista;
   }
 }

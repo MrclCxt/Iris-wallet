@@ -535,24 +535,48 @@ fn handle(
     }
 }
 
-/// `None` quando o servidor está pronto; senão, o motivo.
-fn verificar_esplora(base: &str, rede: Rede) -> Option<String> {
-    let timeout = std::time::Duration::from_secs(8);
-    let genesis = match ureq::get(&format!("{base}/block-height/0")).timeout(timeout).call() {
-        Ok(r) => r.into_string().unwrap_or_default(),
-        Err(e) => return Some(format!("indisponível ({e})")),
-    };
-    if genesis.trim() != rede.genesis() {
-        return Some("está em outra rede".into());
+/// Estado de um servidor: pronto, apenas ocupado (429 — passageiro, não vale
+/// insistir agora) ou fora do ar com o motivo.
+enum EstadoEsplora {
+    Pronto,
+    Limitado,
+    Fora(String),
+}
+
+fn verificar_esplora(base: &str, rede: Rede) -> EstadoEsplora {
+    let timeout = std::time::Duration::from_secs(15);
+    match ureq::get(&format!("{base}/block-height/0")).timeout(timeout).call() {
+        Ok(r) => {
+            let genesis = r.into_string().unwrap_or_default();
+            if genesis.trim() != rede.genesis() {
+                return EstadoEsplora::Fora("está em outra rede".into());
+            }
+        }
+        Err(ureq::Error::Status(429, _)) => return EstadoEsplora::Limitado,
+        Err(e) => return EstadoEsplora::Fora(format!("indisponível ({e})")),
     }
     match ureq::get(&format!("{base}/fee-estimates")).timeout(timeout).call() {
-        Ok(_) => None,
-        Err(e) => Some(format!("não informa taxas ({e})")),
+        Ok(_) => EstadoEsplora::Pronto,
+        Err(ureq::Error::Status(429, _)) => EstadoEsplora::Limitado,
+        Err(e) => EstadoEsplora::Fora(format!("não informa taxas ({e})")),
     }
 }
 
-fn esploras_em_ordem(proprios: &[String], rede: Rede) -> Vec<String> {
+fn caminho_esplora_bom(data_dir: &str) -> std::path::PathBuf {
+    std::path::Path::new(data_dir).join("esplora_bom.txt")
+}
+
+fn esploras_em_ordem(proprios: &[String], rede: Rede, data_dir: &str) -> Vec<String> {
     let mut lista: Vec<String> = Vec::new();
+    // Último Esplora que funcionou entra na frente: quando todos falham a
+    // verificação, tentar o que respondeu da última vez vale mais que a ordem
+    // fixa (na testnet4 os servidores dão 429/timeout em rajadas).
+    if let Ok(bom) = fs::read_to_string(caminho_esplora_bom(data_dir)) {
+        let bom = bom.trim().to_string();
+        if !bom.is_empty() {
+            lista.push(bom);
+        }
+    }
     for u in proprios.iter().map(|s| s.trim_end_matches('/').to_string())
         .chain(rede.esploras().iter().map(|s| s.to_string()))
     {
@@ -560,14 +584,39 @@ fn esploras_em_ordem(proprios: &[String], rede: Rede) -> Vec<String> {
             lista.push(u);
         }
     }
-    for i in 0..lista.len() {
-        match verificar_esplora(&lista[i], rede) {
-            None => {
-                println!("iris-noded: Esplora escolhido: {}", lista[i]);
-                lista.rotate_left(i);
-                return lista;
+
+    // Até 3 rodadas, com pausa entre elas; não reinsiste em quem respondeu 429
+    // (insistir só piora o limite de taxa).
+    let mut limitados: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for rodada in 1..=3 {
+        for i in 0..lista.len() {
+            if limitados.contains(&lista[i]) {
+                continue;
             }
-            Some(motivo) => println!("iris-noded: Esplora {} {motivo}; tentando outro.", lista[i]),
+            match verificar_esplora(&lista[i], rede) {
+                EstadoEsplora::Pronto => {
+                    println!("iris-noded: Esplora escolhido: {}", lista[i]);
+                    let _ = fs::write(caminho_esplora_bom(data_dir), &lista[i]);
+                    lista.rotate_left(i);
+                    return lista;
+                }
+                EstadoEsplora::Limitado => {
+                    limitados.insert(lista[i].clone());
+                    println!(
+                        "iris-noded: Esplora {} ocupado (429); não insisto nesta partida.",
+                        lista[i]
+                    );
+                }
+                EstadoEsplora::Fora(motivo) => {
+                    println!("iris-noded: Esplora {} {motivo}; tentando outro.", lista[i]);
+                }
+            }
+        }
+        if rodada < 3 && limitados.len() < lista.len() {
+            println!("iris-noded: nenhum respondeu; aguardando 5s (rodada {rodada}/3)...");
+            std::thread::sleep(std::time::Duration::from_secs(5));
+        } else {
+            break;
         }
     }
     println!("iris-noded: nenhum Esplora passou na verificação; tentando na ordem.");
@@ -576,9 +625,13 @@ fn esploras_em_ordem(proprios: &[String], rede: Rede) -> Vec<String> {
 
 fn construir_e_iniciar(mnemonic: &str, args: &Args) -> (Node, Fonte) {
     const TENTATIVAS: usize = 3;
+    let data_dir = args
+        .data_dir
+        .clone()
+        .unwrap_or_else(|| args.rede.pasta_padrao().to_string());
     let fontes: Vec<Fonte> = match &args.bitcoind_rpc {
         Some(s) => vec![ler_bitcoind_rpc(s)],
-        None => esploras_em_ordem(&args.esplora, args.rede)
+        None => esploras_em_ordem(&args.esplora, args.rede, &data_dir)
             .into_iter()
             .map(Fonte::Esplora)
             .collect(),
@@ -587,15 +640,18 @@ fn construir_e_iniciar(mnemonic: &str, args: &Args) -> (Node, Fonte) {
         panic!("a rede {} exige --bitcoind-rpc ou --esplora", args.rede.nome());
     }
     let mut ultimo_erro = None;
+    // Em alguns ambientes (visto no Windows) o ldk-node recusa o bind de
+    // escuta P2P com "network address is invalid" e o nó não sobe de jeito
+    // nenhum. Nesse caso é melhor subir SEM P2P de entrada (ainda paga,
+    // recebe e abre canais de saída) do que ficar sem nó.
+    let mut pular_listening = false;
 
     for tentativa in 0..TENTATIVAS {
         let fonte = &fontes[tentativa % fontes.len()];
         let mut builder = Builder::new();
         builder.set_entropy_bip39_mnemonic(mnemonic.parse().expect("mnemônica inválida"), None);
         builder.set_network(args.rede.network());
-        builder.set_storage_dir_path(
-            args.data_dir.clone().unwrap_or_else(|| args.rede.pasta_padrao().to_string()),
-        );
+        builder.set_storage_dir_path(data_dir.clone());
         match fonte {
             Fonte::Esplora(url) => {
                 builder.set_chain_source_esplora(url.clone(), None);
@@ -609,7 +665,7 @@ fn construir_e_iniciar(mnemonic: &str, args: &Args) -> (Node, Fonte) {
                 );
             }
         }
-        if args.p2p_porta != 0 {
+        if args.p2p_porta != 0 && !pular_listening {
             let endereco = format!("0.0.0.0:{}", args.p2p_porta)
                 .parse()
                 .expect("porta P2P inválida");
@@ -630,6 +686,19 @@ fn construir_e_iniciar(mnemonic: &str, args: &Args) -> (Node, Fonte) {
                     tentativa + 1,
                     fonte.descricao()
                 );
+                // Bind de escuta recusado pelo SO: desliga o P2P de entrada e
+                // tenta de novo — melhor um nó sem canais de entrada que nó nenhum.
+                if !pular_listening
+                    && args.p2p_porta != 0
+                    && e.to_lowercase().contains("network address")
+                {
+                    pular_listening = true;
+                    println!(
+                        "iris-noded: o sistema recusou a escuta P2P em 0.0.0.0:{}; \
+                         subindo SEM canais de entrada. (Para P2P, abra a porta ou use --p2p-porta 0.)",
+                        args.p2p_porta
+                    );
+                }
                 ultimo_erro = Some(e);
                 if tentativa + 1 < TENTATIVAS {
                     std::thread::sleep(std::time::Duration::from_secs(3));

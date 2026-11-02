@@ -715,27 +715,40 @@ where
 					return;
 				};
 
-				let init_features = if let Some(peer_manager) =
+				// Fail if we're not connected to the prospective channel partner.
+				// PATCH IRIS: a consulta solta a trava do peer_manager ANTES de qualquer
+				// `.await` (uma RwLockReadGuard não pode atravessar await numa tarefa Send).
+				let init_features_opt = if let Some(peer_manager) =
 					self.peer_manager.read().unwrap().as_ref()
 				{
-					// Fail if we're not connected to the prospective channel partner.
-					if let Some(peer) = peer_manager.peer_by_node_id(&their_network_key) {
-						peer.init_features
-					} else {
-						// TODO: We just silently fail here. Eventually we will need to remember
-						// the pending requests and regularly retry opening the channel until we
-						// succeed.
+					peer_manager.peer_by_node_id(&their_network_key).map(|peer| peer.init_features)
+				} else {
+					debug_assert!(false, "Failed to handle LSPS2ServiceEvent as peer manager isn't available. This should never happen.",);
+					log_error!(self.logger, "Failed to handle LSPS2ServiceEvent as peer manager isn't available. This should never happen.",);
+					return;
+				};
+				let init_features = match init_features_opt {
+					Some(f) => f,
+					None => {
 						log_error!(
 							self.logger,
 							"Failed to open LSPS2 channel to {} due to peer not being not connected.",
 							their_network_key,
 						);
+						// PATCH IRIS: o original desistia em silêncio e deixava o HTLC do
+						// pagador pendurado até expirar (horas) — o pagador então fechava o
+						// canal à força. Visto na signet: celular pagou fatura JIT do desktop,
+						// desktop estava desconectado, canal hub↔celular foi force-closed no
+						// dia seguinte. Devolver o HTLC na hora: o pagador recebe a falha em
+						// segundos e o canal sobrevive.
+						if let Some(h) = self.liquidity_manager.lsps2_service_handler() {
+							match h.channel_open_failed(&their_network_key, user_channel_id).await {
+								Ok(()) => log_info!(self.logger, "HTLCs do JIT devolvidos ao pagador (cliente desconectado)."),
+								Err(e) => log_error!(self.logger, "Falha ao devolver HTLCs do JIT: {:?}", e),
+							}
+						}
 						return;
-					}
-				} else {
-					debug_assert!(false, "Failed to handle LSPS2ServiceEvent as peer manager isn't available. This should never happen.",);
-					log_error!(self.logger, "Failed to handle LSPS2ServiceEvent as peer manager isn't available. This should never happen.",);
-					return;
+					},
 				};
 
 				// Fail if we have insufficient onchain funds available.
@@ -762,9 +775,13 @@ where
 						"Unable to create channel due to insufficient funds. Available: {}sats, Required: {}sats",
 						spendable_amount_sats, channel_amount_sats
 					);
-					// TODO: We just silently fail here. Eventually we will need to remember
-					// the pending requests and regularly retry opening the channel until we
-					// succeed.
+					// PATCH IRIS: devolver o HTLC em vez de deixá-lo pendurado (ver acima).
+					if let Some(h) = self.liquidity_manager.lsps2_service_handler() {
+						match h.channel_open_failed(&their_network_key, user_channel_id).await {
+							Ok(()) => log_info!(self.logger, "HTLCs do JIT devolvidos ao pagador (hub sem fundos)."),
+							Err(e) => log_error!(self.logger, "Falha ao devolver HTLCs do JIT: {:?}", e),
+						}
+					}
 					return;
 				}
 
@@ -795,15 +812,19 @@ where
 				) {
 					Ok(_) => {},
 					Err(e) => {
-						// TODO: We just silently fail here. Eventually we will need to remember
-						// the pending requests and regularly retry opening the channel until we
-						// succeed.
 						log_error!(
 							self.logger,
 							"Failed to open LSPS2 channel to {}: {:?}",
 							their_network_key,
 							e
 						);
+						// PATCH IRIS: devolver o HTLC em vez de deixá-lo pendurado (ver acima).
+						if let Some(h) = self.liquidity_manager.lsps2_service_handler() {
+							match h.channel_open_failed(&their_network_key, user_channel_id).await {
+								Ok(()) => log_info!(self.logger, "HTLCs do JIT devolvidos ao pagador (falha ao criar canal)."),
+								Err(e) => log_error!(self.logger, "Falha ao devolver HTLCs do JIT: {:?}", e),
+							}
+						}
 						return;
 					},
 				}

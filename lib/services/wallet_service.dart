@@ -150,6 +150,10 @@ class AccountProfile {
 
   String? encSeed;
 
+  /// Impressão da semente: com a conta trancada a semente não está em memória, e
+  /// é isto que permite reconhecê-la. Contas antigas ganham ao abrir uma vez.
+  String? seedFp;
+
   String pinHash;
 
   AccountProfile({
@@ -158,6 +162,7 @@ class AccountProfile {
     this.avatarColor,
     this.seed = '',
     this.encSeed,
+    this.seedFp,
     required this.pinHash,
   });
 
@@ -167,6 +172,7 @@ class AccountProfile {
         'pinHash': pinHash,
         if (avatarColor != null) 'avatarColor': avatarColor,
         if (encSeed != null) 'encSeed': encSeed else 'seed': seed,
+        if (seedFp != null) 'seedFp': seedFp,
       };
 
   factory AccountProfile.fromJson(Map<String, dynamic> json) => AccountProfile(
@@ -175,6 +181,7 @@ class AccountProfile {
         avatarColor: json['avatarColor'] as String?,
         seed: (json['seed'] as String?) ?? '',
         encSeed: json['encSeed'] as String?,
+        seedFp: json['seedFp'] as String?,
         pinHash: json['pinHash'],
       );
 }
@@ -322,6 +329,10 @@ class _NodeHandle {
   bool saldoConfirmadoPorSync = false;
   bool _eventLoopActive = false;
 
+  bool ligandoAoHub = false;
+  DateTime? ultimaTentativaHub;
+  String? statusHub;
+
   // Fase 2: este nó roda na isolate de fundo (via IsolateNodeApi) em vez da
   // isolate principal. Muda como o laço de eventos e o encerramento funcionam.
   bool usandoFundo = false;
@@ -371,6 +382,8 @@ class _NodeHandle {
     leiturasZeradas = 0;
     houveSaidaDesdeLeituraBoa = false;
     varreduraDeResgatePedida = false;
+    ultimaTentativaHub = null;
+    statusHub = null;
   }
 }
 
@@ -879,6 +892,11 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       seed != null &&
       _deviceNode.runningSeedFingerprint == _seedFingerprint(seed);
 
+  /// O nó em execução é o da conta ativa? Só um nó roda por aparelho, e na troca
+  /// de conta o anterior ainda pode responder; o que ele devolve não é desta conta.
+  bool _noEDaConta(bool isMerchant) =>
+      _noEDoPerfil(isMerchant ? activeMerchant?.seed : activeConsumer?.seed);
+
   int get consumerBalance => _noEDoPerfil(activeConsumer?.seed)
       ? _deviceNode.saldoConfirmadoSats
       : _somaReserva(activeConsumer?.seed);
@@ -953,6 +971,9 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     final storeKey = _chaveDeArmazenamentoHistorico(isMerchant);
     final cryptoKey = await _chaveDoHistorico(isMerchant);
     final destino = isMerchant ? _merchantTransactions : _consumerTransactions;
+    // Sempre começa vazio: conta sem histórico gravado não herda a lista de quem
+    // estava aberta antes.
+    destino.clear();
     if (storeKey == null || cryptoKey == null) return;
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -1011,12 +1032,14 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> _salvarHistorico(bool isMerchant) async {
+    // Fotografa a lista junto com a chave, antes de qualquer await: se a conta
+    // mudar no meio, as linhas continuam indo para a conta de onde saíram.
     final storeKey = _chaveDeArmazenamentoHistorico(isMerchant);
+    final lista = isMerchant ? _merchantTransactions : _consumerTransactions;
+    final json = jsonEncode(lista.map((t) => t.toJson()).toList());
     final cryptoKey = await _chaveDoHistorico(isMerchant);
     if (storeKey == null || cryptoKey == null) return;
     try {
-      final lista = isMerchant ? _merchantTransactions : _consumerTransactions;
-      final json = jsonEncode(lista.map((t) => t.toJson()).toList());
       final blob = await VaultCrypto.encrypt(json, cryptoKey);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(storeKey, blob);
@@ -1038,13 +1061,15 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<int> reconstruirHistoricoDoNo({bool forMerchant = false}) async {
     final handle = forMerchant ? _merchantNode : _consumerNode;
-    if (handle.api == null) return 0;
+    final api = handle.api;
+    if (api == null || !_noEDaConta(forMerchant)) return 0;
 
     final lista = forMerchant ? _merchantTransactions : _consumerTransactions;
     var recuperadas = 0;
     var statusMudou = false;
     try {
-      final doNo = await handle.api!.listPayments();
+      final doNo = await api.listPayments();
+      if (!identical(api, handle.api) || !_noEDaConta(forMerchant)) return 0;
       if (removerCobrancasNaoPagas(lista, doNo) > 0) statusMudou = true;
       for (final p in doNo) {
         if (p.amountSats <= 0) continue;
@@ -1826,6 +1851,13 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> _migrarPastasDoNo() async {
+    // Desligada: estas pastas (`ldk_c_`, `ldk_m_`, `ldk_device`) são de antes de a
+    // rede entrar no nome da pasta — testnet3/testnet4. Movê-las para a pasta da
+    // rede atual quebra o nó ("Networks do not match"). Com a troca para nó por
+    // aparelho (sufixo "d" em Rede.pastaNo), a pasta de destino ainda não existe
+    // e esta migração voltaria a disparar, então ela não roda mais.
+    return;
+    // ignore: dead_code
     try {
       final docs = await getApplicationDocumentsDirectory();
 
@@ -1886,6 +1918,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     if (SeedCrypto.isEncrypted(p.encSeed)) {
       try {
         p.seed = await _decifrarSemente(p.encSeed!, pin);
+        p.seedFp = _seedFingerprint(p.seed);
         return true;
       } on SeedDecryptException {
         return false;
@@ -1895,6 +1928,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     if (!await _verifyPin(pin, p.pinHash)) return false;
 
     p.encSeed = await _cifrarSemente(p.seed, pin);
+    p.seedFp = _seedFingerprint(p.seed);
     return true;
   }
 
@@ -1928,6 +1962,20 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       return 'Semente inválida. Confira a ortografia das palavras.';
     }
     return null;
+  }
+
+  /// Nome da carteira pessoal que já usa [seed], se houver.
+  String? carteiraComSemente(String seed) =>
+      contaComMesmaSemente(_consumerAccounts, seed)?.name;
+
+  static AccountProfile? contaComMesmaSemente(
+      Iterable<AccountProfile> contas, String seed) {
+    final fp = _seedFingerprint(seed);
+    return contas
+        .where((c) =>
+            c.seedFp == fp ||
+            (c.seed.isNotEmpty && _seedFingerprint(c.seed) == fp))
+        .firstOrNull;
   }
 
   void importSeed(String seed) {
@@ -1968,6 +2016,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: 'Carteira Pessoal ${_consumerAccounts.length + 1}',
         seed: _tempConsumerSeed!,
+        seedFp: _seedFingerprint(_tempConsumerSeed!),
         pinHash: await _hashPin(pin),
       );
 
@@ -2430,6 +2479,9 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   /// eventHandled (quem drena é responsável por isso).
   Future<void> _tratarEventoDoNo(_NodeHandle handle, NodeEvent event,
       {required bool isMerchant}) async {
+    // Evento do nó anterior, ainda na fila durante a troca de conta. O pagamento
+    // continua gravado naquele nó e volta quando a conta dele for aberta.
+    if (!_noEDaConta(isMerchant)) return;
     switch (event.type) {
       case 'payment_received':
         final sats = event.amountMsat ~/ 1000;
@@ -2491,6 +2543,10 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
         }
 
         if (mudou) unawaited(_salvarHistorico(isMerchant));
+        // Pagamento de oferta está no histórico pelo id do nó, não pelo hash.
+        if (!mudou) {
+          unawaited(reconstruirHistoricoDoNo(forMerchant: isMerchant));
+        }
         break;
     }
   }
@@ -2499,9 +2555,11 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _refreshBalances(_NodeHandle handle,
       {bool aposVarreduraCompleta = false}) async {
-    if (handle.api == null) return;
+    final api = handle.api;
+    if (api == null) return;
     try {
-      final balances = await handle.api!.balances();
+      final balances = await api.balances();
+      if (!identical(api, handle.api)) return;
       var newTotal = balances.onchainTotalSats;
       var newSpendable = balances.onchainSpendableSats;
       var newLightning = balances.lightningSats;
@@ -2777,6 +2835,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
             aposVarreduraCompleta: varreduraCompleta);
         await reconstruirHistoricoDoNo(forMerchant: handle.isMerchant);
         handle.consecutiveSyncFailures = 0;
+        await _ligarAoHub(handle);
       } catch (e) {
         handle.consecutiveSyncFailures++;
         debugPrint(
@@ -2795,6 +2854,90 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     _reagendarSyncTimer();
     _ensureFastWatch();
     _ensureVigiaDoNo();
+  }
+
+  // Reserva que fica on-chain ao abrir o canal com o hub: 25k da reserva de
+  // âncora que o ldk-node exige por canal + folga para a taxa da abertura.
+  static const int _reservaOnchainHubSats = 30000;
+  static const int _canalHubMinimoSats = 20000;
+  static const Duration _esperaEntreTentativasHub = Duration(minutes: 5);
+
+  String? statusLigacaoHub({bool forMerchant = false}) =>
+      (forMerchant ? _merchantNode : _consumerNode).statusHub;
+
+  /// Ligação automática carteira → hub. Roda depois de cada sync, então vale
+  /// para carteira nova (assim que o 1º saldo confirma) e para as que já existiam
+  /// (ao abrir cada uma). Sem saldo, a carteira continua ligada ao hub como LSP e
+  /// recebe por canal JIT, que também conta como a ligação.
+  ///
+  /// O hub é só o canal inicial: depois de ver um canal pronto com ele, a marca
+  /// [Rede.chaveHubLigado] impede reabrir se o usuário fechar esse canal. A marca
+  /// só é gravada com o canal PRONTO, para uma abertura que falhe ser refeita.
+  Future<void> _ligarAoHub(_NodeHandle handle) async {
+    // Abrir canal gasta saldo; na rede principal isso não acontece sozinho.
+    if (Rede.principal || handle.isRemote || handle.isMock) return;
+    final api = handle.api;
+    final fp = handle.runningSeedFingerprint;
+    if (api == null || fp == null || handle.ligandoAoHub) return;
+
+    handle.ligandoAoHub = true;
+    try {
+      final hub = await EmbeddedNodeApi.lspConfig();
+      if (hub == null) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      final chave = Rede.chaveHubLigado(fp);
+      if (prefs.getBool(chave) ?? false) {
+        handle.statusHub = null;
+        return;
+      }
+
+      final canais = await api.channels();
+      final doHub = canais.where((c) => c.counterpartyNodeId == hub.pubkey);
+      // Canal aberto pelo hub só dá entrada: a ligação se completa quando a
+      // carteira também consegue enviar por ele.
+      if (doHub.any((c) => c.isUsable && c.outboundSats > 0)) {
+        await prefs.setBool(chave, true);
+        handle.statusHub = null;
+        return;
+      }
+      if (doHub.any((c) => !c.isUsable)) {
+        handle.statusHub = 'Canal com o hub abrindo, aguardando confirmação.';
+        return;
+      }
+
+      final valor = handle.onchainSpendableSats - _reservaOnchainHubSats;
+      if (valor < _canalHubMinimoSats) {
+        handle.statusHub = 'Ligada ao hub: já recebe via Lightning. Para enviar, '
+            'o canal abre sozinho quando houver '
+            '${_reservaOnchainHubSats + _canalHubMinimoSats} sats confirmados.';
+        return;
+      }
+
+      final ultima = handle.ultimaTentativaHub;
+      if (ultima != null &&
+          DateTime.now().difference(ultima) < _esperaEntreTentativasHub) {
+        return;
+      }
+      handle.ultimaTentativaHub = DateTime.now();
+
+      await api.openChannel(
+        nodeId: hub.pubkey,
+        host: hub.host,
+        port: hub.port,
+        amountSats: valor,
+      );
+      if (identical(api, handle.api)) {
+        handle.statusHub = 'Canal com o hub abrindo, aguardando confirmação.';
+      }
+      debugPrint('Canal automático com o hub: $valor sats.');
+    } catch (e) {
+      debugPrint('Ligação com o hub falhou: $e');
+      handle.statusHub =
+          'Não foi possível abrir o canal com o hub agora. Tentando de novo em instantes.';
+    } finally {
+      handle.ligandoAoHub = false;
+    }
   }
 
   bool _saldoSobSuspeita = false;
@@ -3097,6 +3240,29 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  /// Troca de conta só depois de conferir o PIN da conta de destino. Até lá a
+  /// sessão atual fica intacta (nó, saldo, bloqueio automático), então desistir
+  /// na tela de PIN não muda nada.
+  Future<bool> trocarConta(String id, String pin,
+      {required bool isMerchant}) async {
+    final contas = isMerchant ? _merchantAccounts : _consumerAccounts;
+    final destino = contas.where((a) => a.id == id).firstOrNull;
+    if (destino == null || isPinLocked) return false;
+    if (!await _unlockSeed(destino, pin)) {
+      _registerPinFailure();
+      return false;
+    }
+    // Desliga o nó ANTES de mudar a conta ativa: nada do nó anterior pode ser
+    // lido como se fosse da conta nova.
+    await _deviceNode.stop();
+    if (isMerchant) {
+      await switchMerchantAccount(id);
+      return unlockMerchant(pin);
+    }
+    await switchConsumerAccount(id);
+    return unlock(pin);
+  }
+
   Future<void> switchConsumerAccount(String id) async {
     _clearConsumerSessionState();
     _activeConsumerId = id;
@@ -3261,15 +3427,42 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     await _startNode(handle, seed, _nodeDirFor(seed), isMerchant: forMerchant);
   }
 
+  /// Espera a troca de conta terminar antes de entregar endereço ou fatura. Sem
+  /// isso, o dinheiro pedido pela conta nova cairia na carteira anterior.
+  Future<void> _esperarNoDaConta(bool forMerchant) async {
+    try {
+      await _startEmAndamento;
+    } catch (_) {}
+    final handle = forMerchant ? _merchantNode : _consumerNode;
+    if (handle.api != null && !_noEDaConta(forMerchant)) {
+      throw Exception('A carteira ainda está conectando. Tente em instantes.');
+    }
+  }
+
   Future<String> getFixedInvoice({bool forMerchant = false}) async {
+    await _esperarNoDaConta(forMerchant);
     var handle = forMerchant ? _merchantNode : _consumerNode;
-    if (handle.fixedInvoice != null && handle.fixedInvoice!.isNotEmpty) {
+    // Só offer BOLT12 é reutilizável. Fatura BOLT11 é de um pagamento só, e a de
+    // canal JIT fica presa ao canal que abriu na 1ª tentativa, mesmo que ela
+    // falhe; repeti-la faz todo pagamento seguinte falhar. Por isso sai nova.
+    if (ehOfferBolt12(handle.fixedInvoice)) {
       return handle.fixedInvoice!;
     }
     final persisted = await _loadFixedInvoice(forMerchant);
-    if (persisted != null && persisted.isNotEmpty) {
+    if (ehOfferBolt12(persisted)) {
       handle.fixedInvoice = persisted;
-      return persisted;
+      return persisted!;
+    }
+    // A oferta precisa de um parceiro conectado, o que não existe no início do
+    // nó: por isso é tentada aqui, com a tela de receber aberta.
+    if (handle.api != null) {
+      final offer = await handle.api!.createOffer(
+          description: forMerchant ? 'Loja' : 'Carteira Principal');
+      if (ehOfferBolt12(offer)) {
+        handle.fixedInvoice = offer;
+        await _saveFixedInvoice(forMerchant, offer!);
+        return offer;
+      }
     }
 
     if (handle.api == null) {
@@ -3280,7 +3473,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       final inv = await handle.api!.createInvoice(
         amountMsat: null,
         description: forMerchant ? 'Loja' : 'Carteira Principal',
-        expirySecs: 31536000,
+        expirySecs: 86400,
       );
       handle.fixedInvoice = inv;
       await _saveFixedInvoice(forMerchant, inv);
@@ -3506,6 +3699,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<String> getOnchainAddress({bool forMerchant = false}) async {
+    await _esperarNoDaConta(forMerchant);
     var handle = forMerchant ? _merchantNode : _consumerNode;
 
     if (handle.api == null) {
@@ -3727,6 +3921,15 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       counterpartyNodeId: counterpartyNodeId,
       force: force,
     );
+    // Fechar o canal do hub é escolha do usuário: não reabrir sozinho, mesmo que
+    // ele tenha sido fechado antes de ficar pronto.
+    final hub = await EmbeddedNodeApi.lspConfig();
+    final fp = _consumerNode.runningSeedFingerprint;
+    if (hub != null && fp != null && hub.pubkey == counterpartyNodeId) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(Rede.chaveHubLigado(fp), true);
+      _consumerNode.statusHub = null;
+    }
     await _refreshBalances(_consumerNode);
     notifyListeners();
   }
@@ -3777,6 +3980,40 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       description: desc,
       expirySecs: 3600,
     );
+  }
+
+  Future<void> pagarOferta(String oferta, {required int sats}) async {
+    final handle = _consumerNode;
+    final api = handle.api;
+    if (!handle.isRunning || api == null) {
+      throw Exception('Nó Lightning não está rodando.');
+    }
+    if (sats <= 0) throw Exception('Informe o valor a enviar.');
+
+    // A linha entra com o id do nó, o mesmo que `listPayments` devolve, e é
+    // `reconstruirHistoricoDoNo` que acompanha o desfecho.
+    final id = await api.payOffer(oferta, amountMsat: sats * 1000);
+    _registrarTransacao(
+      Transaction(
+        id: id,
+        title: 'Pagamento Lightning',
+        emoji: '⚡',
+        amountSats: sats,
+        isIncoming: false,
+        date: DateTime.now(),
+        status: 'pending',
+      ),
+      isMerchant: false,
+    );
+    handle.houveSaidaDesdeLeituraBoa = true;
+    _emitirRecebimento(ReceivedPayment(
+      isMerchant: false,
+      paymentHashHex: id,
+      amountSats: sats,
+      isOnchain: false,
+      isSent: true,
+    ));
+    notifyListeners();
   }
 
   Future<Map<String, dynamic>> payLightningInvoice(String invoiceStr,

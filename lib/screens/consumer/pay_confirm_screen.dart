@@ -378,6 +378,8 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
               'Servidor LNURL retornou fatura com valor divergente (${parsed.amountSats} sats).');
         }
         await wallet.payLightningInvoice(invoice);
+      } else if (WalletService.ehOfferBolt12(widget.rawInvoice)) {
+        await wallet.pagarOferta(widget.rawInvoice!, sats: _satsAmount);
       } else {
         await wallet.payLightningInvoice(
           widget.rawInvoice!,

@@ -74,6 +74,11 @@ class IsolateNodeApi implements NodeApi {
   }
 
   @override
+  Future<String> payOffer(String offer, {required int amountMsat}) async =>
+      (await _cmd('payOffer', {'offer': offer, 'amountMsat': amountMsat}))
+          as String;
+
+  @override
   Future<void> payInvoice(String invoice, {int? amountMsat}) async =>
       _cmd('payInvoice', {'invoice': invoice, 'amountMsat': amountMsat});
 

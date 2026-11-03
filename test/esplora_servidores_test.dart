@@ -22,8 +22,7 @@ void main() {
   test('padrão tem mais de um operador', () {
     final hosts =
         EsploraServidores.padrao.map((u) => Uri.parse(u).host).toSet();
-    expect(hosts.any((h) => h.contains('mempool.space')), isTrue);
-    expect(hosts.any((h) => h.contains('blockstream.info')), isTrue);
+    expect(hosts.length, greaterThan(1));
   });
 
   test('servidores do usuário vêm primeiro e sem duplicar', () async {

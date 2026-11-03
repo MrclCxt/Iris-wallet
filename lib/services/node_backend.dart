@@ -94,6 +94,10 @@ abstract class NodeApi {
   Future<List<PaymentRecord>> listPayments();
 
   Future<void> payInvoice(String invoice, {int? amountMsat});
+
+  /// Paga uma oferta BOLT12 (QR fixo) e devolve o id que o nó dá ao pagamento: o
+  /// hash só existe depois que quem recebe responder.
+  Future<String> payOffer(String offer, {required int amountMsat});
   Future<NodeBalances> balances();
   Future<String> newOnchainAddress();
 
@@ -180,6 +184,7 @@ class EmbeddedNodeApi implements NodeApi {
 
   // LSP (LSPS2) configurado neste nó → podemos receber via canal JIT.
   bool _temLsp = false;
+  static const int _entradaMinimaSemValorMsat = 50000000;
 
   /// Soma da liquidez de ENTRADA (msat) nos canais usáveis. Zero = não dá para
   /// receber sem um canal novo (JIT).
@@ -196,11 +201,11 @@ class EmbeddedNodeApi implements NodeApi {
     }
   }
 
-  /// Config do LSP: o HUB próprio do usuário (gravado nas prefs) ou, na falta,
-  /// o LSP público do Mutinynet (só signet). null = sem LSP (ex.: mainnet sem
-  /// hub configurado). Chaves por rede para não misturar signet/mainnet.
+  /// Config do LSP: o hub gravado nas prefs ou, na falta, o hub padrão da rede
+  /// ([Rede.hubPubkey]). null = sem LSP (ex.: mainnet sem hub configurado).
+  /// Chaves por rede para não misturar signet/mainnet.
   static Future<({String pubkey, String host, int port, String? token})?>
-      _lspConfig() async {
+      lspConfig() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final n = Rede.nome;
@@ -217,14 +222,9 @@ class EmbeddedNodeApi implements NodeApi {
         );
       }
     } catch (_) {}
-    if (Rede.ehSignet) {
-      return (
-        pubkey:
-            '0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b',
-        host: '44.219.111.31',
-        port: 39735,
-        token: 'JZWN9YLW',
-      );
+    final hub = Rede.hubPubkey;
+    if (hub != null) {
+      return (pubkey: hub, host: Rede.hubHost, port: Rede.hubPort, token: null);
     }
     return null;
   }
@@ -278,11 +278,10 @@ class EmbeddedNodeApi implements NodeApi {
         }
         builder.setEsploraServer(esplora);
         // LSP (LSPS2): canais JIT para RECEBER desde o 1º uso — o LSP abre o
-        // canal na hora em que a fatura é paga. A config vem das prefs (HUB
-        // próprio do usuário) ou, na falta, cai no LSP público do Mutinynet
-        // (signet). O nó conecta NO LSP (saída), então funciona mesmo sem escuta
-        // P2P (ex.: Android no fallback sem listening).
-        final lsp = await _lspConfig();
+        // canal na hora em que a fatura é paga. A config vem das prefs ou, na
+        // falta, do hub padrão da rede. O nó conecta NO LSP (saída), então
+        // funciona mesmo sem escuta P2P (ex.: Android no fallback sem listening).
+        final lsp = await lspConfig();
         if (lsp != null) {
           builder.setLiquiditySourceLsps2(
             address: ldk.SocketAddress.hostname(addr: lsp.host, port: lsp.port),
@@ -346,8 +345,9 @@ class EmbeddedNodeApi implements NodeApi {
     // que a fatura é paga. Sem isso, uma carteira nova não tem como receber.
     if (_temLsp) {
       final inbound = await _inboundDisponivelMsat();
-      final precisaJit =
-          amountMsat == null ? inbound <= 0 : inbound < amountMsat;
+      // Sem valor na fatura não dá para saber o que vem: um canal pequeno "tem
+      // entrada", mas não recebe um pagamento comum.
+      final precisaJit = inbound < (amountMsat ?? _entradaMinimaSemValorMsat);
       if (precisaJit) {
         if (amountMsat == null) {
           final inv = await bolt11.receiveVariableAmountViaJitChannel(
@@ -463,6 +463,14 @@ class EmbeddedNodeApi implements NodeApi {
       debugPrint('Offer BOLT12 indisponível: $e');
       return null;
     }
+  }
+
+  @override
+  Future<String> payOffer(String offer, {required int amountMsat}) async {
+    final bolt12 = await _n.bolt12Payment();
+    final id = await bolt12.sendUsingAmount(
+        offer: ldk.Offer(s: offer.trim()), amountMsat: BigInt.from(amountMsat));
+    return _idDePagamento(id.field0, false);
   }
 
   @override
@@ -885,6 +893,12 @@ class RemoteNodeApi implements NodeApi {
   @override
   Future<void> payInvoice(String invoice, {int? amountMsat}) async {
     await _post('/pay', {'invoice': invoice, 'amount_msat': amountMsat});
+  }
+
+  @override
+  Future<String> payOffer(String offer, {required int amountMsat}) async {
+    final r = await _post('/pay', {'invoice': offer, 'amount_msat': amountMsat});
+    return r['id'] as String;
   }
 
   @override

@@ -408,6 +408,19 @@ class _ConsumerPayScreenState extends State<ConsumerPayScreen>
             ),
           ),
         );
+      } else if (WalletService.ehOfferBolt12(input)) {
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PayConfirmScreen(
+              satsAmount: 0,
+              destination: 'QR fixo Lightning',
+              rawInvoice: input,
+              editableAmount: true,
+            ),
+          ),
+        );
       } else if (Bolt11.looksLikeInvoice(input)) {
         final parsed = Bolt11.decode(input);
         if (!parsed.daRedeAtual) {

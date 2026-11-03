@@ -123,20 +123,17 @@ class AreaSwitcherBtn extends StatelessWidget {
                       trailing: isActive
                           ? const Icon(Icons.check, color: IrisTheme.primary)
                           : null,
-                      onTap: () async {
+                      onTap: () {
                         Navigator.pop(context);
-                        if (!isActive) {
-                          await wallet.switchMerchantAccount(acc.id);
-                        }
-                        if (context.mounted) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const PinScreen(
-                                  mode: PinMode.unlock, isMerchant: true),
-                            ),
-                          );
-                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PinScreen(
+                                mode: PinMode.unlock,
+                                isMerchant: true,
+                                contaDestinoId: isActive ? null : acc.id),
+                          ),
+                        );
                       },
                     );
                   }),
@@ -190,20 +187,17 @@ class AreaSwitcherBtn extends StatelessWidget {
                       trailing: isActive
                           ? const Icon(Icons.check, color: IrisTheme.primary)
                           : null,
-                      onTap: () async {
+                      onTap: () {
                         Navigator.pop(context);
-                        if (!isActive) {
-                          await wallet.switchConsumerAccount(acc.id);
-                        }
-                        if (context.mounted) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const PinScreen(
-                                  mode: PinMode.unlock, isMerchant: false),
-                            ),
-                          );
-                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PinScreen(
+                                mode: PinMode.unlock,
+                                isMerchant: false,
+                                contaDestinoId: isActive ? null : acc.id),
+                          ),
+                        );
                       },
                     );
                   }),

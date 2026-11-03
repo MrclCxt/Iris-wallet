@@ -1009,11 +1009,12 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: IrisTheme.bdr),
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'Nenhum canal aberto.\nVocê precisa depositar fundos On-chain e abrir um canal para começar a transacionar via Lightning.',
+                context.watch<WalletService>().statusLigacaoHub() ??
+                    'Nenhum canal aberto.\nVocê precisa depositar fundos On-chain e abrir um canal para começar a transacionar via Lightning.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: IrisTheme.textSecondary),
+                style: const TextStyle(color: IrisTheme.textSecondary),
               ),
             ),
           )

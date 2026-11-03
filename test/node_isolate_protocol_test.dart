@@ -17,6 +17,13 @@ class _NoFalso implements NodeApi {
   Future<void> stop() async => ultimoMetodo = 'stop';
   @override
   Future<String> myNodeId() async => '02abc';
+  @override
+  Future<void> closeChannel({
+    required String userChannelId,
+    required String counterpartyNodeId,
+    bool force = false,
+  }) async =>
+      ultimoMetodo = 'closeChannel';
 
   @override
   Future<String> createInvoice(
@@ -46,6 +53,13 @@ class _NoFalso implements NodeApi {
           isOnchain: true,
         ),
       ];
+
+  @override
+  Future<String> payOffer(String offer, {required int amountMsat}) async {
+    ultimoMetodo = 'payOffer';
+    ultimoArg = {'offer': offer, 'amountMsat': amountMsat};
+    return 'id_oferta';
+  }
 
   @override
   Future<void> payInvoice(String invoice, {int? amountMsat}) async {

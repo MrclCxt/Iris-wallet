@@ -12,8 +12,15 @@ class PinScreen extends StatefulWidget {
   final PinMode mode;
   final VoidCallback? onSuccess;
   final bool isMerchant;
+
+  /// Conta para a qual trocar se o PIN estiver certo; a sessão atual só muda aí.
+  final String? contaDestinoId;
   const PinScreen(
-      {super.key, required this.mode, this.onSuccess, this.isMerchant = false});
+      {super.key,
+      required this.mode,
+      this.onSuccess,
+      this.isMerchant = false,
+      this.contaDestinoId});
 
   @override
   State<PinScreen> createState() => _PinScreenState();
@@ -25,6 +32,7 @@ class _PinScreenState extends State<PinScreen> {
   bool _isConfirming = false;
   bool _verifying = false;
   Timer? _lockTicker;
+  bool _estavaTravado = false;
 
   @override
   void initState() {
@@ -32,7 +40,11 @@ class _PinScreenState extends State<PinScreen> {
 
     _lockTicker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      if (context.read<WalletService>().isPinLocked) setState(() {});
+      // O fim do bloqueio não gera notificação: é este tique que precisa redesenhar
+      // a tela para liberar o teclado.
+      final travado = context.read<WalletService>().isPinLocked;
+      if (travado || _estavaTravado) setState(() {});
+      _estavaTravado = travado;
     });
   }
 
@@ -57,6 +69,19 @@ class _PinScreenState extends State<PinScreen> {
       }
     }
     return 'PIN incorreto';
+  }
+
+  /// Nome da conta cujo PIN está sendo pedido: cada conta tem o seu.
+  String? _nomeDaConta(WalletService wallet) {
+    final destino = widget.contaDestinoId;
+    if (destino != null) {
+      final contas =
+          widget.isMerchant ? wallet.merchantAccounts : wallet.consumerAccounts;
+      return contas.where((a) => a.id == destino).firstOrNull?.name;
+    }
+    return widget.isMerchant
+        ? wallet.activeMerchant?.name
+        : wallet.activeConsumer?.name;
   }
 
   void _initLiquidInBackground() {
@@ -154,9 +179,13 @@ class _PinScreenState extends State<PinScreen> {
               }
             } else {
               setState(() => _verifying = true);
-              final success = widget.isMerchant
-                  ? await wallet.unlockMerchant(_pin)
-                  : await wallet.unlock(_pin);
+              final destino = widget.contaDestinoId;
+              final success = destino != null
+                  ? await wallet.trocarConta(destino, _pin,
+                      isMerchant: widget.isMerchant)
+                  : widget.isMerchant
+                      ? await wallet.unlockMerchant(_pin)
+                      : await wallet.unlock(_pin);
               if (!mounted) return;
               setState(() => _verifying = false);
               if (success) {
@@ -246,14 +275,18 @@ class _PinScreenState extends State<PinScreen> {
                     Text(widget.isMerchant ? '🏪' : '⚡',
                         style: const TextStyle(fontSize: 40)),
                     const SizedBox(height: 8),
-                    Text(widget.isMerchant ? 'Entrar na loja' : 'Sua carteira',
+                    Text(
+                        _nomeDaConta(wallet) ??
+                            (widget.isMerchant
+                                ? 'Entrar na loja'
+                                : 'Sua carteira'),
                         style: Theme.of(context).textTheme.displayMedium,
                         textAlign: TextAlign.center),
                     const SizedBox(height: 2),
                     Text(
                         widget.isMerchant
-                            ? 'Digite o PIN da loja'
-                            : 'Digite o seu PIN pessoal',
+                            ? 'Digite o PIN desta loja'
+                            : 'Digite o PIN desta carteira',
                         style: Theme.of(context).textTheme.bodyMedium,
                         textAlign: TextAlign.center),
                   ],

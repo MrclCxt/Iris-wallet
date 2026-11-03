@@ -57,19 +57,45 @@ class Rede {
   static const List<String> hrpFatura =
       principal ? ['bc'] : (ehSignet ? ['tbs'] : ['tb', 'tbs']);
 
+  /// Hub padrão da rede: 1º canal de toda carteira e LSP dos canais JIT. Só a
+  /// signet tem hub por enquanto; o endereço é o do hub de testes na rede local
+  /// e pode ser trocado na compilação (`--dart-define=IRIS_HUB_HOST=...`) ou no
+  /// app (Avançado → LSP).
+  static const String? hubPubkey = ehSignet
+      ? '0311234b076cb64b62a80d2b6d15ad9a51a659fa4283be9e811a5eecebdd8bd7bd'
+      : null;
+  static const String hubHost =
+      String.fromEnvironment('IRIS_HUB_HOST', defaultValue: '192.168.50.136');
+  static const int hubPort = 9740;
+
+  static String chaveHubLigado(String fp) => 'hub_ligado_${_tagNo}_$fp';
+
   static const String _tag =
       principal ? 'main' : (ehSignet ? 'sig' : 'tn4');
+  // Sufixo "d" = nó POR APARELHO: pastas novas ganham um sal próprio (patch no
+  // ldk-node vendorizado, `iris_node_salt`), então a mesma carteira em dois
+  // aparelhos vira dois nós Lightning diferentes. As pastas antigas (sem "d")
+  // ficam no disco, intactas, para não perder nada que ainda dependa delas. A
+  // carteira on-chain é a mesma em qualquer aparelho (sai só da semente).
   static const String _tagNo =
-      principal ? 'main' : (ehSignet ? 'sign' : 'tn4n');
+      principal ? 'maind' : (ehSignet ? 'signd' : 'tn4nd');
 
   static String pastaNo(String fingerprint) => 'ldk_${_tagNo}_$fingerprint';
   static String chaveUltimoSaldo(String fp) => 'last_balance_${_tag}_$fp';
-  static String chaveEnderecosProprios(String fp) => 'meus_enderecos_${_tag}_$fp';
-  static String chaveFaturaFixa(String id) => 'fixed_invoice_${_tagNo}_$id';
-  static String chaveEnderecoOnchain(String id) => 'onchain_addr_${_tag}_$id';
+  // Signet com sufixo novo: as versões anteriores gravaram nestas chaves dados do
+  // nó de outra conta durante a troca de carteira (endereço e histórico iguais em
+  // contas diferentes). As contas recomeçam do próprio nó; o que estava gravado
+  // fica nas chaves antigas, sem uso.
+  static const String _tagDados = ehSignet ? 'sig2' : _tag;
+  static String chaveEnderecosProprios(String fp) =>
+      'meus_enderecos_${_tagDados}_$fp';
+  static String chaveFaturaFixa(String id) =>
+      'fixed_invoice_${ehSignet ? 'signd2' : _tagNo}_$id';
+  static String chaveEnderecoOnchain(String id) =>
+      'onchain_addr_${_tagDados}_$id';
   static String chaveHistorico(String id) => principal
       ? 'tx_hist_main_v2_$id'
-      : (ehSignet ? 'tx_hist_sig_v2_$id' : 'tx_hist_v2_$id');
+      : (ehSignet ? 'tx_hist_sig_v3_$id' : 'tx_hist_v2_$id');
   static const String chaveEsploraProprios = 'esplora_custom_$_tag';
   static const String chaveFilaTransmissao = 'tx_fila_$_tag';
   static const String chaveRecebimentosAnunciados =

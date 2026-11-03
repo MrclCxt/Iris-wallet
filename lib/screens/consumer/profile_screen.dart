@@ -234,24 +234,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: () async {
                         if (isActive) return;
                         Navigator.pop(context);
-                        if (widget.isMerchant) {
-                          await wallet.switchMerchantAccount(acc.id);
-                          if (context.mounted) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const PinScreen(
-                                    mode: PinMode.unlock, isMerchant: true),
-                              ),
-                            );
-                          }
-                        } else {
-                          await wallet.switchConsumerAccount(acc.id);
-                          if (context.mounted) {
-                            Navigator.pushNamedAndRemoveUntil(
-                                context, '/unlock', (route) => false);
-                          }
-                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PinScreen(
+                                mode: PinMode.unlock,
+                                isMerchant: widget.isMerchant,
+                                contaDestinoId: acc.id),
+                          ),
+                        );
                       },
                     );
                   }),

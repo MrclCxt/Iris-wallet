@@ -109,6 +109,9 @@ Future<Object?> _chamar(
     case 'listPayments':
       final lista = await no.listPayments();
       return lista.map(pagamentoParaMapa).toList();
+    case 'payOffer':
+      return no.payOffer(a['offer'] as String,
+          amountMsat: a['amountMsat'] as int);
     case 'payInvoice':
       await no.payInvoice(a['invoice'] as String,
           amountMsat: a['amountMsat'] as int?);

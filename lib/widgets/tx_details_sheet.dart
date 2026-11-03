@@ -74,7 +74,10 @@ class _TxDetailsSheetState extends State<TxDetailsSheet> {
   bool _carregando = true;
   String? _erro;
 
-  bool get _ehOnchain => widget.tx.id.length == 64;
+  // Só o tamanho não basta: o hash de um pagamento Lightning também tem 64
+  // caracteres e não existe na blockchain.
+  bool get _ehLightning => widget.tx.emoji == '⚡';
+  bool get _ehOnchain => !_ehLightning && widget.tx.id.length == 64;
 
   @override
   void initState() {
@@ -83,6 +86,9 @@ class _TxDetailsSheetState extends State<TxDetailsSheet> {
       _buscarNaRede();
     } else {
       _carregando = false;
+      if (_ehLightning && widget.tx.status == 'failed') {
+        _erro = 'O pagamento Lightning não foi concluído. Nada saiu do seu saldo.';
+      }
     }
   }
 

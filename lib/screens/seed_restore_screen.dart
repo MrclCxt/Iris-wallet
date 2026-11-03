@@ -27,7 +27,16 @@ class _SeedRestoreScreenState extends State<SeedRestoreScreen> {
       return;
     }
 
-    context.read<WalletService>().importSeed(seed);
+    final wallet = context.read<WalletService>();
+    final existente = wallet.carteiraComSemente(seed);
+    if (existente != null) {
+      setState(() => _error =
+          'Esta semente já está cadastrada neste aparelho como "$existente". '
+          'Abra essa carteira em vez de restaurar de novo.');
+      return;
+    }
+
+    wallet.importSeed(seed);
     Navigator.pushReplacementNamed(context, '/pin_create');
   }
 

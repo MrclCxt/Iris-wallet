@@ -967,7 +967,7 @@ class _NodeManagerScreenState extends State<NodeManagerScreen> {
             if (!Rede.principal) const SizedBox(height: 8),
             if (!Rede.principal)
               const Text(
-                'Use um faucet de TESTNET4 neste endereço. Confira no explorador do faucet se o link é /testnet4/ — endereços de testnet3 e testnet4 são idênticos, e enviar na rede errada some com as moedas.',
+                'Use um faucet da ${Rede.rotulo} neste endereço. Moedas enviadas por outra rede não aparecem aqui.',
                 style: TextStyle(
                     color: IrisTheme.textTertiary,
                     fontSize: 11,

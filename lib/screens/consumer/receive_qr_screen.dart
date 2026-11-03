@@ -826,6 +826,19 @@ class _ReceiveQrScreenState extends State<ReceiveQrScreen> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              if (_method == ReceiveMethod.lightning &&
+                                  widget.satsAmount == 0) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  WalletService.ehOfferBolt12(displayPayload)
+                                      ? 'QR fixo: pode receber quantas vezes quiser.'
+                                      : 'Este QR vale para um pagamento. Para o '
+                                          'próximo, abra esta tela de novo.',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      fontSize: 11, color: Colors.black54),
+                                ),
+                              ],
                             ],
                           ),
                         );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
+import '../../widgets/aviso_no_parado.dart';
 import '../../core/currency_format.dart';
 import '../../services/wallet_service.dart';
 import '../../services/exchange_rate_service.dart';
@@ -130,6 +131,7 @@ class _MerchantDashboardState extends State<MerchantDashboard> {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  const AvisoNoParado(isMerchant: true),
                   PendingBanner(
                     pendingSats: wallet.merchantPendingOnchainSats,
                     hide: wallet.hideBalance,

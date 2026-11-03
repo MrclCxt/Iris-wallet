@@ -33,6 +33,9 @@ class _PinScreenState extends State<PinScreen> {
   bool _verifying = false;
   Timer? _lockTicker;
   bool _estavaTravado = false;
+  String? _contaEscolhida;
+
+  String? get _destino => widget.contaDestinoId ?? _contaEscolhida;
 
   @override
   void initState() {
@@ -73,7 +76,7 @@ class _PinScreenState extends State<PinScreen> {
 
   /// Nome da conta cujo PIN está sendo pedido: cada conta tem o seu.
   String? _nomeDaConta(WalletService wallet) {
-    final destino = widget.contaDestinoId;
+    final destino = _destino;
     if (destino != null) {
       final contas =
           widget.isMerchant ? wallet.merchantAccounts : wallet.consumerAccounts;
@@ -82,6 +85,35 @@ class _PinScreenState extends State<PinScreen> {
     return widget.isMerchant
         ? wallet.activeMerchant?.name
         : wallet.activeConsumer?.name;
+  }
+
+  List<AccountProfile> _contas(WalletService wallet) =>
+      widget.isMerchant ? wallet.merchantAccounts : wallet.consumerAccounts;
+
+  Future<void> _escolherConta(WalletService wallet) async {
+    final escolhida = await showDialog<AccountProfile>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        backgroundColor: IrisTheme.s1,
+        title: Text(widget.isMerchant ? 'Escolha a loja' : 'Escolha a carteira',
+            style: const TextStyle(color: IrisTheme.textPrimary, fontSize: 16)),
+        children: [
+          for (final conta in _contas(wallet))
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, conta),
+              child: Text(conta.name,
+                  style: const TextStyle(color: IrisTheme.textPrimary)),
+            ),
+        ],
+      ),
+    );
+    if (escolhida == null || !mounted) return;
+    final ativa =
+        widget.isMerchant ? wallet.activeMerchant : wallet.activeConsumer;
+    setState(() {
+      _contaEscolhida = escolhida.id == ativa?.id ? null : escolhida.id;
+      _pin = '';
+    });
   }
 
   void _initLiquidInBackground() {
@@ -179,7 +211,7 @@ class _PinScreenState extends State<PinScreen> {
               }
             } else {
               setState(() => _verifying = true);
-              final destino = widget.contaDestinoId;
+              final destino = _destino;
               final success = destino != null
                   ? await wallet.trocarConta(destino, _pin,
                       isMerchant: widget.isMerchant)
@@ -323,7 +355,19 @@ class _PinScreenState extends State<PinScreen> {
                   if (isCreate) ...[
                     const SizedBox(height: 16),
                     _buildCancelBtn(),
-                  ] else
+                  ] else ...[
+                    if (widget.onSuccess == null &&
+                        widget.contaDestinoId == null &&
+                        _contas(wallet).length > 1)
+                      TextButton(
+                        onPressed: () => _escolherConta(wallet),
+                        child: Text(
+                            widget.isMerchant
+                                ? 'Trocar de loja'
+                                : 'Trocar de carteira',
+                            style: const TextStyle(
+                                color: IrisTheme.primary, fontSize: 13)),
+                      ),
                     TextButton(
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
@@ -334,6 +378,7 @@ class _PinScreenState extends State<PinScreen> {
                           style: TextStyle(
                               color: IrisTheme.textTertiary, fontSize: 13)),
                     ),
+                  ],
                   const SizedBox(height: 24),
                 ],
               ),

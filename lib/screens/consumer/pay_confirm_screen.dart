@@ -405,6 +405,7 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
 
   /// Traduz os erros crus do nó para algo que o usuário entende.
   String _mensagemDeErroPagamento(Object e) {
+    if (e is PagamentoLightningException) return e.mensagem;
     final s = e.toString();
     if (s.contains('duplicatePayment')) {
       return 'Essa fatura já foi paga ou tem um pagamento em andamento. '
@@ -422,7 +423,7 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
     if (s.contains('walletOperationFailed') ||
         s.contains('conduct wallet operation')) {
       return 'O nó não conseguiu falar com a rede agora (servidores da '
-          'testnet4 instáveis). Tente novamente em instantes.';
+          '${Rede.rotulo} instáveis). Tente novamente em instantes.';
     }
     if (s.contains('Expired') || s.contains('expired')) {
       return 'Essa fatura expirou. Peça uma nova.';

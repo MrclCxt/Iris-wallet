@@ -139,6 +139,15 @@ class Transaction {
       );
 }
 
+/// Falha de pagamento Lightning com uma explicação pronta para o usuário.
+class PagamentoLightningException implements Exception {
+  final String mensagem;
+  const PagamentoLightningException(this.mensagem);
+
+  @override
+  String toString() => mensagem;
+}
+
 class AccountProfile {
   final String id;
 
@@ -2012,16 +2021,26 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     if (_tempConsumerSeed != null) {
       await _consumerNode.stop();
 
-      final newAccount = AccountProfile(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: 'Carteira Pessoal ${_consumerAccounts.length + 1}',
-        seed: _tempConsumerSeed!,
-        seedFp: _seedFingerprint(_tempConsumerSeed!),
-        pinHash: await _hashPin(pin),
-      );
+      // Semente já cadastrada só chega aqui por "Esqueci meu PIN": a semente prova
+      // a posse, então a conta existente ganha o PIN novo em vez de duplicar.
+      final existente =
+          contaComMesmaSemente(_consumerAccounts, _tempConsumerSeed!);
+      final newAccount = existente ??
+          AccountProfile(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            name: 'Carteira Pessoal ${_consumerAccounts.length + 1}',
+            pinHash: '',
+          );
+      newAccount.seed = _tempConsumerSeed!;
+      newAccount.seedFp = _seedFingerprint(_tempConsumerSeed!);
+      newAccount.pinHash = await _hashPin(pin);
 
       newAccount.encSeed = await _cifrarSemente(newAccount.seed, pin);
-      _consumerAccounts.add(newAccount);
+      if (existente == null) {
+        _consumerAccounts.add(newAccount);
+      } else {
+        _resetPinAttempts();
+      }
       _activeConsumerId = newAccount.id;
       _tempConsumerSeed = null;
       final eraRestauracao = _tempSeedEhRestauracao;
@@ -2536,7 +2555,8 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
             isMerchant ? _merchantTransactions : _consumerTransactions;
         var mudou = false;
         for (final tx in txs) {
-          if (tx.id == event.paymentHashHex && tx.status == 'pending') {
+          if (tx.id == event.paymentHashHex &&
+              (tx.status == 'pending' || tx.status == 'sending')) {
             tx.status = novoStatus;
             mudou = true;
           }
@@ -3989,6 +4009,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       throw Exception('Nó Lightning não está rodando.');
     }
     if (sats <= 0) throw Exception('Informe o valor a enviar.');
+    await _verificarCapacidadeDeEnvio(api, sats);
 
     // A linha entra com o id do nó, o mesmo que `listPayments` devolve, e é
     // `reconstruirHistoricoDoNo` que acompanha o desfecho.
@@ -4006,6 +4027,13 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       isMerchant: false,
     );
     handle.houveSaidaDesdeLeituraBoa = true;
+    notifyListeners();
+
+    if (await _aguardarDesfechoLightning(id) == 'failed') {
+      throw const PagamentoLightningException(
+          'O pagamento não foi concluído e nada saiu do seu saldo. Confira se '
+          'quem vai receber está com o app aberto.');
+    }
     _emitirRecebimento(ReceivedPayment(
       isMerchant: false,
       paymentHashHex: id,
@@ -4014,6 +4042,45 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       isSent: true,
     ));
     notifyListeners();
+  }
+
+  /// Confere o canal antes de tentar: o erro do nó não diz o que fazer.
+  Future<void> _verificarCapacidadeDeEnvio(NodeApi api, int sats) async {
+    final canais = await api.channels();
+    if (canais.isEmpty) {
+      throw const PagamentoLightningException(
+          'Esta carteira ainda não pode enviar por Lightning. Deposite on-chain '
+          'e o canal abre sozinho.');
+    }
+    final usaveis = canais.where((c) => c.isUsable);
+    if (usaveis.isEmpty) {
+      throw const PagamentoLightningException(
+          'Seu canal Lightning está desconectado agora. Tente de novo em instantes.');
+    }
+    final saida = usaveis.fold<int>(0, (s, c) => s + c.outboundSats);
+    if (saida < sats) {
+      throw PagamentoLightningException(
+          'Você pode enviar até $saida sats por Lightning agora.');
+    }
+  }
+
+  /// Enviar só despacha o pagamento; o resultado chega depois, por evento. Sem
+  /// esperar, a tela dizia "sucesso" e só o histórico mostrava a falha.
+  Future<String> _aguardarDesfechoLightning(String id) async {
+    final alvo = _idCanonico(id);
+    final limite = DateTime.now().add(const Duration(seconds: 45));
+    while (DateTime.now().isBefore(limite)) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      final linha = _consumerTransactions
+          .where((t) => _idCanonico(t.id) == alvo)
+          .firstOrNull;
+      if (linha != null &&
+          linha.status != 'pending' &&
+          linha.status != 'sending') {
+        return linha.status;
+      }
+    }
+    return 'pending';
   }
 
   Future<Map<String, dynamic>> payLightningInvoice(String invoiceStr,
@@ -4039,6 +4106,7 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       throw Exception(
           'Motor do nó indisponível nesta plataforma. Verifique a instalação ou configure um daemon local.');
     }
+    await _verificarCapacidadeDeEnvio(handle.api!, sats);
 
     // Mostra "Enviando…" já, antes de a rota fechar — o usuário vê o estado em
     // andamento em vez de uma tela parada até dar certo ou erro.
@@ -4068,9 +4136,14 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
       rethrow;
     }
 
-    tx.status = 'pending';
+    if (tx.status == 'sending') tx.status = 'pending';
     unawaited(_salvarHistorico(false));
     handle.houveSaidaDesdeLeituraBoa = true;
+    if (await _aguardarDesfechoLightning(parsed.paymentHashHex) == 'failed') {
+      throw const PagamentoLightningException(
+          'O pagamento não foi concluído e nada saiu do seu saldo. Tente de novo '
+          'em instantes.');
+    }
     await _refreshBalances(handle);
     _emitirRecebimento(ReceivedPayment(
       isMerchant: false,

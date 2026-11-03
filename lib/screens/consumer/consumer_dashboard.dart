@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
+import '../../widgets/aviso_no_parado.dart';
 import '../../core/currency_format.dart';
 import '../../services/wallet_service.dart';
 import '../../services/liquid_wallet_service.dart';
@@ -157,6 +158,7 @@ class _ConsumerDashboardState extends State<ConsumerDashboard> {
                               color: IrisTheme.textTertiary,
                             ),
                           ),
+                          const AvisoNoParado(),
                           if (wallet.saldoDesatualizado) ...[
                             const SizedBox(height: 5),
                             Row(

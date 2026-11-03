@@ -62,7 +62,7 @@ use crate::io::{
 use crate::liquidity::{
 	LSPS1ClientConfig, LSPS2ClientConfig, LSPS2ServiceConfig, LiquiditySourceBuilder,
 };
-use crate::logger::{log_error, LdkLogger, LogLevel, LogWriter, Logger};
+use crate::logger::{log_error, log_info, LdkLogger, LogLevel, LogWriter, Logger};
 use crate::message_handler::NodeCustomMessageHandler;
 use crate::payment::asynchronous::om_mailbox::OnionMessageMailbox;
 use crate::peer_store::PeerStore;
@@ -465,6 +465,11 @@ impl NodeBuilder {
 	) -> &mut Self {
 		// Mark the LSP as trusted for 0conf
 		self.config.trusted_peers_0conf.push(node_id.clone());
+		// PATCH IRIS: sem isto, carteira sem saldo on-chain recusa o canal do LSP por
+		// não ter a reserva de âncora, e nunca conseguiria receber o primeiro pagamento.
+		if let Some(ancora) = self.config.anchor_channels_config.as_mut() {
+			ancora.trusted_peers_no_reserve.push(node_id.clone());
+		}
 
 		let liquidity_source_config =
 			self.liquidity_source_config.get_or_insert(LiquiditySourceConfig::default());
@@ -1318,6 +1323,41 @@ fn build_with_store_internal(
 				BuildError::WalletSetupFailed
 			},
 		})?;
+	// PATCH IRIS: nó Lightning POR APARELHO, carteira on-chain POR SEMENTE.
+	//
+	// Antes, as chaves do nó saíam do mesmo `xprv` da carteira: a mesma semente
+	// restaurada em dois aparelhos virava O MESMO nó, com canais diferentes em cada
+	// um. Os pares falavam com a cópia errada, pagamentos travavam e canais eram
+	// fechados à força (visto na signet com celular + desktop na mesma carteira).
+	//
+	// Agora cada PASTA de nó nova ganha um sal aleatório (`iris_node_salt`) e as
+	// chaves do nó saem de HMAC(chave-mestra, sal). A carteira BDK continua só da
+	// semente — mesmos endereços e mesmo saldo on-chain em qualquer aparelho.
+	//
+	// Pastas que JÁ tinham carteira (nós existentes, com canais) seguem na
+	// derivação antiga e são marcadas `iris_node_legacy`, para nunca trocar de
+	// identidade e perder canais. O sal é gravado antes de criar a carteira: se o
+	// app cair no meio, a pasta não vira "legada" por engano.
+	let node_salt: Option<Vec<u8>> = {
+		let dir = std::path::Path::new(&config.storage_dir_path);
+		let arq_sal = dir.join("iris_node_salt");
+		let arq_legado = dir.join("iris_node_legacy");
+		if let Ok(s) = std::fs::read(&arq_sal) {
+			Some(s)
+		} else if arq_legado.exists() || wallet_opt.is_some() {
+			let _ = std::fs::write(&arq_legado, b"legacy");
+			None
+		} else {
+			use rand::Rng;
+			let s: [u8; 32] = rand::rng().random();
+			std::fs::write(&arq_sal, s).map_err(|e| {
+				log_error!(logger, "Failed to persist node device salt: {}", e);
+				BuildError::StoragePathAccessFailed
+			})?;
+			Some(s.to_vec())
+		}
+	};
+
 	let bdk_wallet = match wallet_opt {
 		Some(wallet) => wallet,
 		None => {
@@ -1363,7 +1403,20 @@ fn build_with_store_internal(
 		BuildError::InvalidSystemTime
 	})?;
 
-	let ldk_seed_bytes: [u8; 32] = xprv.private_key.secret_bytes();
+	// PATCH IRIS: ver `node_salt` acima. Sem sal (pasta legada) = derivação antiga.
+	let ldk_seed_bytes: [u8; 32] = match &node_salt {
+		None => xprv.private_key.secret_bytes(),
+		Some(sal) => {
+			use bitcoin::hashes::{hmac, sha256, Hash, HashEngine};
+			let mut engine = hmac::HmacEngine::<sha256::Hash>::new(&xprv.private_key.secret_bytes());
+			engine.input(b"iris-node-por-aparelho-v1");
+			engine.input(sal);
+			hmac::Hmac::<sha256::Hash>::from_engine(engine).to_byte_array()
+		},
+	};
+	if node_salt.is_some() {
+		log_info!(logger, "Nó Lightning com identidade por aparelho (iris_node_salt).");
+	}
 	let keys_manager = Arc::new(KeysManager::new(
 		&ldk_seed_bytes,
 		cur_time.as_secs(),

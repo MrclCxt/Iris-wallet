@@ -147,6 +147,12 @@ struct Args {
     #[arg(long, default_value_t = 0)]
     lsp_taxa_ppm: u32,
 
+    /// Capacidade de entrada que o hub garante a cada carteira conectada, em
+    /// sats, abrindo um canal para ela: sem isso a carteira não recebe pelo QR
+    /// fixo (oferta BOLT12). O saldo continua do hub. 0 = desligado.
+    #[arg(long, default_value_t = 0)]
+    lsp_entrada_sats: u64,
+
     /// Token exigido dos clientes do LSP (vazio = aceita qualquer carteira).
     #[arg(long)]
     lsp_token: Option<String>,
@@ -334,6 +340,44 @@ fn pagamentos(node: &Node) -> Value {
     json!({ "payments": lista })
 }
 
+/// Abre um canal para cada carteira conectada que não tenha entrada suficiente,
+/// sem transferir saldo: ela só ganha capacidade para receber.
+fn garantir_entrada_das_carteiras(node: Arc<Node>, alvo_sats: u64) {
+    const FOLGA_ONCHAIN_SATS: u64 = 50_000;
+    let mut tentativas = std::collections::HashMap::new();
+    std::thread::spawn(move || loop {
+        std::thread::sleep(std::time::Duration::from_secs(30));
+        let canais = node.list_channels();
+        for par in node.list_peers().into_iter().filter(|p| p.is_connected) {
+            let dele: Vec<_> = canais
+                .iter()
+                .filter(|c| c.counterparty_node_id == par.node_id)
+                .collect();
+            let abrindo = dele.iter().any(|c| !c.is_channel_ready);
+            let saida: u64 = dele.iter().map(|c| c.outbound_capacity_msat / 1000).sum();
+            if abrindo || saida >= alvo_sats / 2 {
+                continue;
+            }
+            let recente = tentativas
+                .get(&par.node_id)
+                .is_some_and(|t: &std::time::Instant| t.elapsed().as_secs() < 600);
+            if recente {
+                continue;
+            }
+            let disponivel = node.list_balances().spendable_onchain_balance_sats;
+            if disponivel < alvo_sats + FOLGA_ONCHAIN_SATS {
+                eprintln!("iris-noded: sem fundos para canal de entrada ({disponivel} sats)");
+                continue;
+            }
+            tentativas.insert(par.node_id, std::time::Instant::now());
+            match node.open_channel(par.node_id, par.address.clone(), alvo_sats, None, None) {
+                Ok(_) => println!("iris-noded: canal de entrada para {}", par.node_id),
+                Err(e) => eprintln!("iris-noded: canal de entrada falhou: {e}"),
+            }
+        }
+    });
+}
+
 fn handle(
     node: &Arc<Node>,
     rede: Rede,
@@ -406,6 +450,17 @@ fn handle(
         }
         ("POST", "/pay") => {
             let invoice_str = body["invoice"].as_str().ok_or("invoice ausente")?;
+            if invoice_str.to_lowercase().starts_with("lno") {
+                let offer = ldk_node::lightning::offers::offer::Offer::from_str(invoice_str)
+                    .map_err(|e| format!("oferta inválida: {e:?}"))?;
+                let msat = body["amount_msat"].as_u64().ok_or("amount_msat ausente")?;
+                let id = node
+                    .bolt12_payment()
+                    .send_using_amount(&offer, msat, None, None, None)
+                    .map_err(|e| e.to_string())?;
+                let id: String = id.0.iter().map(|b| format!("{b:02x}")).collect();
+                return Ok(json!({ "status": "sent", "id": id }));
+            }
             let invoice =
                 Bolt11Invoice::from_str(invoice_str).map_err(|e| format!("fatura inválida: {e}"))?;
             let bolt11 = node.bolt11_payment();
@@ -505,11 +560,15 @@ fn handle(
             let host = body["host"].as_str().ok_or("host ausente")?;
             let port = body["port"].as_u64().ok_or("port ausente")? as u16;
             let amount = body["amount_sats"].as_u64().ok_or("amount_sats ausente")?;
+            // push_msat: empurra saldo pro OUTRO lado já na abertura, para o
+            // cliente ter saída (poder enviar) sem precisar receber antes. Usado
+            // pelo hub para bootstrapar carteiras novas.
+            let push_msat = body["push_msat"].as_u64();
             let pubkey = node_id.parse().map_err(|_| "node_id inválido")?;
             let addr = format!("{host}:{port}")
                 .parse()
                 .map_err(|_| "endereço inválido")?;
-            node.open_channel(pubkey, addr, amount, None, None)
+            node.open_channel(pubkey, addr, amount, push_msat, None)
                 .map_err(|e| e.to_string())?;
             Ok(json!({}))
         }
@@ -723,7 +782,8 @@ fn construir_e_iniciar(mnemonic: &str, args: &Args) -> (Node, Fonte) {
                 require_token: args.lsp_token.clone(),
                 advertise_service: false,
                 channel_opening_fee_ppm: args.lsp_taxa_ppm,
-                channel_over_provisioning_ppm: 0,
+                // 2%: cobre a reserva de 1% que o cliente exige do hub no canal.
+                channel_over_provisioning_ppm: 20_000,
                 min_channel_opening_fee_msat: 0,
                 min_channel_lifetime: 1008,
                 max_client_to_self_delay: 1440,
@@ -1017,6 +1077,10 @@ fn main() {
     let node = Arc::new(node);
 
     println!("iris-noded: nó {} rodando ({})", node.node_id(), args.rede.nome());
+
+    if args.lsp && args.lsp_entrada_sats > 0 {
+        garantir_entrada_das_carteiras(node.clone(), args.lsp_entrada_sats);
+    }
 
     let server = tiny_http::Server::http(("127.0.0.1", args.port))
         .expect("falha ao abrir a porta local");

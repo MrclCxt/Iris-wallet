@@ -755,7 +755,12 @@ where
 				let over_provisioning_msat = (amt_to_forward_msat
 					* service_config.channel_over_provisioning_ppm as u64)
 					/ 1_000_000;
-				let channel_amount_sats = (amt_to_forward_msat + over_provisioning_msat) / 1000;
+				// PATCH IRIS: um canal do tamanho exato do pagamento não consegue
+				// encaminhá-lo: a reserva de 1.000 sats e a taxa de compromisso saem do
+				// lado do hub, e o HTLC era devolvido logo depois de abrir o canal.
+				let channel_amount_sats = ((amt_to_forward_msat + over_provisioning_msat) / 1000
+					+ 5_000)
+					.max(20_000);
 				let cur_anchor_reserve_sats =
 					total_anchor_channels_reserve_sats(&self.channel_manager, &self.config);
 				let spendable_amount_sats =

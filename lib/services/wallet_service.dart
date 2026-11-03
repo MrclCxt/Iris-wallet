@@ -2391,15 +2391,6 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
             handle.fixedInvoice = offer;
             await _saveFixedInvoice(isMerchant, offer);
             debugPrint('QR Lightning fixo: offer BOLT12 (reutilizável).');
-          } else {
-            final inv = await api.createInvoice(
-              amountMsat: null,
-              description: desc,
-              expirySecs: 31536000,
-            );
-            handle.fixedInvoice = inv;
-            await _saveFixedInvoice(isMerchant, inv);
-            debugPrint('QR Lightning fixo: BOLT11 (uso único, sem BOLT12).');
           }
         } catch (e) {
           debugPrint('Falha ao gerar QR Lightning fixo: $e');
@@ -2525,20 +2516,6 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
           paymentHashHex: event.paymentHashHex,
           amountSats: sats,
         ));
-
-        if (!ehOfferBolt12(handle.fixedInvoice)) {
-          try {
-            final inv = await handle.api!.createInvoice(
-              amountMsat: null,
-              description: isMerchant ? 'Loja' : 'Carteira Principal',
-              expirySecs: 31536000,
-            );
-            handle.fixedInvoice = inv;
-            await _saveFixedInvoice(isMerchant, inv);
-          } catch (e) {
-            debugPrint('Falha ao regenerar fatura fixa: $e');
-          }
-        }
         break;
       case 'payment_claimable':
         _travasCtrl.add(TravaRecebida(
@@ -3475,7 +3452,10 @@ class WalletService extends ChangeNotifier with WidgetsBindingObserver {
     }
     // A oferta precisa de um parceiro conectado, o que não existe no início do
     // nó: por isso é tentada aqui, com a tela de receber aberta.
-    if (handle.api != null) {
+    // Logo depois de abrir a carteira a conexão pode ainda estar subindo, e a
+    // oferta falha por milissegundos (visto no log: `MissingPaths`).
+    for (var tentativa = 0; tentativa < 4 && handle.api != null; tentativa++) {
+      if (tentativa > 0) await Future.delayed(const Duration(seconds: 2));
       final offer = await handle.api!.createOffer(
           description: forMerchant ? 'Loja' : 'Carteira Principal');
       if (ehOfferBolt12(offer)) {

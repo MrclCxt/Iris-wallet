@@ -184,7 +184,7 @@ class EmbeddedNodeApi implements NodeApi {
 
   // LSP (LSPS2) configurado neste nó → podemos receber via canal JIT.
   bool _temLsp = false;
-  static const int _entradaMinimaSemValorMsat = 50000000;
+  static const int _entradaMinimaSemValorMsat = 20000000;
 
   /// Soma da liquidez de ENTRADA (msat) nos canais usáveis. Zero = não dá para
   /// receber sem um canal novo (JIT).
